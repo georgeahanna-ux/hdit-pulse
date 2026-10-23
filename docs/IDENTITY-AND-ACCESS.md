@@ -82,6 +82,12 @@ Run `setup/pulse-setup.sh` in Azure Cloud Shell (Bash). Upload the file with **M
    ```
    Creates `rg-hdit-pulse-test-aue`, the GitHub deploy identity `id-hdit-pulse-deploy-test-aue` (Contributor on that resource group only) and the Static Web App `stapp-hdit-pulse-test-aue`. Prints `PULSE_URL` and `PULSE_DEPLOY_CLIENT_ID`.
 
+   Then, same account, Pipeline's test environment (first time Pipeline has one):
+   ```bash
+   bash pulse-setup.sh pipeline
+   ```
+   Prints `PIPELINE_DEPLOY_CLIENT_ID`. Pipeline's secrets are added after its first deploy (see `docs/AZURE-SETUP.md` in `hdit-pipeline`).
+
 2. **Entra ID**, signed in to Cloud Shell as `ADMIN@HDITTESTINGTENANCY.onmicrosoft.com`:
    ```bash
    bash pulse-setup.sh entra <PULSE_URL> [your test-tenancy email]
@@ -90,7 +96,7 @@ Run `setup/pulse-setup.sh` in Azure Cloud Shell (Bash). Upload the file with **M
    - If Cloud Shell says the account has no subscription, run `az login --tenant 0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44 --allow-no-subscriptions` first.
    - If the tenancy has no Entra ID P1, groups can't be assigned to roles. The script says so and assigns you directly; assign others under Enterprise applications → HD IT Pulse (Test) → Users and groups.
 
-3. **Give Claude the four values.** They aren't secrets. Claude adds them to the Pulse and app deploy settings and pushes, which deploys everything.
+3. **Give Claude the five values.** They aren't secrets. Claude adds them to the Pulse and app deploy settings and pushes, which deploys everything.
 
 4. **Add test people** to the groups, then sign in at the Pulse address.
 

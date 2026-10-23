@@ -9,6 +9,11 @@
 #      Creates rg-hdit-pulse-test-aue, the GitHub deploy identity and the Pulse Static Web App.
 #      Prints Pulse's address and the deploy identity's client id.
 #
+#   1b) Same account, for Pipeline's test environment (it hasn't had one before):
+#        bash pulse-setup.sh pipeline
+#      Creates rg-hdit-pipeline-test-aue, its deploy and app identities, the GitHub trust for
+#      georgeahanna-ux/hdit-pipeline, and the role assignments. Prints the deploy identity's client id.
+#
 #   2) As ADMIN@HDITTESTINGTENANCY.onmicrosoft.com (Application or Global Administrator):
 #        bash pulse-setup.sh entra <pulse-address> [extra-admin-email ...]
 #      e.g. bash pulse-setup.sh entra https://nice-sea-0123.2.azurestaticapps.net george@example.com
@@ -17,7 +22,7 @@
 #      organisation, and makes you (and any extra emails) Platform Admins.
 #      Prints the tenant id and the app's client id.
 #
-# Both steps are safe to run again: they find what already exists and only fill gaps.
+# Every step is safe to run again: they find what already exists and only fill gaps.
 # Nothing here prints or stores a secret. The app registration has no client secret.
 # =============================================================================
 set -euo pipefail
@@ -111,6 +116,52 @@ azure_step() {
   echo
   echo "Next, sign in to Cloud Shell as ADMIN@HDITTESTINGTENANCY.onmicrosoft.com and run:"
   echo "  bash pulse-setup.sh entra https://$host"
+  echo
+}
+
+# -----------------------------------------------------------------------------
+pipeline_step() {
+  need az
+  echo; echo "Pipeline: Azure resources (test)"; echo
+  local RG="rg-hdit-pipeline-test-aue" DEPLOY="id-hdit-pipeline-deploy-test-aue" FUNC="id-hdit-pipeline-func-test-aue"
+  local SUBJ="repo:georgeahanna-ux@302303945/hdit-pipeline@1430410857:environment:test"
+  az account set --subscription "$SUBSCRIPTION" 2>/dev/null || die "You can't see subscription $SUBSCRIPTION. Sign in to Cloud Shell with the account you used for Marketing ROI."
+  [ "$(az account show --query tenantId -o tsv)" = "$TENANT_EXPECTED" ] || die "This isn't the HD IT Testing Tenancy."
+  for p in Microsoft.Web Microsoft.KeyVault Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights Microsoft.ManagedIdentity; do az provider register --namespace "$p" -o none; done
+  az group create -n "$RG" -l "$LOCATION" --tags app=pipeline env=test owner=HDIT workload=hdit-pipeline -o none
+  ok "Resource group $RG"
+  local id
+  for id in "$DEPLOY" "$FUNC"; do
+    az identity show -g "$RG" -n "$id" -o none 2>/dev/null || az identity create -g "$RG" -n "$id" -l "$LOCATION" --tags app=pipeline env=test -o none
+    ok "Identity $id"
+  done
+  if az identity federated-credential show -g "$RG" --identity-name "$DEPLOY" -n github-test -o none 2>/dev/null; then
+    az identity federated-credential update -g "$RG" --identity-name "$DEPLOY" -n github-test --issuer https://token.actions.githubusercontent.com --subject "$SUBJ" --audiences api://AzureADTokenExchange -o none
+  else
+    az identity federated-credential create -g "$RG" --identity-name "$DEPLOY" -n github-test --issuer https://token.actions.githubusercontent.com --subject "$SUBJ" --audiences api://AzureADTokenExchange -o none
+  fi
+  ok "GitHub sign-in for georgeahanna-ux/hdit-pipeline (environment: test)"
+  local scope dpid fpid me
+  scope=$(az group show -n "$RG" --query id -o tsv)
+  dpid=$(az identity show -g "$RG" -n "$DEPLOY" --query principalId -o tsv)
+  fpid=$(az identity show -g "$RG" -n "$FUNC" --query principalId -o tsv)
+  me=$(az ad signed-in-user show --query id -o tsv)
+  info "Waiting 30 seconds for the identities to be ready…"; sleep 30
+  grant() {  # principal-id principal-type role
+    if [ -z "$(az role assignment list --assignee "$1" --role "$3" --scope "$scope" --query '[0].id' -o tsv 2>/dev/null)" ]; then
+      az role assignment create --assignee-object-id "$1" --assignee-principal-type "$2" --role "$3" --scope "$scope" -o none
+    fi
+  }
+  grant "$dpid" ServicePrincipal Contributor && ok "Deploy identity: Contributor"
+  local r
+  for r in "Key Vault Secrets Officer" "Storage Blob Data Owner" "Storage Queue Data Contributor" "Storage Table Data Contributor" "Monitoring Metrics Publisher"; do
+    grant "$fpid" ServicePrincipal "$r" && ok "App identity: $r"
+  done
+  grant "$me" User "Key Vault Secrets Officer" && ok "You: Key Vault Secrets Officer"
+  echo
+  echo "Done. Paste this line back to Claude:"
+  echo
+  echo "  PIPELINE_DEPLOY_CLIENT_ID=$(az identity show -g "$RG" -n "$DEPLOY" --query clientId -o tsv)"
   echo
 }
 
@@ -277,6 +328,7 @@ entra_step() {
 
 case "${1:-}" in
   azure) azure_step ;;
+  pipeline) pipeline_step ;;
   entra) shift; entra_step "$@" ;;
-  *) sed -n '2,25p' "$0"; exit 1 ;;
+  *) sed -n '2,30p' "$0"; exit 1 ;;
 esac
