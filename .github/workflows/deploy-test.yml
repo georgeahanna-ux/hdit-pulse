@@ -26,7 +26,7 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || '1d9bced5-726c-4ef9-a4d3-63c350b6647c' }}
   # The HD IT Pulse app registration (printed by setup/pulse-setup.sh entra). Empty = preview build.
   ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
-  ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID || '' }}
+  ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID || '1b247714-1319-4edf-9115-de80b3360561' }}
   # Each app's own site. Empty = shown as "moving into Pulse".
   APP_PIPELINE_URL: ${{ vars.APP_PIPELINE_URL || '' }}
   APP_MROI_URL: ${{ vars.APP_MROI_URL || 'https://delightful-beach-0f11f7d00.5.azurestaticapps.net' }}
