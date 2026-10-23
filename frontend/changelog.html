@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HD IT Pulse Change Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: HD IT document page. Navy band, a single 760px reading column. */
+:root{
+  --ink:#0d1424; --accent:#0f9d8f; --accent-deep:#0b7d72; --accent-wash:#e8f3f2;
+  --bg:#f5f7fa; --surface:#ffffff; --surface-2:#eef1f6; --fg:#16202f; --muted:#55606b; --line:#e3e7ee;
+  --warn:#9a6700; --warn-wash:#fff4d6; --good:#1f8a4c;
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-num:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ink:#0a0f1b; --accent:#2bb8a9; --accent-deep:#5fd0c3; --accent-wash:#11302f;
+  --bg:#0f1522; --surface:#172033; --surface-2:#1e2940; --fg:#e6ebf2; --muted:#a3adbd; --line:#29354d;
+  --warn:#f0a83a; --warn-wash:#352610; --good:#4cc47f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ink:#0a0f1b; --accent:#2bb8a9; --accent-deep:#5fd0c3; --accent-wash:#11302f;
+  --bg:#0f1522; --surface:#172033; --surface-2:#1e2940; --fg:#e6ebf2; --muted:#a3adbd; --line:#29354d;
+  --warn:#f0a83a; --warn-wash:#352610; --good:#4cc47f; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6;padding-bottom:env(safe-area-inset-bottom,0px)}
+a{color:var(--accent-deep)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.band{background:var(--ink);color:#fff;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.band .in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.band img{height:38px;background:#fff;padding:6px 10px;border-radius:7px;display:block}
+.band .t{font-family:var(--font-ui);font-weight:700;font-size:17px;line-height:1.2}
+.band .t small{display:block;font-weight:500;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#aeb8cc;margin-top:2px}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.ver-banner{border-radius:9px;padding:10px 14px;font-size:14px;margin:4px 0 18px;border:1px solid var(--line);background:var(--surface)}
+.ver-banner.ok{background:var(--accent-wash);color:var(--accent-deep);border-color:transparent}
+.ver-banner.warn{background:var(--warn-wash);color:var(--warn);border-color:transparent}
+h1{font-family:var(--font-ui);font-size:27px;line-height:1.2;margin:8px 0 6px;text-wrap:balance}
+h2{font-family:var(--font-ui);font-size:19px;margin:34px 0 8px;padding-bottom:6px;border-bottom:2px solid var(--accent-wash);text-wrap:balance;scroll-margin-top:16px}
+h3{font-family:var(--font-ui);font-size:15.5px;margin:20px 0 4px}
+p,li{max-width:68ch}
+.lede{font-size:16.5px;color:var(--muted)}
+.toc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:16px 0}
+.toc b{font-family:var(--font-ui);font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.toc ol{margin:6px 0 0;padding-left:22px;columns:2;column-gap:28px}
+.toc li{margin:2px 0;break-inside:avoid}
+@media (max-width:560px){.toc ol{columns:1}}
+.tw{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-family:var(--font-ui);font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+td.n{font-family:var(--font-num);font-size:13px;text-align:right;white-space:nowrap}
+code{font-family:var(--font-num);font-size:.86em;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.callout{background:var(--accent-wash);border-radius:9px;padding:12px 16px;margin:14px 0}
+.callout b:first-child{color:var(--accent-deep)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:baseline;margin-right:4px}
+.rel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:14px 0}
+.rel.current{border-color:var(--accent)}
+.rel h2{border:0;margin:0;padding:0;display:flex;align-items:center;gap:10px;font-family:var(--font-num);font-weight:500;font-size:18px}
+.tag{font-family:var(--font-ui);font-size:11px;font-weight:700;color:var(--bg);background:var(--accent-deep);border-radius:999px;padding:2px 9px}
+.date{color:var(--muted);font-size:13px;margin-bottom:6px}
+.kind{font-family:var(--font-ui);font-weight:700;color:var(--accent-deep);font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-top:10px}
+.rel ul{margin:4px 0 0;padding-left:20px}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:10px 16px 30px}
+</style>
+</head>
+<body>
+<header class="band"><div class="in"><img src="data:image/png;base64,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" alt="HD IT"><div class="t">HD IT Pulse<small>What's new</small></div></div></header>
+
+<main class="wrap">
+  <div class="ver-banner" id="verBanner"></div>
+  <h1>What's new</h1>
+  <p class="lede">Every release of HD IT Pulse, newest first.</p>
+
+  <section class="rel current">
+    <h2>v0.3.0 <span class="tag">Latest</span></h2>
+    <div class="date">23 October 2026</div>
+    <div class="kind">New</div>
+    <ul>
+      <li><b>One sign-in with Microsoft 365.</b> Pulse signs you in with your HD IT account through Microsoft Entra ID, so MFA and your organisation's sign-in rules apply. No more team passwords.</li>
+      <li><b>Your apps, in one place.</b> Pipeline, Marketing ROI and the Whitespace Matrix open inside Pulse and sign you in automatically. You only see the apps you've been given.</li>
+      <li><b>Access by group.</b> What you can open, and whether you're a viewer, editor or administrator in each app, comes from your groups in Entra ID. <b>Your access</b> shows what you have and why.</li>
+      <li>Your name in Autotask is matched from your email. If it can't be, an app asks you to choose it once.</li>
+    </ul>
+    <div class="kind">Coming soon</div>
+    <ul>
+      <li>Dashboards for Leadership, Finance, Client Success, Service Desk, Projects, Centralised Services and Sales show what's planned. Each switches on when it's ready.</li>
+    </ul>
+  </section>
+
+  <section class="rel">
+    <h2>v0.2.0</h2>
+    <div class="date">September 2026</div>
+    <div class="kind">Prototype</div>
+    <ul>
+      <li>Clickable prototype of the Pulse dashboard on sample data, with persona-based access.</li>
+    </ul>
+  </section>
+</main>
+<footer>HD IT · Pulse change log · latest version <b id="builtFor"></b></footer>
+<script>
+  const BUILT_FOR = "0.3.0";
+  document.getElementById("builtFor").textContent = "v" + BUILT_FOR;
+  let appV = null;
+  try{ appV = new URLSearchParams(location.search).get("v"); }catch(e){}
+  if(!appV && /^#v\d/.test(location.hash)) appV = location.hash.slice(2);
+  const b = document.getElementById("verBanner");
+  if(appV && appV !== BUILT_FOR){ b.className = "ver-banner warn"; b.innerHTML = "You're running <b>v" + appV + "</b>. The latest version is <b>v" + BUILT_FOR + "</b>. Refresh the app to pick it up."; }
+  else if(appV){ b.className = "ver-banner ok"; b.innerHTML = "You're on the latest version, <b>v" + BUILT_FOR + "</b>."; }
+  else { b.className = "ver-banner"; b.innerHTML = "The latest version is <b>v" + BUILT_FOR + "</b>. Your version is shown in the app's Help menu."; }
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+name: Deploy to test
+
+# Builds HD IT Pulse and deploys it to the HD IT Azure test tenancy.
+# Signs in to Azure with OpenID Connect as the user-assigned identity id-hdit-pulse-deploy-test-aue
+# (Contributor on rg-hdit-pulse-test-aue). No secrets are stored in GitHub.
+# Everything below is an identifier, not a secret; repository variables of the same name override them.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-test
+  cancel-in-progress: false
+
+env:
+  RG: rg-hdit-pulse-test-aue
+  ENV_LABEL: Test
+  AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || '' }}              # id-hdit-pulse-deploy-test-aue (printed by setup/pulse-setup.sh azure)
+  AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || '1d9bced5-726c-4ef9-a4d3-63c350b6647c' }}
+  # The HD IT Pulse app registration (printed by setup/pulse-setup.sh entra). Empty = preview build.
+  ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
+  ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID || '' }}
+  # Each app's own site. Empty = shown as "moving into Pulse".
+  APP_PIPELINE_URL: ${{ vars.APP_PIPELINE_URL || '' }}
+  APP_MROI_URL: ${{ vars.APP_MROI_URL || 'https://delightful-beach-0f11f7d00.5.azurestaticapps.net' }}
+  APP_WSPACE_URL: ${{ vars.APP_WSPACE_URL || 'https://victorious-coast-00f6fdc00.2.azurestaticapps.net' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: test          # must match the federated credential subject
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Build
+        run: node scripts/build.mjs
+
+      - name: Check Azure is set up
+        id: azure
+        run: |
+          if [ -z "$AZURE_CLIENT_ID" ]; then
+            echo "::warning title=Not deployed::Azure isn't set up for this repo yet. Run setup/pulse-setup.sh (see docs/IDENTITY-AND-ACCESS.md), then add the deploy identity's client id. The build passed."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -z "$ENTRA_CLIENT_ID" ]; then
+            echo "::warning title=Preview build::ENTRA_CLIENT_ID is empty, so this build uses simulated sign-in. Run setup/pulse-setup.sh entra and add the client id."
+          fi
+
+      - name: Sign in to Azure (OIDC)
+        if: steps.azure.outputs.ready == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Infrastructure - Bicep
+        if: steps.azure.outputs.ready == 'true'
+        run: |
+          NAME="pulse-${{ github.run_number }}-${{ github.run_attempt }}"
+          set +e
+          az deployment group create --resource-group "$RG" --name "$NAME" \
+            --template-file infra/main.bicep --parameters infra/test.bicepparam \
+            --query properties.outputs -o json > outputs.json 2> deploy-err.txt
+          rc=$?
+          set -e
+          if [ $rc -ne 0 ]; then
+            cat deploy-err.txt
+            echo "::error title=Bicep deployment failed::$(tr '\n' ' ' < deploy-err.txt | cut -c1-4000)"
+            exit 1
+          fi
+          {
+            echo "SWA_NAME=$(jq -r .staticWebAppName.value outputs.json)"
+            echo "SWA_HOST=$(jq -r .staticWebAppHostname.value outputs.json)"
+          } >> "$GITHUB_ENV"
+
+      - name: Get deployment token
+        if: steps.azure.outputs.ready == 'true'
+        run: |
+          TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --query properties.apiKey -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "SWA_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Deploy to Static Web App
+        if: steps.azure.outputs.ready == 'true'
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
+          action: upload
+          app_location: dist
+          output_location: ""
+          skip_app_build: true
+
+      - name: Smoke test
+        if: steps.azure.outputs.ready == 'true'
+        run: |
+          want=$(grep -oP 'APP_VERSION: "\K[0-9.]+' frontend/index.html)
+          for i in $(seq 1 18); do
+            got=$(curl -s "https://${SWA_HOST}/" | grep -oP 'APP_VERSION: "\K[0-9.]+' || true)
+            [ "$got" = "$want" ] && break
+            echo "  attempt $i: site reports v${got:-?}, expected v$want"; sleep 10
+          done
+          csp=$(curl -s -D - -o /dev/null "https://${SWA_HOST}/" | grep -i '^content-security-policy' | tr -d '\r' || true)
+          echo "$csp"
+          {
+            echo "## HD IT Pulse deployed to test"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Pulse | https://${SWA_HOST} |"
+            echo "| Version | v${got:-?} |"
+            echo "| Sign-in | $([ -n "$ENTRA_CLIENT_ID" ] && echo "Entra ID, client $ENTRA_CLIENT_ID" || echo "Preview (simulated)") |"
+            echo "| Apps | Pipeline: ${APP_PIPELINE_URL:-—} · Marketing ROI: ${APP_MROI_URL:-—} · Whitespace: ${APP_WSPACE_URL:-—} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Pulse::https://${SWA_HOST} (v${got:-?})"
+          [ "$got" = "$want" ]

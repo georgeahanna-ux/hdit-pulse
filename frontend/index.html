@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HD IT Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@600;700&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --ink:#0d1424; --bar:#0d1424; --bar-text:#e8edf5; --bar-muted:#9aa7bd; --bar-line:#2c3850; --bar-hover:#1b2436;
+  --accent:#0f9d8f; --accent-deep:#0b7d72; --accent-wash:#e8f3f2;
+  --bg:#f5f7fa; --surface:#ffffff; --surface-2:#f0f3f7; --hover:#f7fafb;
+  --text:#18202e; --muted:#55606b; --muted-2:#6f7c93; --line:#e3e7ee; --line-2:#d3d9e3;
+  --good:#1d8a4c; --good-wash:#e5f3ea; --warn:#a86a0b; --warn-wash:#fcf1dc; --bad:#c23a3a; --bad-wash:#fae8e8;
+  --skel:#e7ebf1;
+  --shadow:0 1px 2px rgba(13,20,36,.06),0 1px 1px rgba(13,20,36,.03);
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-display:'Inter Tight','Inter',system-ui,sans-serif;
+  --r:10px; --top:58px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bar:#070b13; --accent:#27b8a8; --accent-deep:#5fd3c5; --accent-wash:#0f2e2c;
+    --bg:#0b111b; --surface:#121a27; --surface-2:#182232; --hover:#172131;
+    --text:#e5eaf2; --muted:#a3aec0; --muted-2:#8591a6; --line:#223047; --line-2:#2c3b55;
+    --good:#44c67e; --good-wash:#12301f; --warn:#e0a643; --warn-wash:#33260f; --bad:#ef6b6b; --bad-wash:#3a1717;
+    --skel:#1d2838; --shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bar:#070b13; --accent:#27b8a8; --accent-deep:#5fd3c5; --accent-wash:#0f2e2c;
+  --bg:#0b111b; --surface:#121a27; --surface-2:#182232; --hover:#172131;
+  --text:#e5eaf2; --muted:#a3aec0; --muted-2:#8591a6; --line:#223047; --line-2:#2c3b55;
+  --good:#44c67e; --good-wash:#12301f; --warn:#e0a643; --warn-wash:#33260f; --bad:#ef6b6b; --bad-wash:#3a1717;
+  --skel:#1d2838; --shadow:0 1px 2px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 var(--font-ui);-webkit-font-smoothing:antialiased}
+button,select,input{font:inherit;color:inherit}
+a{color:var(--accent-deep)}
+h1,h2,h3{margin:0;text-wrap:balance}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+svg.i{width:16px;height:16px;flex:0 0 16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:30;height:var(--top);background:var(--bar);color:var(--bar-text);display:flex;align-items:center;gap:12px;padding:0 16px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;min-width:0}
+.brand-logo{height:34px;display:block;background:#fff;padding:5px 9px;border-radius:7px}
+.brand-name{font:700 16px/1.1 var(--font-display);letter-spacing:.01em}
+.brand-sub{font-size:11.5px;color:var(--bar-muted)}
+.spacer{flex:1}
+.env{font-size:10.5px;font-weight:700;letter-spacing:.06em;border-radius:999px;padding:2px 8px;background:#3a2c0b;color:#f3c66b;white-space:nowrap}
+.env.prod{background:#103a2e;color:#62d7a6}
+.ver{font-size:11px;color:var(--bar-muted);border:1px solid var(--bar-line);border-radius:999px;padding:1px 7px;white-space:nowrap}
+.tb-btn{background:transparent;border:1px solid var(--bar-line);color:var(--bar-text);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.tb-btn:hover{background:var(--bar-hover)}
+.avatar{width:34px;height:34px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer}
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 8px);min-width:250px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:6px;z-index:40}
+.menu .who{padding:10px 12px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.menu .who b{display:block}
+.menu .who span{font-size:12px;color:var(--muted);word-break:break-all}
+.menu a,.menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;text-decoration:none;color:var(--text);font-size:13px}
+.menu a:hover,.menu button:hover{background:var(--hover)}
+.menu .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);padding:8px 12px 2px}
+.menu select{margin:4px 12px 8px;width:calc(100% - 24px);border:1px solid var(--line-2);border-radius:8px;padding:6px 8px;background:var(--surface)}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:calc(100% - var(--top))}
+.side{border-right:1px solid var(--line);background:var(--surface);padding:16px 10px;display:flex;flex-direction:column;gap:2px;position:sticky;top:var(--top);height:calc(100vh - var(--top));overflow:auto}
+.side-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);padding:14px 10px 6px}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;text-decoration:none;color:var(--text);font-weight:500;white-space:nowrap}
+.nav a:hover{background:var(--hover)}
+.nav a.on{background:var(--accent-wash);color:var(--accent-deep)}
+.nav a.soon{color:var(--muted-2)}
+.nav a .tag{margin-left:auto}
+.nav .txt{overflow:hidden;text-overflow:ellipsis}
+.side-foot{margin-top:auto;padding:14px 10px 0;font-size:12px;color:var(--muted)}
+.side-foot b{display:block;color:var(--text);font-weight:600}
+.collapse{margin-top:8px;align-self:flex-start;background:none;border:1px solid var(--line);border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--muted);font-size:12px;display:inline-flex;gap:6px;align-items:center}
+.shell.compact{grid-template-columns:64px minmax(0,1fr)}
+.shell.compact .side{padding:16px 8px}
+.shell.compact .side-label,.shell.compact .nav .txt,.shell.compact .nav .tag,.shell.compact .side-foot{display:none}
+.shell.compact .nav a{justify-content:center;padding:9px 0}
+.shell.compact .collapse{align-self:center}
+main{padding:24px 28px 48px;min-width:0}
+main.full{padding:0}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+
+/* ---------- page parts ---------- */
+.ph h1{font:700 26px/1.15 var(--font-display);letter-spacing:-.01em}
+.ph p{margin:6px 0 0;color:var(--muted);max-width:72ch}
+.crumb{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+.crumb a{text-decoration:none}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sec-h h2{font:700 15px/1.2 var(--font-display)}
+.sec-h .srcs{font-size:12px;color:var(--muted-2)}
+.sec-h a{margin-left:auto;font-size:13px;font-weight:600;text-decoration:none}
+.tag{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--surface-2);color:var(--muted-2);border:1px solid var(--line);white-space:nowrap}
+.tag.live{background:var(--good-wash);color:var(--good);border-color:transparent}
+.tag.role{background:var(--accent-wash);color:var(--accent-deep);border-color:transparent;text-transform:none;letter-spacing:0;font-size:11.5px}
+.note{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.note.warn{background:var(--warn-wash);border-color:transparent;color:var(--text)}
+.note b{color:var(--text)}
+
+/* app cards */
+.apps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.app{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;min-width:0}
+a.app:hover{border-color:var(--accent);transform:translateY(-1px)}
+.app .ic{width:38px;height:38px;border-radius:10px;background:var(--accent-wash);color:var(--accent-deep);display:grid;place-items:center}
+.app .ic svg{width:20px;height:20px}
+.app h3{font:700 16px/1.2 var(--font-display)}
+.app p{margin:0;color:var(--muted);font-size:13px;flex:1}
+.app .foot{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted-2)}
+.app .go{margin-left:auto;font-weight:600;color:var(--accent-deep)}
+.app.off{opacity:.62;box-shadow:none;border-style:dashed}
+.app.off .ic{background:var(--surface-2);color:var(--muted-2)}
+
+/* coming-soon widgets */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.w{background:var(--surface);border:1px dashed var(--line-2);border-radius:var(--r);padding:14px 16px 12px;display:flex;flex-direction:column;gap:12px;min-width:0;color:var(--muted-2)}
+.w-h{display:flex;align-items:center;gap:8px}
+.w-h h3{font-size:13px;font-weight:600;color:var(--muted)}
+.w-h .src{margin-left:auto;font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.w-f{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border-top:1px solid var(--line);padding-top:9px}
+.skel{display:flex;flex-direction:column;gap:7px;min-height:58px;justify-content:flex-end}
+.skel i{display:block;height:9px;border-radius:5px;background:var(--skel)}
+.skel.big i:first-child{height:24px;width:46%}
+.skel.bars{flex-direction:row;align-items:flex-end;gap:6px}
+.skel.bars i{flex:1;width:auto;border-radius:4px 4px 0 0}
+.skel.spark svg{width:100%;height:46px}
+.skel.spark path{fill:none;stroke:var(--skel);stroke-width:3;stroke-linecap:round}
+
+/* app frame */
+.frame-wrap{position:relative;height:calc(100vh - var(--top));display:flex;flex-direction:column}
+.frame-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--muted)}
+.frame-bar b{color:var(--text);font-weight:600}
+.frame-bar a{margin-left:auto;text-decoration:none;font-weight:600}
+iframe.app-frame{flex:1;width:100%;border:0;background:var(--bg);display:block}
+.frame-loading{position:absolute;inset:44px 0 0;display:grid;place-items:center;color:var(--muted);pointer-events:none}
+
+/* tables */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h2{font:700 15px/1.25 var(--font-display)}
+.panel > p{margin:0;color:var(--muted);font-size:13px}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-2);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td code{font-size:12px;background:var(--surface-2);padding:1px 6px;border-radius:5px}
+.yes{color:var(--good);font-weight:700}
+.dim{color:var(--muted-2)}
+
+/* sign-in */
+.signin{min-height:100%;display:grid;place-items:center;padding:40px 16px}
+.signin-card{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(13,20,36,.08);padding:28px;display:flex;flex-direction:column;gap:16px}
+.signin-card .brand-logo{height:40px;border:1px solid var(--line);align-self:flex-start}
+.signin-card h1{font:700 24px/1.2 var(--font-display)}
+.signin-card p{margin:0;color:var(--muted)}
+.ms-btn{display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line-2);border-radius:9px;padding:11px;background:var(--surface);font-weight:600;cursor:pointer;font-size:14px}
+.ms-btn:hover{background:var(--hover);border-color:var(--accent)}
+.err{color:var(--bad);font-size:13px;font-weight:600}
+.small{font-size:12px;color:var(--muted-2)}
+
+.denied{background:var(--surface);border:1px dashed var(--line-2);border-radius:var(--r);padding:32px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:8px;align-items:center}
+.denied h2{font:700 18px var(--font-display);color:var(--text)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;font-size:13px;z-index:70;max-width:calc(100% - 32px)}
+
+@media (max-width:1180px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} .apps{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:860px){
+  .shell,.shell.compact{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);flex-direction:row;overflow-x:auto;padding:8px 12px;gap:4px}
+  .side-label,.side-foot,.collapse,.nav .tag{display:none}
+  .shell.compact .nav .txt{display:inline}
+  main{padding:20px 16px 40px}
+  .brand-sub,.ver{display:none}
+  .frame-wrap{height:calc(100vh - var(--top) - 54px)}
+}
+@media (max-width:620px){ .grid,.apps{grid-template-columns:1fr} .env{display:none} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="vendor/msal-browser-4.30.0.min.js"></script>
+<script>
+/* =====================================================================
+   HD IT Pulse — the single front door to HD IT's internal apps.
+   Sign-in: Microsoft Entra ID (MSAL, authorization code + PKCE). No third-party cookies:
+   tokens are sent as headers, and embedded apps receive theirs over postMessage.
+   Access: Entra app roles on the "HD IT Pulse" app registration, assigned through groups.
+   With no client id filled in (the Claude prototype), Pulse runs as a preview with sample sign-in.
+   ===================================================================== */
+const DEPLOY = {                                   // filled in by scripts/build.mjs at deploy time
+  tenantId: "__TENANT_ID__", clientId: "__CLIENT_ID__", environment: "__ENVIRONMENT__",
+  apps: { pipeline: "__APP_PIPELINE__", mroi: "__APP_MROI__", wspace: "__APP_WSPACE__" },
+};
+const filled = v => !!v && !String(v).startsWith("__");
+const CONFIG = {
+  APP_VERSION: "0.3.0",
+  PREVIEW: !filled(DEPLOY.clientId) || !filled(DEPLOY.tenantId),
+  ENVIRONMENT: filled(DEPLOY.environment) ? DEPLOY.environment : "Preview",
+  API_SCOPE: `api://${DEPLOY.clientId}/access_as_user`,
+};
+const LOGO = "data:image/png;base64,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";
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const initials = n => String(n || "?").split(/[\s.@]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+const ICONS = {
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  leadership: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  finance: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',
+  service: '<path d="M4 13a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-1v-6h3M4 13v4a2 2 0 0 0 2 2h1v-6H4"/>',
+  projects: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5M8 17h3"/>',
+  noc: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  sales: '<path d="M4 6h16l-6 7v6l-4-2v-4z"/>',
+  success: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  admin: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  pipeline: '<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/>',
+  mroi: '<path d="M4 5h16l-5.5 7v5l-5 2v-7z"/><path d="M17 15l2 2 3-4"/>',
+  wspace: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17.5h7M17.5 14v7"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/>',
+  side: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+};
+const icon = k => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3200); }
+
+/* ---------- access model: Entra app roles on the HD IT Pulse app registration ---------- */
+const ROLES = [
+  { v: "Pulse.Admin", label: "Platform administrator", group: "Pulse - Platform Admins", grants: "Every app, as an administrator, plus this access page" },
+  { v: "Pulse.User", label: "Pulse user", group: "Pulse - All Staff", grants: "Sign in to Pulse and see dashboards as they're switched on" },
+  { v: "Pipeline.User", label: "Pipeline user", group: "Pulse - Pipeline Users", grants: "Pipeline: view and update opportunities" },
+  { v: "Pipeline.Admin", label: "Pipeline administrator", group: "Pulse - Pipeline Admins", grants: "Pipeline: everything, plus Settings" },
+  { v: "MarketingROI.User", label: "Marketing ROI user", group: "Pulse - Marketing ROI Users", grants: "Marketing ROI: view the funnel, move leads, log contacts" },
+  { v: "MarketingROI.Admin", label: "Marketing ROI administrator", group: "Pulse - Marketing ROI Admins", grants: "Marketing ROI: everything, plus events, costs and Settings" },
+  { v: "Whitespace.User", label: "Whitespace viewer", group: "Pulse - Whitespace Users", grants: "Whitespace Matrix: view only" },
+  { v: "Whitespace.Editor", label: "Whitespace editor", group: "Pulse - Whitespace Editors", grants: "Whitespace Matrix: edit cells, contracts and hidden items" },
+  { v: "Whitespace.Admin", label: "Whitespace administrator", group: "Pulse - Whitespace Admins", grants: "Whitespace Matrix: everything, plus the service catalogue and Settings" },
+];
+const roleInfo = v => ROLES.find(r => r.v === v) || { v, label: v, group: "—", grants: "" };
+
+const APPS = [
+  { k: "pipeline", name: "Pipeline", prefix: "Pipeline", division: "sales",
+    desc: "Your Autotask opportunities as a Kanban board. Drag deals between stages, update close dates and probability, and log notes." },
+  { k: "mroi", name: "Marketing ROI", prefix: "MarketingROI", division: "sales",
+    desc: "Leads from each marketing event through MQL, SQL and won, with spend against return for every event." },
+  { k: "wspace", name: "Whitespace Matrix", prefix: "Whitespace", division: "sales",
+    desc: "Which clients have which services, what's been quoted, and the gaps worth a conversation. Includes Contracts Management." },
+].map(a => ({ ...a, url: filled(DEPLOY.apps[a.k]) ? String(DEPLOY.apps[a.k]).replace(/\/+$/, "") : "" }));
+
+/** Coming-soon dashboards, from the Pulse prototype. Each is switched on one at a time. */
+const DIVISIONS = [
+  { k: "leadership", name: "Leadership", srcs: "EOS · Scorecard, Rocks, Issues", desc: "Level 10 view for the Leadership Team: the weekly Scorecard, Rocks, the Issues List and progress to the 1-Year Plan.",
+    w: [["Rocks", "EOS", "list"], ["Weekly Scorecard", "EOS", "bars"], ["Issues List", "EOS", "list"], ["1-Year Plan", "EOS · Xero", "big"]] },
+  { k: "finance", name: "Finance", srcs: "Xero · SLI financial model", desc: "Management P&L from Xero, mapped to Service Leadership Index revenue categories and compared with SLI-aligned targets.",
+    w: [["Revenue", "Xero", "spark"], ["Adjusted EBITDA", "Xero · SLI", "big"], ["Gross margin by SLI category", "Xero · SLI", "bars"], ["Cash & receivables", "Xero", "spark"], ["AGP per technician", "Xero · Autotask", "big"]] },
+  { k: "success", name: "Client Success", srcs: "Simplesat · GoTo Connect · Autotask", desc: "How every client feels about HD IT: NPS and CSAT, sentiment from tickets and calls, and a red, amber or green status per client.",
+    w: [["Client status", "Simplesat · GoTo", "list"], ["Net Promoter Score", "Simplesat", "big"]] },
+  { k: "service", name: "Service Desk", srcs: "Autotask · Tickets, Time, Surveys", desc: "Reactive service delivery: ticket flow, SLA performance, customer satisfaction and engineer utilisation.",
+    w: [["Open tickets", "Autotask", "spark"], ["SLA performance", "Autotask", "bars"], ["Customer satisfaction", "Simplesat", "big"], ["Billable utilisation", "Autotask", "bars"], ["My queue", "Autotask", "list"]] },
+  { k: "projects", name: "Projects", srcs: "Autotask · Projects, Tasks, Time", desc: "Professional services delivery: schedule, budget hours and project margin.",
+    w: [["Active projects", "Autotask", "list"], ["Project margin", "Autotask · Xero", "bars"]] },
+  { k: "noc", name: "Centralised Services", srcs: "Datto RMM · IT Glue", desc: "Proactive services: device health and alerts, patch and backup compliance, and documentation coverage.",
+    w: [["Device health", "Datto RMM", "big"], ["Patch compliance", "Datto RMM", "spark"], ["Backup success", "Datto · Azure", "spark"], ["Documentation coverage", "IT Glue", "bars"]] },
+  { k: "sales", name: "Sales & Account Mgmt", srcs: "Autotask · Opportunities, Contracts", desc: "New business pipeline, MRR growth, client health and agreement profitability, built on the Sales apps above.",
+    w: [["Weighted pipeline", "Autotask", "big"], ["New MRR booked", "Autotask", "bars"], ["Lead funnel", "Marketing ROI", "bars"], ["Whitespace", "Whitespace Matrix", "big"], ["Client key dates", "Autotask", "list"], ["Renewals, next 90 days", "Autotask contracts", "list"]] },
+];
+
+/* =====================================================================
+   SIGN-IN (MSAL)
+   ===================================================================== */
+const PREVIEW_PERSONAS = [
+  { k: "admin", label: "Platform administrator", name: "George Hanna", email: "george.hanna@hdit.com.au", roles: ["Pulse.Admin"] },
+  { k: "sales", label: "Sales: Pipeline, Whitespace editor, Marketing ROI", name: "Taylor Reid", email: "taylor.reid@hdit.com.au", roles: ["Pipeline.User", "Whitespace.Editor", "MarketingROI.User"] },
+  { k: "marketing", label: "Marketing: Marketing ROI admin", name: "Jordan Blake", email: "jordan.blake@hdit.com.au", roles: ["MarketingROI.Admin"] },
+  { k: "staff", label: "New starter: no apps yet", name: "Morgan Ellis", email: "morgan.ellis@hdit.com.au", roles: ["Pulse.User"] },
+];
+const Auth = (() => {
+  let pca = null, account = null, user = null, roles = [];
+  const decode = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))))); } catch (e) { return {}; } };
+  function fromToken(t) {
+    const c = decode(t);
+    roles = Array.isArray(c.roles) ? c.roles : [];
+    user = { name: c.name || (account && account.name) || "", email: c.preferred_username || (account && account.username) || "", oid: c.oid || "" };
+  }
+  function preview() {
+    let k = "admin"; try { k = localStorage.getItem("hdit-pulse:preview") || "admin"; } catch (e) {}
+    const p = PREVIEW_PERSONAS.find(x => x.k === k) || PREVIEW_PERSONAS[0];
+    user = { name: p.name, email: p.email, oid: "preview" }; roles = p.roles.slice();
+  }
+  /** Returns true when someone is signed in. Throws a friendly error for sign-in failures. */
+  async function init() {
+    if (CONFIG.PREVIEW) { preview(); return true; }
+    if (!window.msal) throw new Error("The sign-in library didn't load. Reload the page.");
+    pca = await msal.PublicClientApplication.createPublicClientApplication({
+      auth: { clientId: DEPLOY.clientId, authority: `https://login.microsoftonline.com/${DEPLOY.tenantId}`,
+        redirectUri: location.origin + "/", postLogoutRedirectUri: location.origin + "/", navigateToLoginRequestUrl: true },
+      cache: { cacheLocation: "localStorage" },
+    });
+    let r = null;
+    try { r = await pca.handleRedirectPromise(); }
+    catch (e) { throw friendly(e); }
+    account = (r && r.account) || pca.getActiveAccount() || pca.getAllAccounts()[0] || null;
+    if (!account) return false;
+    pca.setActiveAccount(account);
+    if (r && r.accessToken && (r.scopes || []).some(s => s.endsWith("access_as_user"))) fromToken(r.accessToken);
+    else await token();
+    return true;
+  }
+  function friendly(e) {
+    const m = String((e && (e.errorMessage || e.message)) || e);
+    if (/AADSTS50105/.test(m)) return new Error("Your Microsoft 365 account isn't set up for Pulse yet. Ask a Pulse administrator to add you to a Pulse group, then sign in again.");
+    if (/AADSTS65001|consent/i.test(m)) return new Error("An administrator needs to approve Pulse for your organisation first.");
+    if (/user_cancelled|AADSTS50058/.test(m)) return new Error("Sign-in was cancelled.");
+    return new Error("Sign-in didn't complete: " + m.split("\n")[0].slice(0, 220));
+  }
+  /** An access token for Pulse's API scope. Signs in again (redirect) when Microsoft asks for it. */
+  async function token(force = false) {
+    if (CONFIG.PREVIEW) throw new Error("Preview: apps sign in once Pulse is deployed.");
+    try {
+      const r = await pca.acquireTokenSilent({ scopes: [CONFIG.API_SCOPE], account, forceRefresh: !!force });
+      fromToken(r.accessToken); return r.accessToken;
+    } catch (e) {
+      if (e instanceof msal.InteractionRequiredAuthError || /interaction_required|login_required|consent_required|no_tokens_found/i.test(e.errorCode || "")) {
+        await pca.acquireTokenRedirect({ scopes: [CONFIG.API_SCOPE], account });
+        return new Promise(() => {});          // the page is navigating away
+      }
+      throw friendly(e);
+    }
+  }
+  const signIn = () => pca.loginRedirect({ scopes: [CONFIG.API_SCOPE], prompt: "select_account" });
+  const signOut = () => CONFIG.PREVIEW ? location.reload() : pca.logoutRedirect({ account });
+  return { init, token, signIn, signOut, user: () => user, roles: () => roles, setPreview(k) { try { localStorage.setItem("hdit-pulse:preview", k); } catch (e) {} preview(); } };
+})();
+
+const has = v => Auth.roles().includes(v);
+const isPlatformAdmin = () => has("Pulse.Admin");
+const canOpen = a => isPlatformAdmin() || Auth.roles().some(r => r.startsWith(a.prefix + "."));
+const appRole = a => isPlatformAdmin() || has(a.prefix + ".Admin") ? "Administrator" : has(a.prefix + ".Editor") ? "Editor" : a.k === "wspace" ? "Viewer" : "User";
+
+/* =====================================================================
+   TOKEN HAND-OFF to embedded apps (postMessage, exact origins only)
+   ===================================================================== */
+window.addEventListener("message", async e => {
+  const m = e.data;
+  if (!m || m.type !== "pulse:token-request") return;
+  const frame = [...document.querySelectorAll("iframe[data-app]")].find(f => f.contentWindow === e.source);
+  if (!frame) return;
+  const a = APPS.find(x => x.k === frame.dataset.app);
+  if (!a || !a.url || e.origin !== new URL(a.url).origin) return;      // only the app we framed, at its exact address
+  let reply;
+  try {
+    if (!canOpen(a)) throw new Error(`You don't have access to ${a.name}.`);
+    reply = { type: "pulse:token", id: m.id, token: await Auth.token(!!m.force) };
+  } catch (err) { reply = { type: "pulse:token", id: m.id, error: err.message }; }
+  e.source.postMessage(reply, e.origin);
+});
+
+/* =====================================================================
+   VIEWS
+   ===================================================================== */
+const State = { compact: null };
+try { State.compact = JSON.parse(localStorage.getItem("hdit-pulse:compact")); } catch (e) {}
+
+function renderSignIn(error) {
+  $("#app").innerHTML = `<div class="signin"><div class="signin-card">
+    <img class="brand-logo" src="${LOGO}" alt="HD IT">
+    <div><h1>HD IT Pulse</h1><p>One sign-in for HD IT's internal apps and dashboards. Use your HD IT Microsoft 365 account.</p></div>
+    ${error ? `<div class="err" role="alert">${esc(error)}</div>` : ""}
+    <button class="ms-btn" id="btn-signin"><svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>Sign in with Microsoft</button>
+    <div class="small">You'll only see the apps you've been given access to. ${esc(CONFIG.ENVIRONMENT)} · v${CONFIG.APP_VERSION}</div>
+  </div></div>`;
+  $("#btn-signin").onclick = () => Auth.signIn().catch(e => renderSignIn(e.message));
+}
+
+function topbar() {
+  const u = Auth.user(), env = CONFIG.ENVIRONMENT;
+  return `<header class="topbar">
+    <a class="brand" href="#/"><img class="brand-logo" src="${LOGO}" alt="HD IT"><span><span class="brand-name">Pulse</span><br><span class="brand-sub">HD IT operating platform</span></span></a>
+    <span class="env ${/^prod/i.test(env) ? "prod" : ""}">${esc(env.toUpperCase())}</span><span class="ver">v${CONFIG.APP_VERSION}</span>
+    <span class="spacer"></span>
+    <div class="menu-wrap"><button class="tb-btn" id="btn-help" aria-haspopup="true" aria-expanded="false">${icon("help")}<span>Help</span></button>
+      <div class="menu" id="help-menu" hidden>
+        <a href="user-guide.html?v=${CONFIG.APP_VERSION}" target="_blank" rel="noopener">User guide</a>
+        <a href="changelog.html?v=${CONFIG.APP_VERSION}" target="_blank" rel="noopener">Change log</a>
+      </div></div>
+    <div class="menu-wrap"><button class="avatar" id="btn-user" aria-haspopup="true" aria-expanded="false" aria-label="Your account">${esc(initials(u.name || u.email))}</button>
+      <div class="menu" id="user-menu" hidden>
+        <div class="who"><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div>
+        <a href="#/access">${icon("key")}Your access</a>
+        ${CONFIG.PREVIEW ? `<div class="lab">Preview as</div><select id="preview-as" aria-label="Preview as">${PREVIEW_PERSONAS.map(p => `<option value="${p.k}" ${p.name === u.name ? "selected" : ""}>${esc(p.label)}</option>`).join("")}</select>` : ""}
+        <button id="btn-signout">${icon("out")}Sign out</button>
+      </div></div>
+  </header>`;
+}
+
+function sidebar(route) {
+  const u = Auth.user();
+  const link = (href, ic, text, { on = false, soon = false, tag = "" } = {}) =>
+    `<a href="${href}" class="${on ? "on" : ""} ${soon ? "soon" : ""}" title="${esc(text)}">${icon(ic)}<span class="txt">${esc(text)}</span>${tag}</a>`;
+  const mine = APPS.filter(canOpen);
+  return `<nav class="side nav" aria-label="Pulse">
+    ${link("#/", "home", "Home", { on: route.page === "home" })}
+    <div class="side-label">Apps</div>
+    ${mine.length ? mine.map(a => link(`#/app/${a.k}`, a.k, a.name, { on: route.page === "app" && route.id === a.k, soon: !a.url, tag: a.url ? "" : `<span class="tag">Soon</span>` })).join("")
+      : `<div class="small" style="padding:4px 10px">No apps yet</div>`}
+    <div class="side-label">Dashboards</div>
+    ${DIVISIONS.map(d => link(`#/area/${d.k}`, d.k, d.name, { on: route.page === "area" && route.id === d.k, soon: true, tag: `<span class="tag">Soon</span>` })).join("")}
+    <div class="side-label">Platform</div>
+    ${link("#/access", "key", "Your access", { on: route.page === "access" })}
+    <button class="collapse" id="btn-collapse" title="Collapse or expand the menu">${icon("side")}<span class="txt">Collapse menu</span></button>
+    <div class="side-foot"><b>${esc(u.name)}</b>${esc(u.email)}</div>
+  </nav>`;
+}
+
+function viewHome() {
+  const u = Auth.user(), first = (u.name || "").split(/\s+/)[0] || "there";
+  const h = new Date().getHours(), hello = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  const mine = APPS.filter(canOpen);
+  const apps = mine.length ? `<div class="apps">${mine.map(appCard).join("")}</div>`
+    : `<div class="note">${icon("lock")}<span>You don't have any apps yet. Ask a Pulse administrator to add you to the right group, for example <b>Pulse - Pipeline Users</b>. Then sign out and back in.</span></div>`;
+  return `<div class="ph"><div class="crumb">${new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
+      <h1>${hello}, ${esc(first)}</h1><p>Your HD IT apps, with one Microsoft 365 sign-in. Dashboards for each division are on the way and switch on one at a time.</p></div>
+    ${CONFIG.PREVIEW ? `<div class="note warn"><span><b>Preview.</b> This copy of Pulse isn't connected to Entra ID, so sign-in is simulated and apps don't open here. Use <b>Preview as</b> in your account menu to see what different people get.</span></div>` : ""}
+    <section class="sec"><div class="sec-h"><h2>Your apps</h2><span class="srcs">${mine.length} of ${APPS.length} available to you</span></div>${apps}</section>
+    ${DIVISIONS.map(d => `<section class="sec"><div class="sec-h"><h2>${esc(d.name)}</h2><span class="tag">Coming soon</span><span class="srcs">${esc(d.srcs)}</span></div>
+      <div class="grid">${d.w.map(w => soonWidget(w)).join("")}</div></section>`).join("")}`;
+}
+
+function appCard(a) {
+  if (!a.url) return `<div class="app off"><span class="ic">${icon(a.k)}</span><h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p>
+    <div class="foot"><span class="tag">Moving into Pulse</span></div></div>`;
+  return `<a class="app" href="#/app/${a.k}"><span class="ic">${icon(a.k)}</span><h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p>
+    <div class="foot"><span class="tag live">Live</span><span>${appRole(a)}</span><span class="go">Open →</span></div></a>`;
+}
+
+function soonWidget([title, src, shape]) {
+  const skel = shape === "bars" ? `<div class="skel bars">${[60, 82, 45, 70, 95, 58, 76].map(x => `<i style="height:${Math.round(x * .55)}px"></i>`).join("")}</div>`
+    : shape === "spark" ? `<div class="skel spark"><svg viewBox="0 0 120 46" preserveAspectRatio="none"><path d="M2 38 L18 30 L34 33 L50 22 L66 26 L82 14 L98 18 L118 8"/></svg></div>`
+    : shape === "list" ? `<div class="skel"><i style="width:92%"></i><i style="width:78%"></i><i style="width:86%"></i><i style="width:64%"></i></div>`
+    : `<div class="skel big"><i></i><i style="width:70%"></i></div>`;
+  return `<div class="w" aria-label="${esc(title)}, coming soon"><div class="w-h"><h3>${esc(title)}</h3><span class="src">${esc(src)}</span></div>${skel}
+    <div class="w-f"><span>Coming soon</span>${icon("lock")}</div></div>`;
+}
+
+function viewArea(id) {
+  const d = DIVISIONS.find(x => x.k === id);
+  if (!d) return viewHome();
+  return `<div class="ph"><div class="crumb"><a href="#/">Home</a> / Dashboards</div><h1>${esc(d.name)}</h1><p>${esc(d.desc)}</p></div>
+    <div class="note">${icon("lock")}<span><b>Coming soon.</b> This dashboard is being built and will switch on here when it's ready. Data sources: ${esc(d.srcs)}.</span></div>
+    <div class="grid">${d.w.map(w => soonWidget(w)).join("")}</div>`;
+}
+
+function viewApp(id) {
+  const a = APPS.find(x => x.k === id);
+  if (!a) return { html: viewHome() };
+  if (!canOpen(a)) return { html: `<div class="wrap" style="padding:24px 28px">${denied(a)}</div>`, full: true };
+  if (!a.url) return { html: `<div class="wrap" style="padding:24px 28px"><div class="denied">${icon("lock")}<h2>${esc(a.name)} is moving into Pulse</h2><p>It will open here once it's been set up in this environment.</p><a href="#/">Back to Home</a></div></div>`, full: true };
+  if (CONFIG.PREVIEW) return { html: `<div class="wrap" style="padding:24px 28px"><div class="denied">${icon(a.k)}<h2>${esc(a.name)} opens here</h2>
+    <p>In the deployed Pulse, ${esc(a.name)} loads in this space and signs you in automatically with your Microsoft 365 account, as ${appRole(a).toLowerCase()}.</p><a href="#/">Back to Home</a></div></div>`, full: true };
+  const src = a.url + "/?embed=pulse";
+  return { full: true, html: `<div class="frame-wrap">
+    <div class="frame-bar">${icon(a.k)}<b>${esc(a.name)}</b><span>· ${appRole(a)}</span><a href="${esc(a.url)}/" target="_blank" rel="noopener" title="The app's own address, signed in with the team password while that still works">Open on its own ${icon("ext")}</a></div>
+    <div class="frame-loading" id="frame-loading">Opening ${esc(a.name)}…</div>
+    <iframe class="app-frame" data-app="${a.k}" title="${esc(a.name)}" src="${esc(src)}"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals"
+      referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-write"></iframe></div>` };
+}
+
+function denied(a) {
+  return `<div class="denied">${icon("lock")}<h2>You don't have access to ${esc(a.name)}</h2>
+    <p>Access comes from your groups in Entra ID. Ask a Pulse administrator to add you to <b>${esc(roleInfo(a.prefix + ".User").group)}</b>, then sign out and back in.</p><a href="#/">Back to Home</a></div>`;
+}
+
+function viewAccess() {
+  const u = Auth.user(), mine = Auth.roles();
+  const rows = mine.length ? mine.map(v => { const r = roleInfo(v); return `<tr><td><b>${esc(r.label)}</b><div class="dim"><code>${esc(r.v)}</code></div></td><td>${esc(r.grants)}</td><td>${esc(r.group)}</td></tr>`; }).join("")
+    : `<tr><td colspan="3" class="dim">No roles yet.</td></tr>`;
+  let h = `<div class="ph"><div class="crumb"><a href="#/">Home</a> / Platform</div><h1>Your access</h1>
+      <p>What you can open in Pulse, and why. Access is managed in Microsoft Entra ID through groups; changes apply the next time you sign in.</p></div>
+    <section class="panel"><h2>Signed in as</h2><p><b>${esc(u.name)}</b> · ${esc(u.email)}</p></section>
+    <section class="panel"><h2>Your roles</h2><div class="tbl-wrap"><table><thead><tr><th>Role</th><th>What it gives you</th><th>Usually from group</th></tr></thead><tbody>${rows}</tbody></table></div></section>
+    <section class="panel"><h2>Apps</h2><div class="tbl-wrap"><table><thead><tr><th>App</th><th>Your access</th><th>Status</th></tr></thead><tbody>
+      ${APPS.map(a => `<tr><td><b>${esc(a.name)}</b></td><td>${canOpen(a) ? `<span class="yes">✓</span> ${appRole(a)}` : `<span class="dim">No access</span>`}</td><td>${a.url ? `<span class="tag live">Live</span>` : `<span class="tag">Moving into Pulse</span>`}</td></tr>`).join("")}
+    </tbody></table></div></section>`;
+  if (isPlatformAdmin()) h += `<section class="panel"><h2>How access is set up</h2>
+      <p>Each role below is an app role on the <b>HD IT Pulse</b> enterprise application, assigned to the matching security group. To give someone access, add them to the group in the Entra admin centre (Groups → the group → Members). To change what a group gets, use Enterprise applications → HD IT Pulse → Users and groups.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Group</th><th>Role</th><th>Grants</th></tr></thead><tbody>
+      ${ROLES.map(r => `<tr><td>${esc(r.group)}</td><td><code>${esc(r.v)}</code></td><td>${esc(r.grants)}</td></tr>`).join("")}
+      </tbody></table></div><p><a href="https://entra.microsoft.com/" target="_blank" rel="noopener">Open the Entra admin centre ${icon("ext")}</a></p></section>`;
+  return h;
+}
+
+/* ---------- routing ---------- */
+function parseRoute() {
+  const parts = (location.hash || "#/").replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (parts[0] === "app" && parts[1]) return { page: "app", id: parts[1] };
+  if (parts[0] === "area" && parts[1]) return { page: "area", id: parts[1] };
+  if (parts[0] === "access") return { page: "access" };
+  return { page: "home" };
+}
+function render() {
+  const r = parseRoute();
+  let body, full = false;
+  if (r.page === "app") ({ html: body, full } = viewApp(r.id));
+  else if (r.page === "area") body = viewArea(r.id);
+  else if (r.page === "access") body = viewAccess();
+  else body = viewHome();
+  const compact = State.compact == null ? r.page === "app" : State.compact;
+  $("#app").innerHTML = topbar() + `<div class="shell ${compact ? "compact" : ""}">${sidebar(r)}
+    <main class="${full ? "full" : ""}">${full ? body : `<div class="wrap">${body}</div>`}</main></div>`;
+  wire();
+  const f = document.querySelector("iframe.app-frame");
+  if (f) f.addEventListener("load", () => { const l = $("#frame-loading"); if (l) l.remove(); });
+  const a = APPS.find(x => x.k === r.id);
+  document.title = r.page === "app" && a ? `${a.name} · HD IT Pulse` : "HD IT Pulse";
+}
+function closeMenus() { ["#help-menu", "#user-menu"].forEach(m => { const el = $(m); if (el) el.hidden = true; }); }
+function wire() {
+  const tog = (b, m) => { $(b).onclick = e => { e.stopPropagation(); const open = $(m).hidden; closeMenus(); $(m).hidden = !open; $(b).setAttribute("aria-expanded", String(open)); }; };
+  tog("#btn-help", "#help-menu"); tog("#btn-user", "#user-menu");
+  $("#btn-signout").onclick = () => Auth.signOut();
+  $("#btn-collapse").onclick = () => {
+    const now = !document.querySelector(".shell").classList.contains("compact");
+    State.compact = now; try { localStorage.setItem("hdit-pulse:compact", JSON.stringify(now)); } catch (e) {}
+    document.querySelector(".shell").classList.toggle("compact", now);
+  };
+  const pv = $("#preview-as");
+  if (pv) pv.onchange = () => { Auth.setPreview(pv.value); render(); toast("Previewing as " + PREVIEW_PERSONAS.find(p => p.k === pv.value).label); };
+}
+document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenus(); });
+window.addEventListener("hashchange", () => { closeMenus(); render(); window.scrollTo(0, 0); });
+
+(async function boot() {
+  $("#app").innerHTML = `<div class="signin"><div class="small">Signing you in…</div></div>`;
+  try {
+    if (await Auth.init()) render();
+    else renderSignIn();
+  } catch (e) { renderSignIn(e.message); }
+})();
+</script>
+</body>
+</html>
