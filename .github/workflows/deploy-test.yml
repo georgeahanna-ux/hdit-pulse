@@ -21,7 +21,7 @@ concurrency:
 env:
   RG: rg-hdit-pulse-test-aue
   ENV_LABEL: Test
-  AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || '' }}              # id-hdit-pulse-deploy-test-aue (printed by setup/pulse-setup.sh azure)
+  AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || '6dcedf3f-9147-4fd7-b8bf-472ab77b7cf1' }}   # id-hdit-pulse-deploy-test-aue
   AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || '1d9bced5-726c-4ef9-a4d3-63c350b6647c' }}
   # The HD IT Pulse app registration (printed by setup/pulse-setup.sh entra). Empty = preview build.
