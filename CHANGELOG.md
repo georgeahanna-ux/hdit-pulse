@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.1 — 31 October 2026
+- Sign-in page: HD IT logo and "Keep IT Moving" tagline aligned left, as designed.
+
 ## 0.4.0 — 31 October 2026
 Release 1, milestone M0 (foundations). See `docs/ARCHITECTURE.md`.
 - **Backend:** one package (`backend/`) deployed as two Function Apps: `func-hdit-pulse-api` (user-facing API) and `func-hdit-pulse-sync` (timers, integrations). Each runs as its own managed identity.

@@ -169,8 +169,8 @@ td code, p code { font-size: 13px; background: var(--hd-mist); padding: 2px 6px;
 /* ---------- sign-in ---------- */
 .signin { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
 .signin-art { position: relative; overflow: hidden; background: var(--hd-deep) url("../brand/hdit-pattern-navy.jpg") center / cover no-repeat; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(32px, 5vw, 64px); }
-.signin-art img.logo { height: 44px; width: auto; }
-.signin-art img.tag { height: 26px; width: auto; }
+.signin-art img.logo { height: 44px; width: auto; align-self: flex-start; }
+.signin-art img.tag { height: 26px; width: auto; align-self: flex-start; }
 .signin-art .hd-eyebrow { color: var(--hd-lemon); }
 .signin-art h1 { color: var(--hd-white); font-size: clamp(32px, 4vw, 52px); margin-top: var(--hd-s4); }
 .signin-art p { color: var(--hd-deep-20); max-width: 46ch; font-size: 18px; }
