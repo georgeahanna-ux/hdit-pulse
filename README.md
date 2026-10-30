@@ -1,6 +1,6 @@
 # HD IT Pulse
 
-The single front door to HD IT's internal apps: one Microsoft 365 sign-in (Entra ID), and each person sees only the apps they're authorised for. Dashboards for each division appear greyed out as **Coming soon** and switch on one at a time.
+HD IT's EOS system and the front door to its internal apps: Scorecard, Rocks, Issues, To-dos, the L10, V/TO and the Accountability Chart, with one Microsoft 365 sign-in (Entra ID). Each person sees only what their Pulse groups allow. Release 1 is being built in milestones; see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** and **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)**.
 
 | Live in Pulse | Repository | Role prefix |
 |---|---|---|
@@ -13,20 +13,29 @@ Each app keeps its own backend, Key Vault and Autotask API user, and runs inside
 ## Layout
 
 ```
-frontend/index.html             Pulse (one page, vanilla JS). Preview mode when no Entra client id is set.
-frontend/vendor/                MSAL for the browser (@azure/msal-browser 4.30.0, MIT)
-frontend/staticwebapp.config.json  security headers; frame-src is limited to the apps' addresses
-scripts/build.mjs               fills in tenant, client id and app addresses → dist/
-infra/main.bicep                the Static Web App
-setup/pulse-setup.sh            one-off Azure + Entra ID setup (Cloud Shell)
-.github/workflows/deploy-test.yml  build and deploy to the test tenancy on every push to main
+frontend/                      Pulse web (vanilla JS ES modules, Brand V5). Preview mode when no Entra client id is set.
+  js/                          main (shell, routing), auth (MSAL), api, apps (token bridge), views, access
+  brand/                       official HD IT Brand V5 assets (logo, icons, tokens, pattern)
+  vendor/                      MSAL for the browser (@azure/msal-browser 4.30.0, MIT)
+backend/                       one package, two Function Apps (PULSE_COMPONENT=api | sync), Node 22
+  src/lib/                     entra (token checks), access (who can do what), time (Sydney weeks, lock), sql, audit, vault
+  scripts/migrate.js           applies db/migrations in order (run by GitHub Actions)
+db/migrations/                 numbered SQL migrations (never edit one that has run)
+scripts/build.mjs              fills in settings, checks versions agree → dist/
+infra/main.bicep               Static Web App, Azure SQL, Key Vault, storage, monitoring, both Function Apps
+setup/pulse-setup.sh           one-off Azure + Entra ID setup (Cloud Shell): azure, entra, release1, release1-entra
+docs/                          REQUIREMENTS (D1–D17), ARCHITECTURE (release 1 plan), IDENTITY-AND-ACCESS
+.github/workflows/deploy-test.yml  test, migrate and deploy to the test tenancy on every push to main
 ```
 
 ## Build locally
 
 ```bash
 node scripts/build.mjs                       # preview build (simulated sign-in)
+PULSE_API_URL=https://func-hdit-pulse-api-test-aue.azurewebsites.net/api …  # with the API
 ENTRA_TENANT_ID=… ENTRA_CLIENT_ID=… APP_WSPACE_URL=https://… node scripts/build.mjs
 ```
 
-Version: `CONFIG.APP_VERSION` in `frontend/index.html`, with `BUILT_FOR` in the user guide and change log and an entry in `CHANGELOG.md`.
+Version: `CONFIG.APP_VERSION` in `frontend/js/config.js`. The build stops unless `frontend/index.html`, the help pages' `data-built-for`, `backend/package.json` and the top of `CHANGELOG.md` all agree.
+
+Backend tests: `cd backend && npm test`.

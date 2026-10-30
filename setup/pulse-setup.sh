@@ -22,6 +22,21 @@
 #      organisation, and makes you (and any extra emails) Platform Admins.
 #      Prints the tenant id and the app's client id.
 #
+#   Release 1 (Pulse backend: database, Key Vault, two Function Apps). After steps 1 and 2:
+#
+#   3) As your usual Azure account:
+#        bash pulse-setup.sh release1
+#      Creates the identities the two Pulse Function Apps run as, the Key Vault with one
+#      placeholder per integration credential, and gives each identity access to only the
+#      credentials it needs (Key Vault RBAC at secret level). Prints two client ids.
+#
+#   4) As ADMIN@HDITTESTINGTENANCY.onmicrosoft.com:
+#        bash pulse-setup.sh release1-entra
+#      Refreshes the app registration (adds the release 1 roles and their groups), creates
+#      the "Pulse - SQL Admins (Test)" group (you and the GitHub deploy identity), lets the
+#      sync app read the three apps' numbers (Pulse.Collector) and Microsoft Graph
+#      (users, group members, Planner). Prints the SQL admin group id.
+#
 # Every step is safe to run again: they find what already exists and only fill gaps.
 # Nothing here prints or stores a secret. The app registration has no client secret.
 # =============================================================================
@@ -41,6 +56,28 @@ APP_NAME="HD IT Pulse (Test)"
 G="https://graph.microsoft.com/v1.0"
 GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
 GRAPH_USER_READ="e1fe6dd8-ba31-4d61-89e7-88639da4683d"
+PULSE_URL_DEFAULT="https://ashy-sand-099e8e200.4.azurestaticapps.net"
+API_ID="id-hdit-pulse-api-test-aue"
+SYNC_ID="id-hdit-pulse-sync-test-aue"
+KV="kv-hdit-pulse-test"
+SQL_ADMIN_GROUP="Pulse - SQL Admins (Test)"
+SECRET_WRITER_ROLE="Pulse Secret Writer (Test)"
+# Graph application permissions for the sync app (no secrets: it signs in as a managed identity)
+SYNC_GRAPH_PERMISSIONS="User.Read.All GroupMember.Read.All Tasks.ReadWrite.All"
+
+# Integration credentials: secret name | who reads it | what it is. Values are entered later
+# (Connections page, or Key Vault) and are never printed. "sync+" = read and write (token renewal).
+SECRETS=$(cat <<'EOF'
+autotask-service|api,sync|Autotask API user: Service (tickets, projects, time entries; creates tickets from Issues)
+autotask-people|api,sync|Autotask API user: People administration (resources and default departments)
+autotask-finance|sync|Autotask API user: Finance (contracts, billing), read-only
+simplesat|sync|SimpleSAT API key, read-only
+xero-app|sync|Xero app client id and secret (standard OAuth)
+xero-token|sync+|Xero refresh token, renewed every run
+datto-rmm|sync|Datto RMM API key and secret, read-only
+itglue|sync|IT Glue API key, read-only
+EOF
+)
 
 ok()   { printf '  \033[32mOK\033[0m  %s\n' "$*"; }
 info() { printf '      %s\n' "$*"; }
@@ -59,6 +96,15 @@ MarketingROI.Admin|Marketing ROI administrator|Marketing ROI: everything, plus e
 Whitespace.User|Whitespace viewer|Whitespace Matrix: view only.|Pulse - Whitespace Users
 Whitespace.Editor|Whitespace editor|Whitespace Matrix: edit cells, contracts and hidden items.|Pulse - Whitespace Editors
 Whitespace.Admin|Whitespace administrator|Whitespace Matrix: everything, plus the service catalogue and Settings.|Pulse - Whitespace Admins
+Pulse.Leadership|Leadership|Every division; override any measurable; change Autotask departments.|Pulse - Leadership
+Pulse.FinanceDetail|Finance detail|Full P&L, wages and per-client profitability.|Pulse - Finance Detail
+Pulse.Compliance|Compliance|Audit log and the quarterly access review.|Pulse - Compliance
+Division.Finance|Finance & Accounts|Finance & Accounts division in full; override its measurables.|Pulse - Division Finance
+Division.People|People (HR)|People division in full; override its measurables.|Pulse - Division People
+Division.SalesMarketing|Sales & Marketing|Sales & Marketing division in full; override its measurables.|Pulse - Division Sales and Marketing
+Division.InnovationCompliance|Innovation & Compliance|Innovation & Compliance division in full; override its measurables.|Pulse - Division Innovation and Compliance
+Division.ManagedServices|Managed Services|Managed Services division in full; override its measurables.|Pulse - Division Managed Services
+Pulse.Collector|Pulse collector (application)|Lets the Pulse sync service read each app's Scorecard numbers.|(application)
 EOF
 )
 
@@ -190,8 +236,9 @@ entra_step() {
   while IFS='|' read -r value dname desc group; do
     rid=$(jq -r --arg v "$value" '(.appRoles // [])[] | select(.value==$v) | .id' <<<"$existing")
     [ -n "$rid" ] || rid=$(newid)
-    roles_json=$(jq --arg id "$rid" --arg v "$value" --arg n "$dname" --arg d "$desc" \
-      '. + [{allowedMemberTypes:["User"], id:$id, value:$v, displayName:$n, description:$d, isEnabled:true}]' <<<"$roles_json")
+    local mtype="User"; [ "$group" = "(application)" ] && mtype="Application"
+    roles_json=$(jq --arg id "$rid" --arg v "$value" --arg n "$dname" --arg d "$desc" --arg t "$mtype" \
+      '. + [{allowedMemberTypes:[$t], id:$id, value:$v, displayName:$n, description:$d, isEnabled:true}]' <<<"$roles_json")
   done <<<"$ROLES"
   # keep any role added by hand, so an update never tries to delete one
   roles_json=$(jq -n --argjson mine "$roles_json" --argjson ex "$existing" \
@@ -270,6 +317,7 @@ entra_step() {
   assigned=$(graph --method GET --uri "$G/servicePrincipals/$sp/appRoleAssignedTo?\$top=999" -o json)
   local group_ok=1 platform_gid=""
   while IFS='|' read -r value dname desc group; do
+    [ "$group" = "(application)" ] && continue   # assigned to a service, not a group
     gid=$(graph --method GET --uri "$G/groups" --url-parameters "\$filter=displayName eq '$group'" --query 'value[0].id' -o tsv)
     if [ -z "$gid" ] || [ "$gid" = "None" ]; then
       nick=$(echo "$group" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-*$//')
@@ -326,9 +374,195 @@ entra_step() {
   echo
 }
 
+# -----------------------------------------------------------------------------
+# Release 1, Azure side: Function identities, Key Vault, secret-level access
+# -----------------------------------------------------------------------------
+release1_step() {
+  need az; need jq
+  echo; echo "HD IT Pulse release 1: Azure (test)"; echo
+  az account set --subscription "$SUBSCRIPTION" 2>/dev/null || die "You can't see subscription $SUBSCRIPTION. Sign in to Cloud Shell with the account you used for Marketing ROI."
+  [ "$(az account show --query tenantId -o tsv)" = "$TENANT_EXPECTED" ] || die "This isn't the HD IT Testing Tenancy."
+  az group show -n "$RG" -o none 2>/dev/null || die "Resource group $RG doesn't exist. Run: bash pulse-setup.sh azure"
+  local p
+  for p in Microsoft.Web Microsoft.KeyVault Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights Microsoft.ManagedIdentity Microsoft.Sql; do
+    az provider register --namespace "$p" -o none
+  done
+  ok "Resource providers registered"
+
+  local id fresh=0
+  for id in "$API_ID" "$SYNC_ID"; do
+    if ! az identity show -g "$RG" -n "$id" -o none 2>/dev/null; then
+      az identity create -g "$RG" -n "$id" -l "$LOCATION" --tags app=pulse env=test owner=HDIT -o none; fresh=1
+    fi
+    ok "Identity $id"
+  done
+  if [ "$fresh" = 1 ]; then info "Waiting 30 seconds for the new identities to be ready…"; sleep 30; fi
+
+  local scope apip syncp me
+  scope=$(az group show -n "$RG" --query id -o tsv)
+  apip=$(az identity show -g "$RG" -n "$API_ID" --query principalId -o tsv)
+  syncp=$(az identity show -g "$RG" -n "$SYNC_ID" --query principalId -o tsv)
+  me=$(az ad signed-in-user show --query id -o tsv)
+
+  grant() {  # principal-id principal-type role scope
+    if [ -z "$(az role assignment list --assignee "$1" --role "$3" --scope "$4" --query '[0].id' -o tsv 2>/dev/null)" ]; then
+      az role assignment create --assignee-object-id "$1" --assignee-principal-type "$2" --role "$3" --scope "$4" -o none
+    fi
+  }
+  local r
+  for r in "Storage Blob Data Owner" "Storage Queue Data Contributor" "Storage Table Data Contributor" "Monitoring Metrics Publisher"; do
+    grant "$apip" ServicePrincipal "$r" "$scope"; grant "$syncp" ServicePrincipal "$r" "$scope"
+  done
+  ok "Both identities: storage and monitoring on $RG (no Key Vault access at this level)"
+
+  # ---- Key Vault ----
+  if az keyvault show -n "$KV" -g "$RG" -o none 2>/dev/null; then
+    ok "Key Vault $KV"
+  elif [ -n "$(az keyvault list-deleted --query "[?name=='$KV'].name" -o tsv 2>/dev/null)" ]; then
+    az keyvault recover -n "$KV" -o none
+    ok "Recovered soft-deleted Key Vault $KV"
+  else
+    az keyvault create -n "$KV" -g "$RG" -l "$LOCATION" --enable-rbac-authorization true --retention-days 90 \
+      --tags app=pulse env=test owner=HDIT workload=hdit-pulse -o none
+    ok "Created Key Vault $KV"
+  fi
+  local kvid; kvid=$(az keyvault show -n "$KV" -g "$RG" --query id -o tsv)
+  grant "$me" User "Key Vault Secrets Officer" "$kvid"
+  ok "You: Key Vault Secrets Officer on $KV (to enter credentials)"
+
+  # Write-only role for the Connections page: set a secret and see its metadata, never read it.
+  local roledef; roledef=$(jq -n --arg n "$SECRET_WRITER_ROLE" --arg s "$scope" '{
+    Name: $n, IsCustom: true,
+    Description: "Set Key Vault secrets and read their metadata, but never read secret values. Used by the HD IT Pulse Connections page.",
+    Actions: [], NotActions: [],
+    DataActions: [ "Microsoft.KeyVault/vaults/secrets/setSecret/action", "Microsoft.KeyVault/vaults/secrets/readMetadata/action" ],
+    NotDataActions: [], AssignableScopes: [ $s ] }')
+  if [ -z "$(az role definition list --name "$SECRET_WRITER_ROLE" --scope "$scope" --query '[0].id' -o tsv 2>/dev/null)" ]; then
+    az role definition create --role-definition "$roledef" -o none
+    info "Waiting 30 seconds for the new role to be available…"; sleep 30
+    ok "Created role \"$SECRET_WRITER_ROLE\""
+  else
+    ok "Role \"$SECRET_WRITER_ROLE\""
+  fi
+  local tries=0
+  until grant "$apip" ServicePrincipal "$SECRET_WRITER_ROLE" "$kvid" 2>/dev/null; do
+    tries=$((tries+1)); [ $tries -ge 6 ] && die "Couldn't assign \"$SECRET_WRITER_ROLE\". Run the script again in a few minutes."
+    sleep 15
+  done
+  ok "API identity: write-only on $KV (Connections page)"
+
+  # ---- one placeholder per credential, and secret-level read access ----
+  local name readers what sid set_ok who
+  while IFS='|' read -r name readers what; do
+    if ! az keyvault secret show --vault-name "$KV" -n "$name" --query id -o tsv >/dev/null 2>&1; then
+      set_ok=0
+      for tries in 1 2 3 4 5 6 7 8 9 10; do
+        if az keyvault secret set --vault-name "$KV" -n "$name" --value "not-set" --description "$what" \
+             --tags owner=unassigned rotation=unset -o none 2>/dev/null; then set_ok=1; break; fi
+        [ "$tries" = 1 ] && info "Waiting for your Key Vault access to take effect (can take a few minutes)…"
+        sleep 20
+      done
+      [ "$set_ok" = 1 ] || die "Couldn't create secret $name. Run the script again in a few minutes."
+    fi
+    sid="$kvid/secrets/$name"
+    for who in ${readers//,/ }; do
+      case "$who" in
+        api)   grant "$apip"  ServicePrincipal "Key Vault Secrets User" "$sid" ;;
+        sync)  grant "$syncp" ServicePrincipal "Key Vault Secrets User" "$sid" ;;
+        sync+) grant "$syncp" ServicePrincipal "Key Vault Secrets Officer" "$sid" ;;
+      esac
+    done
+    ok "Secret $name → readable by: ${readers//+/ (read and write)}"
+  done <<<"$SECRETS"
+
+  echo
+  echo "Done. Paste these two lines back to Claude:"
+  echo
+  echo "  PULSE_API_CLIENT_ID=$(az identity show -g "$RG" -n "$API_ID" --query clientId -o tsv)"
+  echo "  PULSE_SYNC_CLIENT_ID=$(az identity show -g "$RG" -n "$SYNC_ID" --query clientId -o tsv)"
+  echo
+  echo "Next, sign in to Cloud Shell as ADMIN@HDITTESTINGTENANCY.onmicrosoft.com and run:"
+  echo "  bash pulse-setup.sh release1-entra"
+  echo
+}
+
+# -----------------------------------------------------------------------------
+# Release 1, Entra side: new roles and groups, SQL admin group, service permissions
+# -----------------------------------------------------------------------------
+sp_by_name() { graph --method GET --uri "$G/servicePrincipals" --url-parameters "\$filter=displayName eq '$1'" --query 'value[0].id' -o tsv 2>/dev/null || true; }
+
+release1_entra_step() {
+  need az; need jq
+  entra_step "${1:-$PULSE_URL_DEFAULT}"     # refreshes roles and creates the new groups
+
+  echo; echo "HD IT Pulse release 1: Entra ID"; echo
+  local me; me=$(az ad signed-in-user show --query id -o tsv)
+  local deploy_sp api_sp sync_sp v
+  deploy_sp=$(sp_by_name "$DEPLOY_ID"); api_sp=$(sp_by_name "$API_ID"); sync_sp=$(sp_by_name "$SYNC_ID")
+  for v in deploy_sp api_sp sync_sp; do
+    if [ -z "${!v}" ] || [ "${!v}" = "None" ]; then
+      die "Couldn't find the Pulse identities. Run 'bash pulse-setup.sh release1' first (as your Azure account)."
+    fi
+  done
+  ok "Found the deploy, API and sync identities"
+
+  # ---- SQL admin group: you and the GitHub deploy identity (runs database migrations) ----
+  local gid
+  gid=$(graph --method GET --uri "$G/groups" --url-parameters "\$filter=displayName eq '$SQL_ADMIN_GROUP'" --query 'value[0].id' -o tsv)
+  if [ -z "$gid" ] || [ "$gid" = "None" ]; then
+    gid=$(graph --method POST --uri "$G/groups" --headers "Content-Type=application/json" --body "$(jq -n --arg n "$SQL_ADMIN_GROUP" \
+      '{displayName:$n, mailNickname:"pulse-sql-admins-test", description:"Administrators of the HD IT Pulse test database. Keep to Platform Admins and the GitHub deploy identity.", mailEnabled:false, securityEnabled:true}')" --query id -o tsv)
+    ok "Created group \"$SQL_ADMIN_GROUP\""
+  else
+    ok "Group \"$SQL_ADMIN_GROUP\""
+  fi
+  local m
+  for m in "$me" "$deploy_sp"; do
+    graph --method POST --uri "$G/groups/$gid/members/\$ref" --headers "Content-Type=application/json" \
+      --body "{\"@odata.id\":\"$G/directoryObjects/$m\"}" -o none 2>/dev/null || true
+  done
+  ok "Members: you and $DEPLOY_ID"
+
+  # ---- Pulse.Collector for the sync identity ----
+  local app_id pulse_sp rid
+  app_id=$(graph --method GET --uri "$G/applications" --url-parameters "\$filter=displayName eq '$APP_NAME'" --query 'value[0].appId' -o tsv)
+  pulse_sp=$(graph --method GET --uri "$G/servicePrincipals" --url-parameters "\$filter=appId eq '$app_id'" --query 'value[0].id' -o tsv)
+  rid=$(graph --method GET --uri "$G/servicePrincipals/$pulse_sp?\$select=appRoles" -o json | jq -r '.appRoles[] | select(.value=="Pulse.Collector") | .id')
+  assign_app_role() {  # principal-sp resource-sp role-id label
+    if graph --method GET --uri "$G/servicePrincipals/$1/appRoleAssignments" -o json | jq -e --arg r "$3" --arg s "$2" '.value[] | select(.appRoleId==$r and .resourceId==$s)' >/dev/null; then
+      info "$4 (already)"
+    else
+      graph --method POST --uri "$G/servicePrincipals/$1/appRoleAssignments" --headers "Content-Type=application/json" \
+        --body "{\"principalId\":\"$1\",\"resourceId\":\"$2\",\"appRoleId\":\"$3\"}" -o none
+      ok "$4"
+    fi
+  }
+  assign_app_role "$sync_sp" "$pulse_sp" "$rid" "Sync identity: Pulse.Collector"
+
+  # ---- Microsoft Graph application permissions for the sync identity ----
+  local graph_sp graph_roles perm
+  graph_sp=$(graph --method GET --uri "$G/servicePrincipals" --url-parameters "\$filter=appId eq '$GRAPH_APP_ID'" --query 'value[0].id' -o tsv)
+  graph_roles=$(graph --method GET --uri "$G/servicePrincipals/$graph_sp?\$select=appRoles" -o json)
+  for perm in $SYNC_GRAPH_PERMISSIONS; do
+    rid=$(jq -r --arg v "$perm" '.appRoles[] | select(.value==$v) | .id' <<<"$graph_roles")
+    [ -n "$rid" ] || die "Microsoft Graph has no permission called $perm."
+    assign_app_role "$sync_sp" "$graph_sp" "$rid" "Sync identity: Microsoft Graph $perm"
+  done
+
+  echo
+  echo "Done. Paste this line back to Claude:"
+  echo
+  echo "  SQL_ADMIN_GROUP_ID=$gid"
+  echo
+  echo "Add people to the new groups (Pulse - Leadership, Pulse - Division …) in the Entra admin centre."
+  echo
+}
+
 case "${1:-}" in
   azure) azure_step ;;
   pipeline) pipeline_step ;;
   entra) shift; entra_step "$@" ;;
-  *) sed -n '2,30p' "$0"; exit 1 ;;
+  release1) release1_step ;;
+  release1-entra) shift; release1_entra_step "$@" ;;
+  *) sed -n '2,44p' "$0"; exit 1 ;;
 esac

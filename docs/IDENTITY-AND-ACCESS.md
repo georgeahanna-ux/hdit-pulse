@@ -45,6 +45,15 @@ Tested first on the **HD IT Testing Tenancy** (`0b1e12e5-f6cd-4ae7-a9ff-4562637a
 | Pulse - Whitespace Users | `Whitespace.User` | Whitespace Matrix: view only |
 | Pulse - Whitespace Editors | `Whitespace.Editor` | Whitespace Matrix: edit cells, contracts and hidden items |
 | Pulse - Whitespace Admins | `Whitespace.Admin` | Whitespace Matrix: everything, plus the service catalogue and Settings |
+| Pulse - Leadership | `Pulse.Leadership` | Every division; override any measurable; change Autotask default departments |
+| Pulse - Finance Detail | `Pulse.FinanceDetail` | Full P&L detail, wages and per-client profitability |
+| Pulse - Compliance | `Pulse.Compliance` | Audit log and the quarterly access review |
+| Pulse - Division Finance | `Division.Finance` | Finance & Accounts in full; override its measurables |
+| Pulse - Division People | `Division.People` | People (HR) in full; override its measurables |
+| Pulse - Division Sales and Marketing | `Division.SalesMarketing` | Sales & Marketing in full; override its measurables |
+| Pulse - Division Innovation and Compliance | `Division.InnovationCompliance` | Innovation & Compliance in full; override its measurables |
+| Pulse - Division Managed Services | `Division.ManagedServices` | Managed Services in full; override its measurables |
+| *(the sync service's identity, not people)* | `Pulse.Collector` | Lets Pulse read each app's Scorecard numbers |
 
 A new app adds its own `<App>.User` / `.Admin` roles and groups the same way.
 
@@ -99,6 +108,28 @@ Run `setup/pulse-setup.sh` in Azure Cloud Shell (Bash). Upload the file with **M
 3. **Give Claude the five values.** They aren't secrets. Claude adds them to the Pulse and app deploy settings and pushes, which deploys everything.
 
 4. **Add test people** to the groups, then sign in at the Pulse address.
+
+## Release 1 setup (Pulse backend)
+
+Release 1 adds Pulse's own backend: Azure SQL, a Key Vault, and two Function Apps (`func-hdit-pulse-api`, `func-hdit-pulse-sync`), each running as its own managed identity. See `docs/ARCHITECTURE.md`. After the steps above:
+
+5. **Azure**, as the account you used for Marketing ROI:
+   ```bash
+   bash pulse-setup.sh release1
+   ```
+   Creates `id-hdit-pulse-api-test-aue` and `id-hdit-pulse-sync-test-aue`, the Key Vault `kv-hdit-pulse-test` with one placeholder per integration credential, and secret-level access: each identity can read only the credentials it needs. The API identity can write credentials but never read them (custom role "Pulse Secret Writer (Test)"). Prints two client ids.
+
+6. **Entra ID**, as `ADMIN@HDITTESTINGTENANCY.onmicrosoft.com`:
+   ```bash
+   bash pulse-setup.sh release1-entra
+   ```
+   Adds the release 1 roles and their groups (table above), creates **Pulse - SQL Admins (Test)** (you and the GitHub deploy identity; the database's administrator), gives the sync identity `Pulse.Collector` and Microsoft Graph `User.Read.All`, `GroupMember.Read.All` and `Tasks.ReadWrite.All`. Prints `SQL_ADMIN_GROUP_ID`.
+
+7. **Give Claude `SQL_ADMIN_GROUP_ID`.** It goes in `infra/test.bicepparam`; the next deploy creates the database and both Function Apps, runs the migrations and switches Pulse's front end over to its API.
+
+8. **Add people** to Pulse - Leadership and the Pulse - Division … groups.
+
+How the database is reached: Entra ID only (no SQL passwords). The Function identities are database users in roles `pulse_api` and `pulse_sync`, which can read and write Pulse's tables but can't change the schema or alter the audit trail. Schema changes run from GitHub Actions as the deploy identity, which briefly allows the runner's address through the SQL firewall for that run only.
 
 ## Production
 

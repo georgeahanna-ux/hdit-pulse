@@ -1,0 +1,42 @@
+/* HD IT Brand System V5.0 — 2026 · tokens.css
+   Load fonts first:
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zalando+Sans+Expanded:wght@300;400;500;700;800&family=DM+Sans:wght@400;500;700&display=swap">
+   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap"> */
+:root{
+  --hd-deep:#101B3C; --hd-lemon:#F0F0B4; --hd-lilac:#A1B1F2; --hd-aqua:#94E5D7; --hd-white:#FFFFFF;
+  --hd-cloud:#F4F4F1; --hd-mist:#E4E5E9; --hd-slate:#5A6178; --hd-deep-80:#404963; --hd-deep-20:#CFD1D8; --hd-alert:#C8372D;
+  --hd-pattern-deep:#222C57; --hd-pattern-aqua:#70D8C0; --hd-pattern-lilac:#8191E8; --hd-pattern-lemon:#E6DE86;
+  --hd-gradient:linear-gradient(30deg, #F0F0B4 0%, #94E5D7 39%, #A1B1F2 69%, #0F1A3B 100%); --hd-gradient-flex:linear-gradient(30deg, #F0F0B4 0%, #A1B1F2 60%, #0F1A3B 100%);
+  --hd-font-display:'Zalando Sans Expanded', Arial, sans-serif; --hd-font-body:Satoshi, 'DM Sans', Arial, sans-serif; --hd-font-system:Arial, Helvetica, sans-serif;
+  --hd-fs-display:clamp(40px,6vw,72px); --hd-fs-h1:clamp(32px,4.5vw,56px); --hd-fs-h2:clamp(26px,3.4vw,40px); --hd-fs-h3:24px; --hd-fs-lead:21px; --hd-fs-body:17px; --hd-fs-small:14px; --hd-fs-eyebrow:12px;
+  --hd-r-chip:6px; --hd-r-button:12px; --hd-r-card:16px; --hd-r-panel:20px; --hd-r-pill:999px;
+  --hd-s1:4px; --hd-s2:8px; --hd-s3:12px; --hd-s4:16px; --hd-s5:24px; --hd-s6:32px; --hd-s7:48px; --hd-s8:64px; --hd-s9:96px; --hd-s10:128px;
+  --hd-max:1280px; --hd-gutter:24px;
+  --hd-dur-micro:120ms; --hd-dur-ui:200ms; --hd-dur-content:320ms; --hd-dur-hero:700ms; --hd-ease:cubic-bezier(.2,.7,.2,1); --hd-ease-exit:cubic-bezier(.4,0,1,1);
+  --hd-focus:0 0 0 3px var(--hd-lilac);
+}
+/* Base */
+body{margin:0;background:var(--hd-white);color:var(--hd-deep);font:400 var(--hd-fs-body)/1.6 var(--hd-font-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--hd-font-display);font-weight:700;margin:0;text-wrap:balance}
+h1{font-size:var(--hd-fs-h1);line-height:1.05;letter-spacing:-.01em} h2{font-size:var(--hd-fs-h2);line-height:1.1;letter-spacing:-.01em} h3{font-size:var(--hd-fs-h3);line-height:1.25}
+p{text-wrap:pretty}
+a{color:var(--hd-deep);text-decoration-color:var(--hd-lilac);text-decoration-thickness:2px;text-underline-offset:4px} a:hover{color:var(--hd-slate)}
+:focus-visible{outline:none;box-shadow:var(--hd-focus);border-radius:var(--hd-r-chip)}
+::selection{background:var(--hd-lemon);color:var(--hd-deep)}
+/* Components */
+.hd-eyebrow{font:700 var(--hd-fs-eyebrow)/1 var(--hd-font-body);letter-spacing:.16em;text-transform:uppercase}
+.hd-eyebrow::before{content:"[ "} .hd-eyebrow::after{content:" ]"}
+.hd-btn{display:inline-flex;align-items:center;gap:10px;border-radius:var(--hd-r-button);padding:14px 20px;font:700 15px/1 var(--hd-font-body);text-decoration:none;border:2px solid transparent;cursor:pointer;transition:background var(--hd-dur-micro) var(--hd-ease)}
+.hd-btn--primary{background:var(--hd-deep);color:var(--hd-white)} .hd-btn--primary:hover{background:var(--hd-deep-80);color:var(--hd-white)}
+.hd-btn--signal{background:var(--hd-lemon);color:var(--hd-deep)}
+.hd-btn--outline{border-color:currentColor;background:transparent;color:inherit;padding:12px 18px}
+.hd-card{background:var(--hd-cloud);border-radius:var(--hd-r-card);padding:var(--hd-s5)}
+.hd-card--outline{background:transparent;border:1.5px solid var(--hd-deep)}
+.hd-panel{border-radius:var(--hd-r-panel);padding:clamp(24px,4vw,48px)}
+.hd-dark{background:var(--hd-deep);color:var(--hd-white)} .hd-dark a{color:var(--hd-lilac)} .hd-dark .hd-eyebrow{color:var(--hd-lemon)}
+.hd-chip{display:inline-flex;align-items:center;gap:6px;border-radius:var(--hd-r-chip);padding:6px 10px;font:700 12px/1 var(--hd-font-body)}
+.hd-chip--ok{background:var(--hd-aqua)} .hd-chip--progress{background:var(--hd-lilac)} .hd-chip--scheduled{background:var(--hd-lemon)} .hd-chip--alert{border:1.5px solid var(--hd-alert);color:var(--hd-alert)}
+.hd-stat__value{font:800 clamp(32px,4vw,48px)/1 var(--hd-font-display)} .hd-dark .hd-stat__value{color:var(--hd-lemon)}
+.hd-keepit{font:300 clamp(28px,4vw,48px)/1.05 var(--hd-font-display)} .hd-keepit b{font-weight:800}
+.hd-container{max-width:var(--hd-max);margin:0 auto;padding:0 clamp(20px,5vw,64px)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

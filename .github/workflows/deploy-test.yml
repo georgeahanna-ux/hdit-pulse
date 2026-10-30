@@ -1,9 +1,14 @@
 name: Deploy to test
 
-# Builds HD IT Pulse and deploys it to the HD IT Azure test tenancy.
-# Signs in to Azure with OpenID Connect as the user-assigned identity id-hdit-pulse-deploy-test-aue
-# (Contributor on rg-hdit-pulse-test-aue). No secrets are stored in GitHub.
-# Everything below is an identifier, not a secret; repository variables of the same name override them.
+# Builds, tests and deploys HD IT Pulse to the HD IT Azure test tenancy.
+# Signs in to Azure with OpenID Connect as id-hdit-pulse-deploy-test-aue (Contributor on
+# rg-hdit-pulse-test-aue, and a member of "Pulse - SQL Admins (Test)" for migrations).
+# No secrets are stored in GitHub. Everything below is an identifier; repository variables
+# of the same name override them.
+#
+# The backend (SQL, Key Vault, both Function Apps) is deployed once infra/test.bicepparam has
+# sqlAdminGroupId set (after `pulse-setup.sh release1` and `release1-entra`). Until then this
+# deploys the front end only, as before.
 
 on:
   push:
@@ -24,13 +29,13 @@ env:
   AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || '6dcedf3f-9147-4fd7-b8bf-472ab77b7cf1' }}   # id-hdit-pulse-deploy-test-aue
   AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
   AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID || '1d9bced5-726c-4ef9-a4d3-63c350b6647c' }}
-  # The HD IT Pulse app registration (printed by setup/pulse-setup.sh entra). Empty = preview build.
   ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
   ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID || '1b247714-1319-4edf-9115-de80b3360561' }}
-  # Each app's own site. Empty = shown as "moving into Pulse".
   APP_PIPELINE_URL: ${{ vars.APP_PIPELINE_URL || 'https://proud-mud-036475b00.4.azurestaticapps.net' }}
   APP_MROI_URL: ${{ vars.APP_MROI_URL || 'https://delightful-beach-0f11f7d00.5.azurestaticapps.net' }}
   APP_WSPACE_URL: ${{ vars.APP_WSPACE_URL || 'https://victorious-coast-00f6fdc00.2.azurestaticapps.net' }}
+  API_IDENTITY: id-hdit-pulse-api-test-aue
+  SYNC_IDENTITY: id-hdit-pulse-sync-test-aue
 
 jobs:
   deploy:
@@ -42,25 +47,22 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
-      - name: Build
+      - name: Backend - install, test, check
+        working-directory: backend
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm prune --omit=dev
+          npm run check
+          node scripts/migrate.js --dry-run
+
+      - name: Front end - check build and versions
         run: node scripts/build.mjs
 
-      - name: Check Azure is set up
-        id: azure
-        run: |
-          if [ -z "$AZURE_CLIENT_ID" ]; then
-            echo "::warning title=Not deployed::Azure isn't set up for this repo yet. Run setup/pulse-setup.sh (see docs/IDENTITY-AND-ACCESS.md), then add the deploy identity's client id. The build passed."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
-          if [ -z "$ENTRA_CLIENT_ID" ]; then
-            echo "::warning title=Preview build::ENTRA_CLIENT_ID is empty, so this build uses simulated sign-in. Run setup/pulse-setup.sh entra and add the client id."
-          fi
-
       - name: Sign in to Azure (OIDC)
-        if: steps.azure.outputs.ready == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
@@ -68,7 +70,6 @@ jobs:
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Infrastructure - Bicep
-        if: steps.azure.outputs.ready == 'true'
         run: |
           NAME="pulse-${{ github.run_number }}-${{ github.run_attempt }}"
           set +e
@@ -80,22 +81,86 @@ jobs:
           if [ $rc -ne 0 ]; then
             cat deploy-err.txt
             echo "::error title=Bicep deployment failed::$(tr '\n' ' ' < deploy-err.txt | cut -c1-4000)"
+            az deployment operation group list -g "$RG" -n "$NAME" \
+              --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.resourceName,code:properties.statusMessage.error.code,message:properties.statusMessage.error.message}" \
+              -o json 2>/dev/null | jq -c '.[]' | while read -r op; do echo "::error title=Failed resource::$(echo "$op" | cut -c1-4000)"; done
             exit 1
           fi
+          jq . outputs.json
+          o() { jq -r ".$1.value" outputs.json; }
           {
-            echo "SWA_NAME=$(jq -r .staticWebAppName.value outputs.json)"
-            echo "SWA_HOST=$(jq -r .staticWebAppHostname.value outputs.json)"
+            echo "SWA_NAME=$(o staticWebAppName)"
+            echo "SWA_HOST=$(o staticWebAppHostname)"
+            echo "BACKEND=$(o backendDeployed)"
+            echo "API_NAME=$(o apiName)"
+            echo "API_HOST=$(o apiHostname)"
+            echo "SYNC_NAME=$(o syncName)"
+            echo "SQL_SERVER=$(o sqlServer)"
+            echo "SQL_SERVER_NAME=$(o sqlServerName)"
+            echo "SQL_DATABASE=$(o sqlDatabase)"
+            echo "API_CLIENT_ID=$(o apiIdentityClientId)"
+            echo "SYNC_CLIENT_ID=$(o syncIdentityClientId)"
           } >> "$GITHUB_ENV"
+          if [ "$(o backendDeployed)" != "true" ]; then
+            echo "::warning title=Front end only::The Pulse backend isn't deployed yet. Run pulse-setup.sh release1 and release1-entra, then set sqlAdminGroupId in infra/test.bicepparam."
+          fi
 
-      - name: Get deployment token
-        if: steps.azure.outputs.ready == 'true'
+      - name: Database - open firewall for this run
+        if: env.BACKEND == 'true'
+        run: |
+          ip=$(curl -s --max-time 10 https://api.ipify.org)
+          echo "RUNNER_IP=$ip" >> "$GITHUB_ENV"
+          az sql server firewall-rule create -g "$RG" -s "$SQL_SERVER_NAME" -n "github-run-${{ github.run_id }}" \
+            --start-ip-address "$ip" --end-ip-address "$ip" -o none
+          echo "Allowed $ip until this run ends."
+
+      - name: Database - migrations
+        if: env.BACKEND == 'true'
+        working-directory: backend
+        env:
+          PULSE_API_IDENTITY: ${{ env.API_IDENTITY }}
+          PULSE_API_CLIENT_ID: ${{ env.API_CLIENT_ID }}
+          PULSE_SYNC_IDENTITY: ${{ env.SYNC_IDENTITY }}
+          PULSE_SYNC_CLIENT_ID: ${{ env.SYNC_CLIENT_ID }}
+        run: |
+          for i in 1 2 3; do
+            node scripts/migrate.js && exit 0
+            echo "Retrying in 20 seconds (firewall rules can take a moment)…"; sleep 20
+          done
+          exit 1
+
+      - name: Database - close firewall
+        if: always() && env.BACKEND == 'true' && env.RUNNER_IP != ''
+        run: az sql server firewall-rule delete -g "$RG" -s "$SQL_SERVER_NAME" -n "github-run-${{ github.run_id }}" -o none || true
+
+      - name: Backend - deploy API
+        if: env.BACKEND == 'true'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.API_NAME }}
+          package: backend
+          sku: flexconsumption
+
+      - name: Backend - deploy sync
+        if: env.BACKEND == 'true'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.SYNC_NAME }}
+          package: backend
+          sku: flexconsumption
+
+      - name: Front end - build for this environment
+        run: |
+          if [ "$BACKEND" = "true" ]; then export PULSE_API_URL="https://${API_HOST}/api"; fi
+          node scripts/build.mjs
+
+      - name: Front end - get deployment token
         run: |
           TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --query properties.apiKey -o tsv)
           echo "::add-mask::$TOKEN"
           echo "SWA_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
-      - name: Deploy to Static Web App
-        if: steps.azure.outputs.ready == 'true'
+      - name: Front end - deploy to Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
@@ -105,16 +170,29 @@ jobs:
           skip_app_build: true
 
       - name: Smoke test
-        if: steps.azure.outputs.ready == 'true'
         run: |
-          want=$(grep -oP 'APP_VERSION: "\K[0-9.]+' frontend/index.html)
+          want=$(grep -oP 'APP_VERSION: "\K[0-9.]+' frontend/js/config.js)
           for i in $(seq 1 18); do
-            got=$(curl -s "https://${SWA_HOST}/" | grep -oP 'APP_VERSION: "\K[0-9.]+' || true)
+            got=$(curl -s "https://${SWA_HOST}/js/config.js" | grep -oP 'APP_VERSION: "\K[0-9.]+' || true)
             [ "$got" = "$want" ] && break
             echo "  attempt $i: site reports v${got:-?}, expected v$want"; sleep 10
           done
-          csp=$(curl -s -D - -o /dev/null "https://${SWA_HOST}/" | grep -i '^content-security-policy' | tr -d '\r' || true)
-          echo "$csp"
+          api="—"; sync="—"; ok=1
+          [ "$got" = "$want" ] || ok=0
+          if [ "$BACKEND" = "true" ]; then
+            for i in $(seq 1 24); do
+              api=$(curl -s "https://${API_HOST}/api/health" || true)
+              [ "$(echo "$api" | jq -r .version 2>/dev/null)" = "$want" ] && break
+              echo "  attempt $i: API says ${api:-nothing}"; sleep 10
+            done
+            sync=$(curl -s "https://$(az functionapp show -g "$RG" -n "$SYNC_NAME" --query defaultHostName -o tsv)/api/health" || true)
+            echo "API: $api"; echo "Sync: $sync"
+            [ "$(echo "$api" | jq -r .version 2>/dev/null)" = "$want" ] || ok=0
+            [ "$(echo "$api" | jq -r .database 2>/dev/null)" = "ok" ] || { echo "::warning title=Database::API health reports database: $(echo "$api" | jq -r .database 2>/dev/null)"; }
+            echo "CORS preflight from Pulse:"
+            curl -s -i -X OPTIONS "https://${API_HOST}/api/me" -H "Origin: https://${SWA_HOST}" \
+              -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: authorization" | grep -i -E "^HTTP|access-control-allow-origin" || true
+          fi
           {
             echo "## HD IT Pulse deployed to test"
             echo ""
@@ -122,8 +200,9 @@ jobs:
             echo "|---|---|"
             echo "| Pulse | https://${SWA_HOST} |"
             echo "| Version | v${got:-?} |"
-            echo "| Sign-in | $([ -n "$ENTRA_CLIENT_ID" ] && echo "Entra ID, client $ENTRA_CLIENT_ID" || echo "Preview (simulated)") |"
-            echo "| Apps | Pipeline: ${APP_PIPELINE_URL:-—} · Marketing ROI: ${APP_MROI_URL:-—} · Whitespace: ${APP_WSPACE_URL:-—} |"
+            echo "| Backend | $([ "$BACKEND" = "true" ] && echo "https://${API_HOST}/api" || echo "not deployed yet (run release 1 setup)") |"
+            echo "| API health | \`$(echo "$api" | tr -d '\n' | cut -c1-300)\` |"
+            echo "| Sync health | \`$(echo "$sync" | tr -d '\n' | cut -c1-300)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice title=Pulse::https://${SWA_HOST} (v${got:-?})"
-          [ "$got" = "$want" ]
+          [ "$ok" = 1 ]

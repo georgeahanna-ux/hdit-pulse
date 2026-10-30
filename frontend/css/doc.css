@@ -1,0 +1,27 @@
+/* HD IT Pulse help pages (user guide, what's new). Brand V5: Navy header band, one reading column. */
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--hd-white); }
+.doc-band { background: var(--hd-deep); color: var(--hd-white); padding: 40px clamp(20px, 5vw, 64px) 36px; }
+.doc-band .inner, .doc-main { max-width: 820px; margin: 0 auto; }
+.doc-band img { height: 32px; width: auto; display: block; margin-bottom: 28px; }
+.doc-band .hd-eyebrow { color: var(--hd-lemon); }
+.doc-band h1 { color: var(--hd-white); font-size: clamp(30px, 4vw, 44px); margin-top: 12px; }
+.doc-band p { color: var(--hd-deep-20); margin: 12px 0 0; }
+.doc-main { padding: 32px clamp(20px, 5vw, 64px) 80px; }
+.ver-banner { border-radius: var(--hd-r-card); padding: 12px 16px; margin: 0 0 28px; background: var(--hd-cloud); }
+.ver-banner.ok { background: var(--hd-aqua); }
+.ver-banner.warn { background: var(--hd-lemon); }
+.doc-main section { margin-top: 40px; }
+.doc-main .hd-eyebrow { display: block; color: var(--hd-slate); margin-bottom: 10px; }
+.doc-main h2 { font-size: 26px; line-height: 1.2; }
+.doc-main h3 { font-size: 19px; margin-top: 24px; }
+.doc-main p, .doc-main li { max-width: 72ch; }
+.doc-main ul { padding-left: 22px; }
+.doc-main li { margin: 6px 0; }
+.doc-main table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 12px 0; }
+.doc-main th, .doc-main td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--hd-mist); vertical-align: top; }
+.doc-main th { font: 700 12px/1.2 var(--hd-font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--hd-slate); background: var(--hd-cloud); }
+.release { border-top: 1.5px solid var(--hd-deep); padding-top: 20px; }
+.release .when { color: var(--hd-slate); font-size: 15px; }
+.chip { display: inline-block; border-radius: var(--hd-r-chip); padding: 4px 8px; font: 700 12px/1 var(--hd-font-body); background: var(--hd-lilac); color: var(--hd-deep); vertical-align: middle; }
+.doc-foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--hd-mist); color: var(--hd-slate); font-size: 14px; }

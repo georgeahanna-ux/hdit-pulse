@@ -29,7 +29,7 @@ Give each division the insights and tools to run efficiently and optimally, grou
 Pulse replaces the current EOS tool and is the system of record for Scorecard, Rocks, Issues, To-dos, Level 10 meetings, V/TO and the Accountability Chart. People tools (People Analyzer, Quarterly Conversations, 1:1s) follow in a later phase because they hold sensitive HR data.
 
 Scorecard values fill in automatically from source systems where a source exists, and **any automatic value can be overridden with a mandatory reason**. Agreed rules:
-- Anyone can override (see Confirmed before build, item 3).
+- Leadership can override any measurable; everyone else only their own division's measurables (see Confirmed before build, item 3).
 - The automatic value is kept alongside the override; both are visible, and the cell is marked as overridden.
 - Every override and change is recorded in an audit trail (who, when, old value, new value, reason).
 - An override applies to that week only; later weeks keep filling in automatically.
@@ -58,9 +58,9 @@ Starting list of 15 measurables; goals marked "set with owner" are refined by ea
 | 4 | New seats signed | Faben Miglani | ≥ 12.5 a week (650 a year) | Autotask contracts | Weekly |
 | 5 | Seats serviced | Tony Parzakonis | ≥ 2,350 | Autotask contracts / Datto RMM | Weekly |
 | 6 | SLA first response met | Tony Parzakonis | ≥ 95% | Autotask | Weekly |
-| 7 | Tickets closed per tech per day | Tony Parzakonis | Set with owner (Evergreen benchmark 10) | Autotask | Weekly |
+| 7 | Tickets closed per tech per day | Tony Parzakonis | Set with owner (Evergreen benchmark 10) | Autotask (techs = default department Service Desk, D16) | Weekly |
 | 8 | First-contact resolution | Tony Parzakonis | Set with owner | Autotask | Weekly |
-| 9 | Billable utilisation | Tony Parzakonis | Set with owner | Autotask time entries | Weekly |
+| 9 | Billable utilisation | Tony Parzakonis | Set with owner | Autotask time entries (techs, D16) | Weekly |
 | 10 | CSAT | Tony Parzakonis | Set with owner | SimpleSAT | Weekly |
 | 11 | NPS (last 90 days) | Tony Parzakonis | ≥ +65 | SimpleSAT | Weekly |
 | 12 | Cash on hand | Mandy Moujalli | Set with owner | Xero | Weekly |
@@ -176,9 +176,22 @@ Release 1 builds the Scorecard and data foundations. Release 2 adds, once severa
 - Ask Pulse: plain-English questions over Pulse data, limited to what the person can already see.
 AI runs on Azure OpenAI hosted in Australia under HD IT's subscription; data is not used for training; every AI answer shows the numbers it used.
 
+### D16. Autotask departments: view and change in Pulse, two-way (31 Oct 2026)
+- A **tech** is any active Autotask resource whose **default department is "Service Desk"**. This defines who counts for tickets closed per tech per day and billable utilisation (D4 items 7 and 9), using the department in force during the week.
+- Pulse shows the people in each Autotask default department (from the People directory, D10).
+- Pulse can change the default department for one person or several at once. The change is written to Autotask (`ResourceRoleDepartments`: the chosen department-and-role pairing is set as default, created if the person doesn't have it yet; Autotask then clears the old default itself). Changes made in Autotask show in Pulse at the next sync (every 15 minutes, and on demand).
+- Who can change departments: Platform Admins and Leadership. Every change records who, when, old and new department, and a reason, in the audit log; Autotask's own history shows the Pulse API user.
+- Writing to Autotask uses a dedicated Autotask API user for people administration with only the resource permissions this needs, held in the central vault (D7).
+- Department history is kept in Pulse so past weeks use the department in force at the time.
+
+### D17. Xero: live organisation, read-only, standard connection (31 Oct 2026)
+- Test and production both read HD IT's **live Xero** organisation. The test tenancy therefore holds real finance figures; in test, finance detail is limited to the Finance Detail group, as in production.
+- **Read-only**, enforced by Xero: Pulse asks only for granular `.read` scopes (profit and loss, balance sheet, bank summary, aged receivables, trial balance, settings for the chart of accounts and its reporting codes) plus `offline_access`. Pulse can't change anything in Xero.
+- **Standard OAuth connection** (no Custom Connection fee). A Finance user connects Xero once from the Connections page. The refresh token is kept in Key Vault and renewed on every hourly run. If it lapses (60 days unused), the Connections page shows it and asks for a reconnect.
+
 ## Release plan
 **Release 1: Leadership and EOS core**
-- Entra SSO with Conditional Access (MFA + compliant device); People directory and identity matching (D10).
+- Entra SSO with Conditional Access (MFA + compliant device); People directory and identity matching (D10); Autotask departments view and two-way default-department changes (D16).
 - Company Scorecard (D4) with automatic filling, overrides with reasons, weekly lock after the Tuesday L10 (D1, D5).
 - Rocks, Issues, To-dos, L10 meeting, V/TO, Accountability Chart.
 - Planner To-do sync; Issue → Autotask ticket or task; Scorecard → suggested Issues (D11).
@@ -196,11 +209,13 @@ AI runs on Azure OpenAI hosted in Australia under HD IT's subscription; data is 
 - Entra app registration "HD IT Pulse (Test)", roles, groups and setup script (`hdit-pulse/setup/pulse-setup.sh`, `docs/IDENTITY-AND-ACCESS.md`).
 - Shared token checks (`pulse-auth.js`) and the Pulse-to-app sign-in bridge already in Pipeline (v1.13.0), Marketing ROI (v0.6.0) and Whitespace Matrix (v0.8.0).
 - Pulse v0.3.0 shell is superseded by this plan (start fresh, keep the identity work).
+- Release 1 architecture and build plan: `docs/ARCHITECTURE.md` (approved 31 Oct 2026).
 
 ## Confirmed before build (30 Oct 2026)
 1. **L10 tab:** the General channel of the leadership team in the main HD IT tenant (tenant `d89fb131-4d46-43cf-be60-075d35d8b815`, team group `7085832f-75a0-4d4b-af52-faaf8ef086e1`, channel `19:7246f99d73eb4d779c7d9c090ea0abab@thread.skype`).
 2. **Week lock:** 5pm Tuesday (Sydney), at a fixed time. Concluding the L10 doesn't lock early.
-3. **Overrides:** anyone can override, for that week only, with a mandatory reason; every override is audited and can be reverted. (Assumed to mean anyone who can see the measurable; staff see the company Scorecard, so confirm whether staff may override company measurables or only their own division's.)
+3. **Overrides:** for that week only, with a mandatory reason; every override is audited and can be reverted. **Leadership can override any measurable; staff can override only their own division's measurables** (a measurable's division follows its owner's seat). Enforced by the backend. (Decided 30 Oct 2026.)
 4. **To-dos:** Planner is the home (two-way sync, D11).
 5. **Devices:** all staff, including offshore NOC, are on Intune-managed compliant devices (D8 confirmed).
 6. **Platform Admins:** George Hanna and Bernadette Hanna.
+7. **Test tenancy licences:** Microsoft 365 Business Premium, so Teams, Planner and the bot are tested there with a test leadership team (31 Oct 2026).
