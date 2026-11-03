@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 — 3 November 2026
+- Pulse backend switched on in test: database, API and sync service deployed; migration 0001 applied.
+- API `/health` reports the last sync run, so a deploy can confirm the sync service is working.
+- Deploy smoke test retries the sync service health check and reports its HTTP status.
+
 ## 0.4.1 — 31 October 2026
 - Sign-in page: HD IT logo and "Keep IT Moving" tagline aligned left, as designed.
 

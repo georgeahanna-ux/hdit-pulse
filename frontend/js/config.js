@@ -11,7 +11,7 @@ export const DEPLOY = {
 const filled = v => !!v && !String(v).startsWith("__");
 
 export const CONFIG = {
-  APP_VERSION: "0.4.1",
+  APP_VERSION: "0.4.2",
   PREVIEW: !filled(DEPLOY.clientId) || !filled(DEPLOY.tenantId),
   ENVIRONMENT: filled(DEPLOY.environment) ? DEPLOY.environment : "Preview",
   API_BASE: filled(DEPLOY.apiBase) ? String(DEPLOY.apiBase).replace(/\/+$/, "") : "",

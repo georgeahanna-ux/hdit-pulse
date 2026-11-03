@@ -185,7 +185,14 @@ jobs:
               [ "$(echo "$api" | jq -r .version 2>/dev/null)" = "$want" ] && break
               echo "  attempt $i: API says ${api:-nothing}"; sleep 10
             done
-            sync=$(curl -s "https://$(az functionapp show -g "$RG" -n "$SYNC_NAME" --query defaultHostName -o tsv)/api/health" || true)
+            sync_host=$(az functionapp show -g "$RG" -n "$SYNC_NAME" --query defaultHostName -o tsv)
+            for i in $(seq 1 12); do
+              code=$(curl -s -o sync.json -w "%{http_code}" "https://${sync_host}/api/health" || true)
+              sync="HTTP $code $(cat sync.json 2>/dev/null)"
+              [ "$code" = "200" ] && [ "$(jq -r .version sync.json 2>/dev/null)" = "$want" ] && break
+              echo "  attempt $i: sync says $sync"; sleep 10
+            done
+            [ "$code" = "200" ] || echo "::warning title=Sync health::${sync_host} answered: $sync"
             echo "API: $api"; echo "Sync: $sync"
             [ "$(echo "$api" | jq -r .version 2>/dev/null)" = "$want" ] || ok=0
             [ "$(echo "$api" | jq -r .database 2>/dev/null)" = "ok" ] || { echo "::warning title=Database::API health reports database: $(echo "$api" | jq -r .database 2>/dev/null)"; }

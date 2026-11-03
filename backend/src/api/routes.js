@@ -2,7 +2,7 @@
 /**
  * Pulse API routes (func-hdit-pulse-api). All under /api.
  *
- *   GET  /health              public: version, and whether sign-in and the database are set up
+ *   GET  /health              public: version, whether sign-in and the database are set up, last sync run
  *   GET  /me                  the signed-in person, their roles and what they can do; records the sign-in
  *   GET  /calendar/week       Scorecard week facts (?week=YYYY-MM-DD, default: this week)
  *   POST /audit/view          record a view of a sensitive page { page }
@@ -28,15 +28,21 @@ const routes = [
   {
     method: "GET", path: "/health", auth: "public",
     async fn() {
-      let database = "not configured";
+      let database = "not configured", lastSync = null;
       if (db.configured()) {
         try { database = (await db.ping()) ? "ok" : "error"; } catch { database = "unreachable"; }
+        if (database === "ok") {
+          try {
+            const [r] = await db.query("SELECT TOP 1 job, started_at, finished_at, ok FROM pulse.sync_run ORDER BY id DESC");
+            if (r) lastSync = { job: r.job, at: r.finished_at || r.started_at, ok: r.ok === null ? null : !!r.ok };
+          } catch { /* table not there yet */ }
+        }
       }
       return {
         status: "ok", component: "api", version: VERSION,
         environment: process.env.APP_ENVIRONMENT || "local",
         signIn: entra.configured() ? "entra" : "not configured",
-        database, time: new Date().toISOString(),
+        database, lastSync, time: new Date().toISOString(),
       };
     },
   },
