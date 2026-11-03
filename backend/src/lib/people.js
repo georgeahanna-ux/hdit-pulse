@@ -25,6 +25,8 @@ async function touch(person) {
      USING (SELECT @id AS person_id) AS s ON a.person_id = s.person_id
      WHEN MATCHED THEN UPDATE SET last_sign_in_at = SYSUTCDATETIME()
      WHEN NOT MATCHED THEN INSERT (person_id, first_sign_in_at, last_sign_in_at) VALUES (@id, SYSUTCDATETIME(), SYSUTCDATETIME());
+     IF OBJECT_ID(N'pulse.seat_holder') IS NOT NULL AND @email <> N''
+       UPDATE pulse.seat_holder SET person_id = @id WHERE person_id IS NULL AND holder_email = @email;
      SELECT @id AS id, (SELECT TOP 1 action FROM @out) AS action;`,
     { oid: person.oid, name: String(person.name || "").slice(0, 200), email: String(person.email || "").slice(0, 320) });
   const r = rows[0] || {};

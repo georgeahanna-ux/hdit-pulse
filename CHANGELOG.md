@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 — 3 November 2026
+Milestone M1, part 1: database and API (pages follow in 0.5.0).
+- Migration `0002_eos_core`: divisions and functions (D3), seats and seat holders (Accountability Chart), measurables (the 15 from D4, manual until M2), weekly Scorecard values with entered / automatic / override values, Rocks and milestones, Issues, To-dos, V/TO sections, annual plan (FY27 targets from the V/TO; quarter targets by hand; month-end actuals). All edited tables temporal.
+- API: `/structure`, `/seats`, `/me/summary`, `/scorecard` (enter, override, revert), `/measurables`, `/rocks`, `/issues`, `/todos`, `/vto`, `/plan`. Every change audited; overrides and changes to existing month-end figures need a reason.
+- Financial-year helpers (FY27 = Jul 2026–Jun 2027) and annual plan progress maths (cumulative and level metrics, quarter sub-bars, time elapsed).
+- 21 new tests (53 in total).
+
 ## 0.4.2 — 3 November 2026
 - Pulse backend switched on in test: database, API and sync service deployed; migration 0001 applied.
 - API `/health` reports the last sync run, so a deploy can confirm the sync service is working.

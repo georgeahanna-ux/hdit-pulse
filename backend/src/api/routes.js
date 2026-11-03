@@ -9,7 +9,7 @@
  *   GET  /audit               audit log (Platform Admins, Compliance)
  *   GET  /connections         integration status, metadata only (Platform Admins)
  *
- * Release 1 milestones add their routes here (Scorecard, Rocks, Issues, To-dos, L10, People).
+ * M1 EOS routes come from src/eos/: structure (divisions, seats, /me/summary), scorecard, rocks, issues, todos, vto, plan.
  */
 const { VERSION } = require("../version");
 const access = require("../lib/access");
@@ -111,5 +111,8 @@ const routes = [
     },
   },
 ];
+
+// Release 1 EOS modules (M1)
+for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan"]) routes.push(...require(`../eos/${m}`).routes);
 
 module.exports = { routes, SENSITIVE_PAGES };

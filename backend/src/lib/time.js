@@ -95,3 +95,47 @@ function weekInfo(weekId, now = new Date()) {
 const reviewWeek = (now = new Date()) => addDays(weekOf(now), -7);
 
 module.exports = { TZ, sydneyParts, sydneyDate, addDays, weekOf, parseWeek, sydneyToUtc, lockAt, isLocked, weekInfo, reviewWeek };
+
+/* ---------------- Australian financial year (D19) ----------------
+   FY27 = 1 July 2026 to 30 June 2027. Q1 Jul–Sep, Q2 Oct–Dec, Q3 Jan–Mar, Q4 Apr–Jun. */
+
+/** Financial year (e.g. 2027) and quarter (1–4) of a Sydney calendar date "YYYY-MM-DD" or an instant. */
+function fyOf(dateOrIso = new Date()) {
+  const iso = typeof dateOrIso === "string" ? dateOrIso : sydneyDate(dateOrIso);
+  const [y, m] = iso.split("-").map(Number);
+  return { fy: m >= 7 ? y + 1 : y, quarter: Math.floor(((m + 5) % 12) / 3) + 1 };
+}
+
+/** First and last calendar day of a financial year, or of one quarter of it. */
+function fyRange(fy, quarter) {
+  if (!quarter) return { start: `${fy - 1}-07-01`, end: `${fy}-06-30` };
+  const startMonth = [7, 10, 1, 4][quarter - 1];
+  const year = quarter <= 2 ? fy - 1 : fy;
+  const start = `${year}-${String(startMonth).padStart(2, "0")}-01`;
+  const endMonthFirst = addMonths(start, 3);
+  return { start, end: addDays(endMonthFirst, -1) };
+}
+
+/** Adds whole months to the first of a month, "YYYY-MM-01". */
+function addMonths(isoFirst, n) {
+  const [y, m] = isoFirst.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+/** The 12 months of a financial year, as "YYYY-MM-01". */
+const fyMonths = fy => Array.from({ length: 12 }, (_, i) => addMonths(`${fy - 1}-07-01`, i));
+
+/** How far through a date range we are (0–1), by Sydney calendar days. */
+function elapsed(range, now = new Date()) {
+  const today = sydneyDate(now);
+  if (today < range.start) return 0;
+  if (today > range.end) return 1;
+  const day = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 864e5; };
+  return (day(today) - day(range.start) + 1) / (day(range.end) - day(range.start) + 1);
+}
+
+/** "FY27 Q2" */
+const fyLabel = (fy, quarter) => `FY${String(fy).slice(-2)}${quarter ? ` Q${quarter}` : ""}`;
+
+Object.assign(module.exports, { fyOf, fyRange, fyMonths, addMonths, elapsed, fyLabel });
