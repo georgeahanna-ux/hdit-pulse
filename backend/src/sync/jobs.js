@@ -61,4 +61,43 @@ async function checkConnections() {
   return `${set} of ${CONNECTIONS.length} credentials entered`;
 }
 
-module.exports = { run, checkConnections, CONNECTIONS };
+/* ---------------- People directory and departments (D10, D16) ---------------- */
+const directory = require("../people/directory");
+
+/** Runs a job that needs a credential; quietly skips (no run recorded) while it hasn't been entered. */
+async function runIfConnected(job, context, fn, cred = directory.PEOPLE_CRED) {
+  const s = await vault.getSecret(cred).catch(() => null);
+  if (!s || !s.value) { context.log(`${job}: skipped, ${cred} not entered yet`); return; }
+  await run(job, context, fn);
+}
+
+async function syncDepartments() {
+  const a = await directory.syncAutotask();
+  const m = await directory.runMatching();
+  return `${a.resources} resources, ${a.departments} departments, ${a.pairings} pairings; ${m.linked} linked (+${m.added} −${m.removed}), ${m.review} to review`;
+}
+
+async function syncDirectory() {
+  const e = await directory.syncEntra();
+  let a = null;
+  try { a = await directory.syncAutotask(); } catch (err) { if (err.code !== "not-connected") throw err; }
+  const m = await directory.runMatching();
+  return `Entra: ${e.people} people, ${e.leavers} left; ${a ? `Autotask: ${a.resources} resources` : "Autotask not connected yet"}; ${m.linked} linked, ${m.review} to review`;
+}
+
+const REQUESTABLE = { directory: syncDirectory, departments: syncDepartments };
+
+/** Picks up "Refresh now" requests made in Pulse (oldest first, one of each job at a time). */
+async function runRequests(context) {
+  const picked = await db.query(`
+    UPDATE pulse.sync_request SET picked_at = SYSUTCDATETIME()
+    OUTPUT inserted.id, inserted.job, inserted.requested_by
+     WHERE picked_at IS NULL AND requested_at > DATEADD(hour, -1, SYSUTCDATETIME())`);
+  for (const job of [...new Set(picked.map(p => p.job))]) {
+    if (!REQUESTABLE[job]) continue;
+    const by = picked.filter(p => p.job === job).map(p => p.requested_by)[0];
+    await run(job, context, async () => `Requested by ${by}. ` + await REQUESTABLE[job]()).catch(() => {});
+  }
+}
+
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, runRequests, CONNECTIONS };

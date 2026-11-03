@@ -381,3 +381,16 @@ ul.roles { padding-left: 18px; margin: 0; font-size: 15px; }
 .conn-meta { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 10px; color: var(--muted); }
 .conn-act { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; white-space: nowrap; }
 @media (max-width: 700px) { .conn { flex-direction: column; } .conn-act { align-items: flex-start; } }
+
+/* People and departments (D10, D16) */
+.dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--hd-s4); }
+.dept-grid .panel { margin-top: 0; }
+.dept h2 { font-size: 19px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.people-list li { padding: 6px 0; }
+.people-list .check { align-items: flex-start; }
+.people-list input { margin-top: 5px; }
+
+.dept .sec-h { align-items: baseline; }
+.dept-tags { margin: -6px 0 10px; }
+.review-sec h2 { font-size: 1.25rem; }
+td.nowrap { white-space: nowrap; }

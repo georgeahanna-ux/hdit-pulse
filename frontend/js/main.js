@@ -10,6 +10,7 @@ import { scorecardPage } from "./pages/scorecard.js";
 import { rocksPage, issuesPage, todosPage, vtoPage } from "./pages/eos.js";
 import { planPage, chartPage, divisionPage, seatPage, canSeePlan } from "./pages/org.js";
 import { connectionsPage } from "./pages/connections.js";
+import { peoplePage } from "./pages/people.js";
 
 let ME = null, STRUCTURE = null;
 let compact = null;
@@ -82,7 +83,7 @@ function sidebar(route) {
         + (currentDivision === d.code ? d.seats.map(s => link(`#/seat/${s.id}`, "arrow-right", s.title, route.page === "seat" && Number(route.id) === s.id, { cls: "sub" })).join("") : "")).join("")}` : ""}
     ${mine.length ? `<div class="side-label hd-eyebrow">Apps</div>${mine.map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k)).join("")}` : ""}
     <div class="side-label hd-eyebrow">Platform</div>
-    ${link("#/people", "it-support", "People and departments", route.page === "people", { tag: soon("0.6.0") })}
+    ${a.leadership || a.manageDirectory ? link("#/people", "it-support", "People and departments", route.page === "people") : ""}
     ${link("#/access", "compliance", "Your access", route.page === "access")}
     ${a.viewAudit ? link("#/audit", "vulnerability", "Audit log", route.page === "audit") : ""}
     ${a.manageConnections ? link("#/connections", "infrastructure", "Connections", route.page === "connections") : ""}
@@ -113,7 +114,7 @@ async function pageFor(r) {
     case "access": return { title: "Your access", html: V.access(ME) };
     case "audit": return { title: "Audit log", html: await V.audit(ME, r.q) };
     case "app": { const out = V.app(r.id); return out ? { title: (APPS.find(x => x.k === r.id) || {}).name, html: out.html, full: true } : null; }
-    case "l10": case "people": { const [t, d, v] = SOON[r.page]; return { title: t, html: `<div class="ph"><span class="hd-eyebrow">Coming in ${v}</span><h1>${esc(t)}</h1><p>${esc(d)}</p></div><div class="note info">${icon("calendar")}<span>Arriving in Pulse ${v}. It switches on in the test environment first.</span></div>` }; }
+    case "l10": { const [t, d, v] = SOON[r.page]; return { title: t, html: `<div class="ph"><span class="hd-eyebrow">Coming in ${v}</span><h1>${esc(t)}</h1><p>${esc(d)}</p></div><div class="note info">${icon("calendar")}<span>Arriving in Pulse ${v}. It switches on in the test environment first.</span></div>` }; }
   }
   if (needServer) return serverNote(r.page);
   switch (r.page) {
@@ -127,6 +128,7 @@ async function pageFor(r) {
     case "division": return divisionPage(ME, STRUCTURE, r.id, r.sub || "overview");
     case "seat": return seatPage(ME, STRUCTURE, r.id);
     case "connections": return connectionsPage(ME);
+    case "people": return peoplePage(ME, r.id || "directory");
   }
   return null;
 }

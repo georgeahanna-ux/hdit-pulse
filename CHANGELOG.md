@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 — 3 November 2026
+Milestone M2, part 1: People directory (D10) and Autotask departments (D16).
+- **People and departments** page (Platform → People and departments) for Leadership and Platform Admins, with three tabs:
+  - **Directory:** everyone in Pulse with their linked Autotask resource, default department, and when they last used Pulse. Platform Admins can change a link, mark that someone has no Autotask account, or go back to automatic matching (each needs a reason and is audited).
+  - **Autotask departments:** who has each default department, with Service Desk marked as "Techs for the Scorecard". Leadership and Platform Admins tick one or more people and change their default department; Pulse writes it to Autotask straight away (`ResourceRoleDepartments`), adding the person to the department with their current role (or a chosen role) if needed, then re-reads them to confirm.
+  - **Needs review:** people with no Autotask match, more than one match or a conflicting link, plus Autotask accounts not linked to anyone.
+- Sync service: Autotask departments, roles, resources and department pairings every 15 minutes; Entra users (licensed, enabled, members only) daily; on-demand refresh from the page. Matching by any Autotask email (primary, second or third) against any Entra address; links set by an admin always win.
+- Migration `0005_people_directory`: Entra fields on `person`, Autotask departments, roles, resources and pairings (temporal), `person_link` (temporal) and `person_link_none`, `directory_review`, `sync_request`.
+- Needs the **Autotask: People administration** credential on the Connections page; Entra uses the sync service's managed identity.
+- 13 new tests (72 in total).
+
 ## 0.5.1 — 3 November 2026
 Connections page: credential entry moved forward from 1.0 (decided 3 Nov 2026).
 - Platform Admins enter, replace and remove each integration credential in Pulse. Values go straight to Key Vault through the API's write-only role ("Pulse Secret Writer"); they are never stored in SQL, logged, or returned to the browser, and can't be shown again.

@@ -128,6 +128,7 @@ Merging backends is not planned.
 - Refreshed nightly and at a person's first sign-in. New starters and leavers are flagged. Disabling someone in Entra removes Pulse access immediately.
 - Platform Admins can set or change a link, with a reason (audited). People cannot pick their own Autotask identity in production; the "choose your name" step in the existing apps is replaced by the central directory.
 - People with no account in a system (e.g. no Autotask resource) still use Pulse; features that write to that system aren't offered to them.
+- **Built in 0.5.2 (3 Nov 2026):** Entra users (members, enabled, licensed) synced daily; Autotask resources every 15 minutes; matching by all of a person's Entra addresses against Autotask email, email2 and email3; admin links and "No Autotask account" override matching; the review list covers no match, multiple matches, conflicts, and Autotask accounts linked to nobody (for information).
 - Initial check of the Autotask resource export (30 Oct 2026): 216 resources, 55 active, 24 active people (one, the built-in Autotask Administrator, has no email). Seven active people have mixed-case emails; one person has a duplicate inactive resource with the same email (the active one wins); several API resources share an email (never matched).
 
 ### D11. A few deliberate two-way links (30 Oct 2026)
@@ -183,6 +184,7 @@ AI runs on Azure OpenAI hosted in Australia under HD IT's subscription; data is 
 - Who can change departments: Platform Admins and Leadership. Every change records who, when, old and new department, and a reason, in the audit log; Autotask's own history shows the Pulse API user.
 - Writing to Autotask uses a dedicated Autotask API user for people administration with only the resource permissions this needs, held in the central vault (D7).
 - Department history is kept in Pulse so past weeks use the department in force at the time.
+- **Built in 0.5.2 (3 Nov 2026):** People and departments page; multi-select change (up to 50 at a time); Pulse re-reads each changed person from Autotask to confirm. Uses the `autotask-people` credential.
 
 ### D17. Xero: live organisation, read-only, standard connection (31 Oct 2026)
 - Test and production both read HD IT's **live Xero** organisation. The test tenancy therefore holds real finance figures; in test, finance detail is limited to the Finance Detail group, as in production.

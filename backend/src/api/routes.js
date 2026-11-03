@@ -53,6 +53,8 @@ const routes = [
       let personId = null, firstSignIn = false, database = "ok";
       try {
         ({ id: personId, firstSignIn } = await people.touch(p));
+        // First time here: link them to their Autotask resource straight away (D10), from what Pulse already knows.
+        if (firstSignIn) await require("../people/directory").runMatching().catch(e => ctx.context && ctx.context.warn && ctx.context.warn("matching:", e.message));
         await audit.record({ actor: actorOf(ctx), action: "session.start", entity: { type: "person", id: p.oid },
           after: firstSignIn ? { firstSignIn: true } : undefined, request: ctx.request }, ctx.context);
       } catch (e) {
@@ -104,5 +106,6 @@ const routes = [
 // Release 1 EOS modules (M1)
 for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan"]) routes.push(...require(`../eos/${m}`).routes);
 routes.push(...require("./connections").routes);
+routes.push(...require("./people").routes);
 
 module.exports = { routes, SENSITIVE_PAGES };

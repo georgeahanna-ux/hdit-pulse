@@ -12,10 +12,10 @@
 <link rel="stylesheet" href="css/doc.css">
 <script src="js/doc-version.js" defer></script>
 </head>
-<body data-built-for="0.5.1">
+<body data-built-for="0.5.2">
 <header class="doc-band"><div class="inner">
   <img src="brand/hdit-logo-yellow.svg" alt="HD IT">
-  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.1</span></span>
+  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.2</span></span>
   <h1>Using Pulse</h1>
   <p>Pulse is where HD IT runs EOS: the weekly Scorecard, Rocks, Issues, To-dos and the Tuesday L10, with Pipeline, Marketing ROI and Whitespace Matrix alongside. One Microsoft 365 sign-in for all of it.</p>
 </div></header>
@@ -116,6 +116,19 @@
   </section>
 
   <section>
+    <span class="hd-eyebrow">Leadership and Platform Admins</span>
+    <h2>People and departments</h2>
+    <p>Under <b>Platform → People and departments</b>:</p>
+    <ul>
+      <li><b>Directory</b> lists everyone in Pulse and the Autotask account they're matched to. Pulse matches by email address. If a match is wrong, a Platform Admin selects <b>Change link</b>, picks the right account (or "No Autotask account") and gives a reason.</li>
+      <li><b>Autotask departments</b> shows who has each default department. A tech is anyone whose default department is <b>Service Desk</b>; they're who the Scorecard counts for tickets per tech and utilisation.</li>
+      <li>To move people, tick them, select <b>Change default department</b>, choose the department, give a reason and select <b>Change in Autotask</b>. Pulse changes Autotask straight away. If someone isn't in that department yet, Pulse adds them with their current role unless you choose one.</li>
+      <li><b>Needs review</b> (Platform Admins) lists people Pulse couldn't match on its own. Select <b>Fix</b> to link them.</li>
+      <li>Pulse reads Autotask every 15 minutes and Microsoft 365 once a day. <b>Refresh</b> reads them now.</li>
+    </ul>
+  </section>
+
+  <section>
     <span class="hd-eyebrow">Record keeping</span>
     <h2>The audit log</h2>
     <p>Pulse records every sign-in, change, override and view of a sensitive page (finance detail, People data, the audit log and Connections). The record is kept in the Pulse database, where it can't be edited or deleted, and in Azure for 12 months. Platform Admins and Compliance can search it under <b>Platform → Audit log</b>.</p>
@@ -128,11 +141,12 @@
       <thead><tr><th>Version</th><th>What arrives</th></tr></thead>
       <tbody>
         <tr><td>0.5.0</td><td>Scorecard (typed in), Rocks, Issues, To-dos, V/TO, Accountability Chart, division and seat pages, FY plan <b>(now available)</b></td></tr>
-        <tr><td>0.6.0</td><td>Automatic Scorecard values; People and departments (who's in each Autotask department, and changing default departments)</td></tr>
+        <tr><td>0.5.2</td><td>People and departments: who's in each Autotask department, and changing default departments <b>(now available)</b></td></tr>
+        <tr><td>0.6.0</td><td>Automatic Scorecard values from Autotask, SimpleSAT and Xero</td></tr>
         <tr><td>0.7.0</td><td>The L10 meeting, run in Pulse</td></tr>
         <tr><td>0.8.0</td><td>To-dos in Planner; Issue to Autotask ticket; Rocks linked to Planner or Autotask projects</td></tr>
         <tr><td>0.9.0</td><td>Pulse in Teams, with reminders from the Pulse bot</td></tr>
-        <tr><td>1.0.0</td><td>Connections page, help centre, production at pulse.hdit.com.au</td></tr>
+        <tr><td>1.0.0</td><td>Help centre, production at pulse.hdit.com.au</td></tr>
       </tbody>
     </table>
   </section>

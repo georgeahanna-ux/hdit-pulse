@@ -17,7 +17,7 @@ async function touch(person) {
      USING (SELECT @oid AS entra_oid) AS s ON t.entra_oid = s.entra_oid
      WHEN MATCHED AND (t.display_name <> @name OR ISNULL(t.email, N'') <> @email)
           THEN UPDATE SET display_name = @name, email = NULLIF(@email, N'')
-     WHEN NOT MATCHED THEN INSERT (entra_oid, display_name, email) VALUES (@oid, @name, NULLIF(@email, N''))
+     WHEN NOT MATCHED THEN INSERT (entra_oid, display_name, email, emails_json, source) VALUES (@oid, @name, NULLIF(@email, N''), @emails, N'signin')
      OUTPUT inserted.id, $action INTO @out;
      DECLARE @id INT = (SELECT TOP 1 id FROM @out);
      IF @id IS NULL SELECT @id = id FROM pulse.person WHERE entra_oid = @oid;
@@ -28,7 +28,8 @@ async function touch(person) {
      IF OBJECT_ID(N'pulse.seat_holder') IS NOT NULL AND @email <> N''
        UPDATE pulse.seat_holder SET person_id = @id WHERE person_id IS NULL AND holder_email = @email;
      SELECT @id AS id, (SELECT TOP 1 action FROM @out) AS action;`,
-    { oid: person.oid, name: String(person.name || "").slice(0, 200), email: String(person.email || "").slice(0, 320) });
+    { oid: person.oid, name: String(person.name || "").slice(0, 200), email: String(person.email || "").slice(0, 320),
+      emails: JSON.stringify((person.emails || [person.email]).filter(Boolean)).slice(0, 2000) });
   const r = rows[0] || {};
   return { id: Number(r.id), firstSignIn: r.action === "INSERT" };
 }

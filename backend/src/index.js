@@ -31,6 +31,21 @@ if (component === "api") {
     schedule: "0 7 * * * *", runOnStartup: false,
     handler: (_t, context) => jobs.run("connections", context, jobs.checkConnections),
   });
+  // Autotask departments and resources every 15 minutes (D16).
+  app.timer("departments", {
+    schedule: "0 2/15 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.runIfConnected("departments", context, jobs.syncDepartments),
+  });
+  // Full directory (Entra and Autotask) nightly at 15:40 UTC (1:40 or 2:40am Sydney).
+  app.timer("directory", {
+    schedule: "0 40 15 * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.run("directory", context, jobs.syncDirectory),
+  });
+  // Jobs asked for from Pulse ("Refresh now"), every two minutes.
+  app.timer("requests", {
+    schedule: "0 */2 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.runRequests(context),
+  });
 } else {
   throw new Error(`Unknown PULSE_COMPONENT "${component}" (expected api or sync).`);
 }

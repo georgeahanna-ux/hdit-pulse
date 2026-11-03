@@ -123,6 +123,24 @@ const previewConnections = [
   C("itglue", "IT Glue", "IT Glue", "fields", [{ key: "apiUrl", label: "API address", secret: false, required: true }, { key: "apiKey", label: "API key", secret: true, required: true }], "Documentation coverage (release 2).", "A read-only API key."),
 ];
 
+const pvDepts = [{ id: 10, name: "Service Desk" }, { id: 11, name: "Field Services" }, { id: 12, name: "NOC" }, { id: 13, name: "Sales" }, { id: 14, name: "Administration" }, { id: 15, name: "Projects" }];
+const RES = (resourceId, name, email, dept, role, title) => ({ resourceId, name, email, dept, role, title });
+const pvResources = [
+  RES(101, "Daniel Tousi", "daniel@hdit.com.au", 10, "Senior Engineer", "Senior Solutions Engineer"), RES(102, "Jacob McCredie", "jacob@hdit.com.au", 10, "Senior Engineer", "Senior Solutions Engineer"),
+  RES(103, "Riley Tech", "riley.tech@hdit.com.au", 10, "Engineer", "Service Desk Engineer"), RES(104, "Bovorn Saysouthinh", "bovorn@hdit.com.au", 10, "Engineer", "Service Desk Engineer"),
+  RES(105, "Abiy Amdemariam", "abiy@hdit.com.au", 11, "Senior Engineer", "Senior Service Desk Engineer"), RES(106, "Michael Baltagi", "michael@hdit.com.au", 11, "Engineer", "Service Desk Engineer"),
+  RES(107, "Rinus Besselaar", "rinus@hdit.com.au", 12, "Engineer", "NOC Engineer"), RES(108, "Alex Abbas", "alex@hdit.com.au", 12, "Engineer", "NOC Engineer"),
+  RES(109, "Taylor Reid", "taylor.reid@hdit.com.au", 13, "Sales", "Sales Development Rep"), RES(110, "Nathan Tang", "nathan@hdit.com.au", 14, "Administration", "IT Administrator"),
+  RES(111, "Tony Parzakonis", "tony@hdit.com.au", 10, "Administration", "Head of Managed Services"), RES(112, "Neelima Thota", "neelima@hdit.com.au", null, null, "Service Desk Engineer"),
+];
+const pvPeople = [
+  { id: 1, name: "George Hanna", email: "george.hanna@hdit.com.au", title: "Managing Director", link: null, none: true, signin: new Date().toISOString() },
+  { id: 2, name: "Riley Tech", email: "riley.tech@hdit.com.au", title: "Service Desk Engineer", link: 103 },
+  { id: 3, name: "Tony Parzakonis", email: "tony.parzakonis@hdit.com.au", title: "Head of Managed Services", link: 111, admin: true },
+  { id: 4, name: "Taylor Reid", email: "taylor.reid@hdit.com.au", title: "Sales Development Rep", link: 109 },
+  { id: 9, name: "Sam Leader", email: "sam.leader@hdit.com.au", title: "Director", link: null },
+];
+
 /* ---------------- progress maths (same rules as the server's logic.js) ---------------- */
 const FY = 2027;
 const fyMonths = () => Array.from({ length: 12 }, (_, i) => { const d = new Date(Date.UTC(2026, 6 + i, 1)); return iso(d); });
@@ -230,6 +248,37 @@ export function previewApi(path, method, body = {}) {
   if (p === "/todos" && method === "POST") { todos.push({ id: ++nextId, level: body.level || "individual", division: body.division || null, title: body.title, owner: { name: body.ownerName || me().name, email: body.ownerEmail || me().email }, dueDate: body.dueDate || addDays(iso(today()), 7), done: false }); return { id: nextId }; }
   if ((mm = /^\/todos\/(\d+)$/.exec(p))) { const t = todos.find(x => x.id === Number(mm[1])); if ("done" in body) t.done = !!body.done; if (body.deleted) todos.splice(todos.indexOf(t), 1); return { ok: true }; }
 
+  if (p === "/people" && method === "GET") {
+    if (!(a.leadership || a.manageDirectory)) fail(403, "You don't have access to that.");
+    return { lastSync: { departments: new Date(Date.now() - 9 * 60e3).toISOString(), directory: new Date(Date.now() - 10 * 3600e3).toISOString() },
+      people: pvPeople.map(p => { const r = pvResources.find(x => x.resourceId === p.link); const d = r && pvDepts.find(x => x.id === r.dept);
+        return { id: p.id, name: p.name, email: p.email, jobTitle: p.title, lastSignIn: p.signin, autotask: r ? { resourceId: r.resourceId, name: r.name, email: r.email, active: true, department: d ? d.name : null, role: r.role, linkedBy: p.admin ? "George Hanna" : "email", matchedEmail: r.email } : null, noAutotask: p.none ? { reason: "External provider" } : null }; }),
+      review: [
+        { id: 1, kind: "no_match", personId: 9, personName: "Sam Leader", resourceIds: [], detail: "No active Autotask resource has sam.leader@hdit.com.au." },
+        { id: 2, kind: "unlinked_account", personId: null, personName: null, resourceIds: [130], detail: "API User - Pipeline (pipeline-api@hdit.com.au) isn't linked to anyone in Pulse." },
+      ] };
+  }
+  if (p === "/people/departments" && method === "GET") {
+    if (!(a.leadership || a.manageDirectory)) fail(403, "You don't have access to that.");
+    const inPulse = rid => (pvPeople.find(p => p.link === rid) || {}).name || null;
+    const shape = r => ({ resourceId: r.resourceId, name: r.name, email: r.email, title: r.title, role: r.role, inPulse: inPulse(r.resourceId) });
+    return { lastSync: { departments: new Date(Date.now() - 9 * 60e3).toISOString() }, roles: [{ id: 1, name: "Engineer" }, { id: 2, name: "Senior Engineer" }, { id: 3, name: "Administration" }, { id: 4, name: "Sales" }],
+      departments: pvDepts.map(d => ({ ...d, active: true, isServiceDesk: d.name === "Service Desk", people: pvResources.filter(r => r.dept === d.id).map(shape) })),
+      noDepartment: pvResources.filter(r => !r.dept).map(shape) };
+  }
+  if (p === "/people/departments/change") {
+    if (!a.changeDepartments) fail(403, "You don't have access to that.");
+    if (String(body.reason || "").trim().length < 5) fail(400, "Please give a reason (at least a few words).");
+    for (const id of body.resourceIds) pvResources.find(r => r.resourceId === id).dept = body.departmentId;
+    return { department: pvDepts.find(d => d.id === body.departmentId).name, changed: body.resourceIds.length, failed: 0, results: [] };
+  }
+  if (p === "/people/sync") return { ok: true, detail: "Preview: refreshed (simulated)." };
+  if ((mm = /^\/people\/(\d+)\/link$/.exec(p))) {
+    const person = pvPeople.find(x => x.id === Number(mm[1]));
+    if (String(body.reason || "").trim().length < 5) fail(400, "Please give a reason (at least a few words).");
+    Object.assign(person, body.none ? { link: null, none: true } : body.automatic ? { admin: false } : { link: body.resourceId, admin: true, none: false });
+    return { ok: true };
+  }
   if (p === "/connections" && method === "GET") return { connections: previewConnections };
   if ((mm = /^\/connections\/([a-z-]+)$/.exec(p))) {
     const c = previewConnections.find(x => x.name === mm[1]);
