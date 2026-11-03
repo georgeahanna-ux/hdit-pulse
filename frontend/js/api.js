@@ -4,6 +4,7 @@
 import { CONFIG } from "./config.js";
 import * as Auth from "./auth.js";
 import { accessFor, DIVISIONS } from "./access.js";
+import { previewApi } from "./preview.js";
 
 export class ApiError extends Error {
   constructor(status, message, code) { super(message); this.status = status; this.code = code; }
@@ -67,7 +68,11 @@ export async function me() {
 }
 
 /* ---------------- preview answers (simulated, clearly labelled in the UI) ---------------- */
-function previewAnswer(path) {
+function previewAnswer(path, method, body) {
+  try {
+    const out = previewApi(path, method, body);
+    if (out) return structuredClone(out);
+  } catch (e) { throw new ApiError(e.status || 400, e.message); }
   if (path.startsWith("/audit")) {
     const u = Auth.currentUser(), t = Date.now();
     return { events: [

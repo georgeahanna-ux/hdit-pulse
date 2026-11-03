@@ -12,10 +12,10 @@
 <link rel="stylesheet" href="css/doc.css">
 <script src="js/doc-version.js" defer></script>
 </head>
-<body data-built-for="0.4.3">
+<body data-built-for="0.5.0">
 <header class="doc-band"><div class="inner">
   <img src="brand/hdit-logo-yellow.svg" alt="HD IT">
-  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.4.3</span></span>
+  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.0</span></span>
   <h1>Using Pulse</h1>
   <p>Pulse is where HD IT runs EOS: the weekly Scorecard, Rocks, Issues, To-dos and the Tuesday L10, with Pipeline, Marketing ROI and Whitespace Matrix alongside. One Microsoft 365 sign-in for all of it.</p>
 </div></header>
@@ -47,19 +47,54 @@
   </section>
 
   <section>
-    <span class="hd-eyebrow">The weekly rhythm</span>
-    <h2>Scorecard weeks and locking</h2>
-    <p>A Scorecard week runs Monday to Sunday, Sydney time. Tuesday's L10 at 9:30am reviews the week that has just ended.</p>
-    <p>Numbers fill in automatically every hour from Autotask, Xero and SimpleSAT. A week keeps updating until <b>5pm on the Tuesday after it ends</b>, then it locks. After that, a change is an override.</p>
-    <h3>Overrides</h3>
+    <span class="hd-eyebrow">Finding your way</span>
+    <h2>Home, Company, Divisions and seats</h2>
     <ul>
-      <li>Leadership can override any measurable. Everyone else can override their own division's measurables.</li>
-      <li>Every override needs a reason. The automatic value stays visible beside it, and the cell is marked as overridden.</li>
-      <li>An override applies to that week only. Later weeks keep filling in automatically.</li>
-      <li>You can revert an override to the automatic value, with a reason.</li>
-      <li>Every override and revert is recorded in the audit log: who, when, old value, new value and reason.</li>
+      <li><b>Home</b> is yours: your seat on the Accountability Chart, your To-dos, your Rocks this quarter, the measurables you own and your apps. The leadership team also sees progress to the FY27 plan at the top.</li>
+      <li><b>Company</b> holds what the whole business runs on: the Scorecard, Rocks, the V/TO and the Accountability Chart. The leadership team also has the Issues List, company To-dos and the FY plan.</li>
+      <li><b>Divisions</b> lists your division (Leadership sees all six). A division page shows its key result, its apps, its numbers on the company Scorecard and its seats. Use the tabs for the division's own Scorecard, Rocks, Issues and To-dos.</li>
+      <li><b>Seats</b>: while you're in a division, the menu lists its seats. Each seat page shows its roles, key result, who sits in it, the measurables it owns, its Rocks and its apps. "Proposed role scorecard" lists the few numbers the seat could track; they switch on once agreed with the seat's owner.</li>
     </ul>
-    <p>The Scorecard switches on in Pulse 0.5.0, with automatic values from 0.6.0.</p>
+  </section>
+
+  <section>
+    <span class="hd-eyebrow">The weekly rhythm</span>
+    <h2>The Scorecard</h2>
+    <p>A Scorecard week runs Monday to Sunday, Sydney time. Tuesday's L10 at 9:30am reviews the week that has just ended. The grid shows the last 13 weeks, newest on the right; scroll left for earlier weeks. Select a measurable's name to see what it measures and how it's worked out.</p>
+    <p>Green cells are on target; cells outlined in red are off target. A lilac dot means the value was overridden.</p>
+    <h3>Entering and overriding values</h3>
+    <ul>
+      <li>Select a cell to change it. Leadership can change any measurable. Everyone else can change their own division's measurables.</li>
+      <li>While a week is open (until <b>5pm on the Tuesday after it ends</b>), type the value straight in.</li>
+      <li>After a week locks, or for a measurable that fills in automatically, a change is an <b>override</b>. Every override needs a reason. The original value stays visible beside it.</li>
+      <li>An override applies to that week only. You can remove it later, with a reason.</li>
+      <li>Every entry, override and removal is recorded in the audit log: who, when, old value, new value and reason.</li>
+    </ul>
+    <p>Until 0.6.0 every measurable is typed in by hand. From 0.6.0 they fill in automatically every hour from Autotask, Xero and SimpleSAT.</p>
+  </section>
+
+  <section>
+    <span class="hd-eyebrow">EOS</span>
+    <h2>Rocks, Issues, To-dos and the V/TO</h2>
+    <ul>
+      <li><b>Rocks</b> are this quarter's priorities. Leadership sets company Rocks; a division adds its own; anyone can add an individual Rock for themselves. Set each Rock on track, off track, done or not done, and tick off its milestones.</li>
+      <li><b>Issues</b>: the company Issues List belongs to the leadership team; each division has its own on its page. Number your top three for IDS, then solve (with the solution) or drop each one.</li>
+      <li><b>To-dos</b> are seven-day commitments, due a week from when they're added unless you choose a date. Tick them off when done. From 0.8.0 they also appear in Planner.</li>
+      <li><b>V/TO</b>: everyone can read it; Leadership edits it. Every version is kept.</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="hd-eyebrow">FY27</span>
+    <h2>The FY plan and progress bars</h2>
+    <p>The leadership team and Finance see progress to the V/TO 1-year plan for FY27 (1 July 2026 to 30 June 2027).</p>
+    <ul>
+      <li><b>Revenue</b> and <b>New seats</b> add up month by month. Each quarter's bar shows that quarter's total against its target.</li>
+      <li><b>MRR</b> and <b>Seats</b> are month-end levels. The year bar shows how far we've come from where the year started (30 June) to the target. Each quarter's bar shows the level at the end of that quarter against its target.</li>
+      <li>The yellow tick shows how much of the year, or the quarter, has gone. "On pace" means the bar is at or past the tick.</li>
+      <li>Leadership sets the year targets and the opening levels. Leadership and Finance set quarter targets and enter month-end figures under <b>Company → FY plan</b>. Changing a figure that's already there needs a reason.</li>
+    </ul>
+    <p>From 0.6.0, revenue comes from Xero and MRR, seats and new seats from Autotask automatically.</p>
   </section>
 
   <section>
@@ -80,7 +115,7 @@
     <table>
       <thead><tr><th>Version</th><th>What arrives</th></tr></thead>
       <tbody>
-        <tr><td>0.5.0</td><td>Scorecard (manual values), Rocks, Issues, To-dos, V/TO and the Accountability Chart</td></tr>
+        <tr><td>0.5.0</td><td>Scorecard (typed in), Rocks, Issues, To-dos, V/TO, Accountability Chart, division and seat pages, FY plan <b>(now available)</b></td></tr>
         <tr><td>0.6.0</td><td>Automatic Scorecard values; People and departments (who's in each Autotask department, and changing default departments)</td></tr>
         <tr><td>0.7.0</td><td>The L10 meeting, run in Pulse</td></tr>
         <tr><td>0.8.0</td><td>To-dos in Planner; Issue to Autotask ticket; Rocks linked to Planner or Autotask projects</td></tr>

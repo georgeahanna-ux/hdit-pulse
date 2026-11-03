@@ -32,11 +32,11 @@ const allowed = (ctx, m) => access.canOverride(ctx.access, { division: m.divisio
 function describe(ctx, m) {
   return {
     id: m.id, code: m.code, name: m.name, scope: m.scope, division: m.division_code, seatId: m.seat_id,
-    owner: { name: m.owner_name, email: m.owner_email, isMe: C.isMe(ctx, m.owner_email) },
+    owner: { name: m.owner_name, email: m.owner_email, isMe: C.isMeHolder(ctx, { name: m.owner_name, email: m.owner_email }) },
     unit: m.unit, direction: m.direction, goal: m.goal_value === null ? null : Number(m.goal_value), goalText: m.goal_text,
     frequency: m.frequency, source: m.source, automatic: !!m.auto_enabled, definition: m.definition, definitionVersion: m.definition_version,
     canOverride: allowed(ctx, m),
-    canEdit: ctx.access.leadership || C.isMe(ctx, m.owner_email),
+    canEdit: ctx.access.leadership || C.isMeHolder(ctx, { name: m.owner_name, email: m.owner_email }),
   };
 }
 
@@ -203,7 +203,7 @@ async function updateMeasurable(ctx) {
   const id = C.int(ctx.params.id);
   const m = await loadMeasurable(id);
   if (!visible(ctx, m)) throw C.fail(404, "That measurable doesn't exist.");
-  if (!(ctx.access.leadership || C.isMe(ctx, m.owner_email))) throw C.fail(403, "Only Leadership or this measurable's owner can change it.");
+  if (!(ctx.access.leadership || C.isMeHolder(ctx, { name: m.owner_name, email: m.owner_email }))) throw C.fail(403, "Only Leadership or this measurable's owner can change it.");
   const f = fields(ctx.body, { creating: false });
   if (!ctx.access.leadership) { delete f.division_code; delete f.scope; delete f.owner_name; delete f.owner_email; }
   const keys = Object.keys(f);

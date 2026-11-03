@@ -10,6 +10,11 @@ const actorOf = ctx => ({ oid: ctx.person.oid, name: ctx.person.name });
 /** Is this email one of the signed-in person's addresses? */
 const isMe = (ctx, email) => !!email && ctx.person.emails.includes(String(email).trim().toLowerCase());
 
+const norm = s => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+/** Is this seat holder the signed-in person? By email when the holder has one, otherwise by name
+ *  (seat holders loaded from the Accountability Chart have names only until 0.6.0 fills in emails). */
+const isMeHolder = (ctx, h) => (h.email ? isMe(ctx, h.email) : !!h.name && norm(h.name) === norm(ctx.person.name));
+
 const DIVISION_CODES = access.DIVISION_CODES;
 function division(code, { optional = false } = {}) {
   if (!code && optional) return null;
@@ -58,4 +63,4 @@ const record = (ctx, action, entity, before, after, why) =>
 
 const day = isoDay;
 
-module.exports = { actorOf, isMe, division, seesDivision, text, email, date, reason, int, record, day, fail };
+module.exports = { actorOf, isMe, isMeHolder, norm, division, seesDivision, text, email, date, reason, int, record, day, fail };

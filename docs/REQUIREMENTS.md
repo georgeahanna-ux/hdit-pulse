@@ -7,7 +7,7 @@ Give each division the insights and tools to run efficiently and optimally, grou
 
 ## Inputs used
 - EOS V/TO (Aug 2026): 3-year picture and 1-year plan measurables (Revenue, Profit, MRR, Seats, New Seats, NPS, ESAT, SGM, OML).
-- Accountability Chart and Org Chart (Aug 2026): five seats under the Integrator (Finance & Accounts, HR, Sales & Marketing, Innovation & Compliance, Managed Services), each with sub-functions and key results.
+- Accountability Chart (19 Aug 2026) and Org Chart (21 Aug 2026), in the project's files: five seats under the Integrator (Finance & Accounts, HR, Sales & Marketing, Innovation & Compliance, Managed Services), each with sub-seats, roles and key results. Loaded into Pulse as 23 seats (D18).
 - SLI Company Dashboard Q2 2026 (HD IT = "Parramatta") and Group Index Q3 2026.
 - Xero chart of accounts (already tagged with SLI codes, e.g. PR1, CL1, I22, C12, E1s) and P&L.
 - Evergreen Elevate26: Golden Scorecard (controllable scorecards per role), P&L Management (price, cost, new business).
@@ -188,6 +188,25 @@ AI runs on Azure OpenAI hosted in Australia under HD IT's subscription; data is 
 - Test and production both read HD IT's **live Xero** organisation. The test tenancy therefore holds real finance figures; in test, finance detail is limited to the Finance Detail group, as in production.
 - **Read-only**, enforced by Xero: Pulse asks only for granular `.read` scopes (profit and loss, balance sheet, bank summary, aged receivables, trial balance, settings for the chart of accounts and its reporting codes) plus `offline_access`. Pulse can't change anything in Xero.
 - **Standard OAuth connection** (no Custom Connection fee). A Finance user connects Xero once from the Connections page. The refresh token is kept in Key Vault and renewed on every hourly run. If it lapses (60 days unused), the Connections page shows it and asks for a reconnect.
+
+### D18. Navigation by division and role (3 Nov 2026)
+Pulse is organised so each person can go straight to their division, and from there to their own seat.
+- **Home (My Pulse):** your seat(s), your To-dos, your Rocks this quarter, the measurables you own, your divisions and your apps. Leadership and Finance also see the FY progress bars (D19) at the top.
+- **Company:** Scorecard, Rocks, Issues (leadership team), To-dos, L10 meeting (0.7.0), V/TO, Accountability Chart, FY plan (Leadership and Finance).
+- **Divisions:** Leadership sees all six; everyone else sees their own, first. Each division page shows its key result, its apps, its numbers on the company Scorecard and its seats, with tabs for the division's own Scorecard, Rocks, Issues and To-dos. While you're in a division, the menu lists its seats.
+- **Seats (roles):** each seat from the Accountability Chart has a page with its roles, key result, who sits in it (grouped by team, e.g. Service Desk, Field Services, NOC), the measurables it owns, its Rocks, its apps, and a proposed role scorecard (Evergreen Golden Scorecard) to agree with the seat's owner and switch on in release 2.
+- **Seats loaded from the charts:** 23 seats, their roles, key results and holders (with job titles and teams from the Org Chart). Leadership can edit seats, holders and each seat's apps in Pulse; every change is audited and versioned.
+- **Apps by seat:** Pipeline (Head of Sales & Marketing, Business Development, Sales Administration, Account Management), Marketing ROI (Head of Sales & Marketing, Marketing, Business Development), Whitespace Matrix (Head of Sales & Marketing, Business Development, Account Management). Access to an app still comes from its Pulse group.
+- Until the People directory (0.6.0) fills in emails, seat holders are matched to the signed-in person by name. Matching only decides what's shown as "yours"; permissions always come from Entra groups.
+- **To confirm:** the Org Chart (21 Aug) shows the Head of Finance & Accounts, Head of Sales & Marketing and Head of Managed Services boxes blank, while the Accountability Chart (19 Aug) names Mandy Moujalli, Faben Miglani and Tony Parzakonis. Pulse uses the Accountability Chart. Seats with nobody named: Office Management, Projects Team Leadership, Client Success, Projects Teams, Marketing (Marketing Administrator vacant) and the BDM role.
+
+### D19. FY progress bars for the leadership team (3 Nov 2026)
+- The leadership home page shows progress to the V/TO 1-year plan for the Australian financial year **FY27 (1 July 2026 to 30 June 2027)**: Q1 Jul–Sep, Q2 Oct–Dec, Q3 Jan–Mar, Q4 Apr–Jun.
+- Metrics: **Revenue ($9.2M)** and **New seats (650)** add up month by month; **MRR ($560K)** and **Seats (2,350)** are month-end levels, measured from where the year started (30 June) to the target.
+- Each metric has a year bar and four quarter sub-bars. A tick shows how much of the year (or quarter) has gone, with an "On pace" or "Behind pace" label.
+- **Quarter targets are set by hand** (Leadership and Finance). For metrics that add up, Pulse flags it when the four quarters don't add up to the year.
+- **Actuals:** Finance enters month-end figures until Xero and Autotask fill them in automatically (0.6.0). Changing a figure that's already there needs a reason; every change is audited.
+- Seen by Leadership, Finance & Accounts and Finance detail.
 
 ## Release plan
 **Release 1: Leadership and EOS core**

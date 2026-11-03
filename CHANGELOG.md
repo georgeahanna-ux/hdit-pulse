@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 3 November 2026
+Milestone M1: EOS core, navigation by division and role (D18), FY progress bars (D19).
+- Migration `0003_accountability_chart`: 23 seats with roles, key results, reporting lines and holders (job title and team) from the Accountability Chart (19 Aug 2026) and Org Chart (21 Aug 2026); functions reworked to match; division key results; each seat's apps; company measurables linked to their division's head seat.
+- Front end: Home (My Pulse) with your seat, To-dos, Rocks and measurables, plus FY27 progress bars for Leadership and Finance; Company section (Scorecard grid with enter / override / revert dialogs and definitions, Rocks with milestones, Issues with top-three priorities, To-dos, V/TO, Accountability Chart editor, FY plan with quarter targets and month-end entry); division pages with tabs; seat (role) pages with holders by team, owned measurables, Rocks, apps and a proposed role scorecard.
+- API: seat holders carry job title and team; seats carry apps; seat holders and measurable owners match the signed-in person by email, or by name while emails are unknown (display only; permissions come from Entra groups).
+- Preview mode has a simulated API for every page.
+- 54 backend tests.
+
 ## 0.4.3 — 3 November 2026
 Milestone M1, part 1: database and API (pages follow in 0.5.0).
 - Migration `0002_eos_core`: divisions and functions (D3), seats and seat holders (Accountability Chart), measurables (the 15 from D4, manual until M2), weekly Scorecard values with entered / automatic / override values, Rocks and milestones, Issues, To-dos, V/TO sections, annual plan (FY27 targets from the V/TO; quarter targets by hand; month-end actuals). All edited tables temporal.

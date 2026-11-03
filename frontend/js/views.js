@@ -1,103 +1,10 @@
-// Pulse pages for 0.4.0 (M0 foundations). EOS pages arrive with their milestones (docs/ARCHITECTURE.md §4).
+// Platform pages: an app in a frame, Your access, Audit log, Connections. EOS pages live in js/pages/.
 import { CONFIG } from "./config.js";
 import * as Auth from "./auth.js";
 import { api, serverReady } from "./api.js";
 import { APPS, canOpen, appRole } from "./apps.js";
 import { ROLES, roleInfo, DIVISIONS } from "./access.js";
-import { esc, icon, eyebrow, fmtDate, fmtShort, fmtWhen, fmtDateTime } from "./ui.js";
-
-/** The release 1 sections, in the order they arrive. Shown in the menu and on Home. */
-export const SECTIONS = [
-  { k: "scorecard", name: "Scorecard", icon: "gauge", version: "0.5.0", auto: "0.6.0",
-    desc: "The company's 15 weekly measurables. Filled in automatically from Autotask, Xero and SimpleSAT, with owner overrides and a reason." },
-  { k: "rocks", name: "Rocks", icon: "strategise", version: "0.5.0",
-    desc: "This quarter's priorities, with owners, milestones and on-track status." },
-  { k: "issues", name: "Issues", icon: "discover", version: "0.5.0",
-    desc: "The Issues List for IDS. Raise an Autotask ticket or task from an Issue in one click (0.8.0)." },
-  { k: "todos", name: "To-dos", icon: "check", version: "0.5.0",
-    desc: "Seven-day commitments from the L10. Kept in step with the \"Pulse – L10\" plan in Planner (0.8.0)." },
-  { k: "l10", name: "L10 meeting", icon: "calendar", version: "0.7.0",
-    desc: "Run Tuesday's Level 10 meeting in Pulse: segue, Scorecard, Rock review, headlines, To-dos, IDS and conclude." },
-  { k: "vto", name: "V/TO", icon: "strategy", version: "0.5.0",
-    desc: "The Vision/Traction Organizer: core values, focus, 10-year target, marketing strategy, 3-year picture and 1-year plan." },
-  { k: "chart", name: "Accountability Chart", icon: "co-managed", version: "0.5.0",
-    desc: "Seats, roles and who sits in them. Seats decide which division each measurable belongs to." },
-  { k: "people", name: "People and departments", icon: "it-support", version: "0.6.0",
-    desc: "Everyone in Pulse, matched to their Autotask resource. See who's in each Autotask department and change default departments." },
-];
-
-/* ---------------- Home ---------------- */
-export function home(me) {
-  const first = (me.person.name || "").split(/\s+/)[0] || "there";
-  const h = Number(new Date().toLocaleString("en-AU", { timeZone: "Australia/Sydney", hour: "numeric", hour12: false }));
-  const hello = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  const w = me.week, rw = me.reviewWeek;
-  const mine = APPS.filter(canOpen);
-  const divs = me.access.divisions.map(c => (DIVISIONS.find(d => d.code === c) || { name: c }).name);
-
-  return `
-    ${notices(me)}
-    <section class="hero">
-      ${eyebrow("HD IT Pulse")}
-      <h1>${esc(hello)}, ${esc(first)}</h1>
-      <p>Your Scorecard, Rocks, Issues and To-dos in one place, with Pipeline, Marketing ROI and Whitespace Matrix alongside. Release 1 is arriving in stages; this is the foundation.</p>
-      <div class="hero-stats">
-        <div><div class="k">This week</div><div class="v">${esc(fmtShort(w.start))} – ${esc(fmtShort(w.end))}</div><div class="s">Fills in automatically until it locks</div></div>
-        <div><div class="k">L10 reviews</div><div class="v">${esc(fmtShort(rw.start))} – ${esc(fmtShort(rw.end))}</div><div class="s">${rw.locked ? "Locked" : `Locks ${esc(fmtWhen(rw.lockAt))}`}</div></div>
-        <div><div class="k">Your divisions</div><div class="v">${me.access.leadership ? "All" : divs.length ? esc(String(divs.length)) : "None yet"}</div><div class="s">${me.access.leadership ? "Leadership sees every division" : divs.length ? esc(divs.join(", ")) : "Company-wide items only"}</div></div>
-      </div>
-    </section>
-
-    <section class="sec">
-      <div class="sec-h"><div>${eyebrow("Apps")}<h2>Your apps</h2></div><span class="aside">${mine.length} of ${APPS.length} available to you</span></div>
-      ${mine.length ? `<div class="cards">${mine.map(appCard).join("")}</div>`
-        : `<div class="note info">${icon("compliance")}<span>You don't have any apps yet. Ask a Platform Admin to add you to the right group, for example <b>Pulse - Pipeline Users</b>, then sign out and back in.</span></div>`}
-    </section>
-
-    <section class="sec">
-      <div class="sec-h"><div>${eyebrow("Release 1")}<h2>What's arriving in Pulse</h2></div><span class="aside">Each one switches on in the test environment first</span></div>
-      <div class="roadmap">${SECTIONS.map(s => `
-        <a class="row" href="#/${s.k}" style="text-decoration:none;color:inherit">
-          <span class="ic">${icon(s.icon)}</span>
-          <span><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p></span>
-          <span class="chip scheduled">v${esc(s.version)}</span>
-        </a>`).join("")}
-      </div>
-    </section>`;
-}
-
-function notices(me) {
-  const out = [];
-  if (CONFIG.PREVIEW) out.push(`<div class="note">${icon("discover")}<span><b>Preview.</b> This copy of Pulse isn't connected to Entra ID, so sign-in is simulated and nothing here is real data. Use <b>Preview as</b> in your account menu to see what different people get.</span></div>`);
-  else if (!serverReady()) out.push(`<div class="note info">${icon("infrastructure")}<span><b>Pulse's server isn't set up in this environment yet.</b> Sign-in and the apps work; Scorecard and the other EOS pages need the database, which arrives when the release 1 setup has been run.</span></div>`);
-  else if (me.database && me.database !== "ok") out.push(`<div class="note alert">${icon("infrastructure")}<span><b>Pulse's database didn't answer.</b> You're signed in, but changes can't be saved right now. Try again in a few minutes.</span></div>`);
-  if (me.person.firstSignIn) out.push(`<div class="note info">${icon("check")}<span><b>Welcome to Pulse.</b> The <a href="user-guide.html?v=${CONFIG.APP_VERSION}" target="_blank" rel="noopener">user guide</a> explains what's here and what's coming.</span></div>`);
-  return out.join("");
-}
-
-function appCard(a) {
-  if (!a.url) return `<div class="card off"><span class="ic">${icon(a.icon)}</span><h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p>
-    <div class="foot"><span class="chip quiet">Not set up here yet</span></div></div>`;
-  return `<a class="card" href="#/app/${a.k}"><span class="ic">${icon(a.icon)}</span><h3>${esc(a.name)}</h3><p>${esc(a.desc)}</p>
-    <div class="foot"><span class="chip ok">Live</span><span>${appRole(a)}</span><span class="go">Open ${icon("arrow-right", "i-sm")}</span></div></a>`;
-}
-
-/* ---------------- EOS sections not yet switched on ---------------- */
-export function section(k) {
-  const s = SECTIONS.find(x => x.k === k);
-  if (!s) return null;
-  return `<div class="ph">${eyebrow("EOS")}<h1>${esc(s.name)}</h1><p>${esc(s.desc)}</p></div>
-    <div class="note info">${icon("calendar")}<span><b>Arriving in Pulse ${esc(s.version)}.</b> ${s.auto ? `Automatic values from the source systems follow in ${esc(s.auto)}. ` : ""}It switches on in the test environment first, and the change log will say when it's ready.</span></div>
-    ${k === "scorecard" ? scorecardRules() : ""}`;
-}
-
-function scorecardRules() {
-  return `<section class="panel"><h2>How the Scorecard will work</h2>
-    <p>The Scorecard week runs Monday to Sunday, Sydney time. Tuesday's L10 at 9:30am reviews the week just ended.</p>
-    <p>Each week fills in automatically every hour and locks at 5pm on the Tuesday after it ends. After that, a change is an override with a reason.</p>
-    <p>Leadership can override any measurable. Everyone else can override their own division's measurables. An override applies to that week only, keeps the automatic value beside it, and can be reverted. Every override is recorded in the audit log.</p>
-  </section>`;
-}
+import { esc, icon, eyebrow, fmtDate, fmtDateTime } from "./ui.js";
 
 /* ---------------- an app in a frame ---------------- */
 export function app(k) {

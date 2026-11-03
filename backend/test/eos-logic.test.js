@@ -96,3 +96,13 @@ test("financial year helpers", () => {
   assert.equal(time.fyLabel(2027, 2), "FY27 Q2");
   assert.equal(time.fyMonths(2027).length, 12);
 });
+
+test("seat holders match the signed-in person by email, or by name when there's no email", () => {
+  const { isMeHolder } = require("../src/eos/common");
+  const ctx = { person: { name: "Tony  Parzakonis", emails: ["tony.p@hdit.com.au"] } };
+  assert.equal(isMeHolder(ctx, { name: "Tony Parzakonis" }), true);
+  assert.equal(isMeHolder(ctx, { name: "tony parzakonis", email: null }), true);
+  assert.equal(isMeHolder(ctx, { name: "Tony Parzakonis", email: "someone.else@hdit.com.au" }), false);
+  assert.equal(isMeHolder(ctx, { name: "Tony P", email: "TONY.P@hdit.com.au" }), true);
+  assert.equal(isMeHolder(ctx, { name: "Vacant" }), false);
+});
