@@ -12,10 +12,10 @@
 <link rel="stylesheet" href="css/doc.css">
 <script src="js/doc-version.js" defer></script>
 </head>
-<body data-built-for="0.5.2">
+<body data-built-for="0.5.3">
 <header class="doc-band"><div class="inner">
   <img src="brand/hdit-logo-yellow.svg" alt="HD IT">
-  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.2</span></span>
+  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.3</span></span>
   <h1>Using Pulse</h1>
   <p>Pulse is where HD IT runs EOS: the weekly Scorecard, Rocks, Issues, To-dos and the Tuesday L10, with Pipeline, Marketing ROI and Whitespace Matrix alongside. One Microsoft 365 sign-in for all of it.</p>
 </div></header>
@@ -70,7 +70,15 @@
       <li>An override applies to that week only. You can remove it later, with a reason.</li>
       <li>Every entry, override and removal is recorded in the audit log: who, when, old value, new value and reason.</li>
     </ul>
-    <p>Until 0.6.0 every measurable is typed in by hand. From 0.6.0 they fill in automatically every hour from Autotask, Xero and SimpleSAT.</p>
+    <h3>Automatic values, on trial first</h3>
+    <p>Pulse works out some measurables itself every hour. Each one starts <b>on trial</b>: the value you type in is still the one that counts, and the automatic value is shown under it in smaller type so you can compare the two. Untick <b>Show automatic values on trial</b> to hide them.</p>
+    <ul>
+      <li>Select a cell to see how the automatic value was worked out, for example "142 of 150 tickets had a first response in time".</li>
+      <li>Select the measurable's name to see the typed-in and automatic values side by side for recent weeks.</li>
+      <li>When they agree, Leadership switches the measurable to automatic from the same panel, with a reason. From then on open weeks fill in by themselves; locked weeks can still be overridden. Leadership can switch it back the same way.</li>
+      <li>Leadership can select <b>Work out now</b> to refresh the automatic values within a few minutes.</li>
+    </ul>
+    <p>On trial from 0.5.3: SLA first response, tickets closed per tech per day, first-contact resolution and billable utilisation, from Autotask. A tech is anyone whose default department in Autotask is Service Desk. Seats, MRR, SimpleSAT and Xero measurables follow.</p>
   </section>
 
   <section>
@@ -142,7 +150,8 @@
       <tbody>
         <tr><td>0.5.0</td><td>Scorecard (typed in), Rocks, Issues, To-dos, V/TO, Accountability Chart, division and seat pages, FY plan <b>(now available)</b></td></tr>
         <tr><td>0.5.2</td><td>People and departments: who's in each Autotask department, and changing default departments <b>(now available)</b></td></tr>
-        <tr><td>0.6.0</td><td>Automatic Scorecard values from Autotask, SimpleSAT and Xero</td></tr>
+        <tr><td>0.5.3</td><td>Automatic values on trial for the four Autotask service measurables <b>(now available)</b></td></tr>
+        <tr><td>0.6.0</td><td>Automatic values for seats, MRR, SimpleSAT and Xero; numbers from Pipeline and Marketing ROI</td></tr>
         <tr><td>0.7.0</td><td>The L10 meeting, run in Pulse</td></tr>
         <tr><td>0.8.0</td><td>To-dos in Planner; Issue to Autotask ticket; Rocks linked to Planner or Autotask projects</td></tr>
         <tr><td>0.9.0</td><td>Pulse in Teams, with reminders from the Pulse bot</td></tr>

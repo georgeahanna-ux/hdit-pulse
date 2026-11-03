@@ -10,11 +10,12 @@ const time = require("../lib/time");
 const MIN_REASON = 5;
 
 /** The value shown for a Scorecard cell, and where it came from. */
-function shownValue(row) {
+/** autoOn: the measurable is switched to automatic. While it isn't (trial), the automatic value is never shown. */
+function shownValue(row, autoOn = true) {
   if (!row) return { value: null, source: null };
   if (row.is_overridden) return { value: num(row.override_value), source: "override" };
   if (row.entered_value !== null && row.entered_value !== undefined) return { value: num(row.entered_value), source: "entered" };
-  if (row.auto_value !== null && row.auto_value !== undefined) return { value: num(row.auto_value), source: "auto" };
+  if (autoOn && row.auto_value !== null && row.auto_value !== undefined) return { value: num(row.auto_value), source: "auto" };
   return { value: null, source: null };
 }
 

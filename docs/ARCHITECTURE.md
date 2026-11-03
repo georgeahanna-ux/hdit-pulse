@@ -55,7 +55,7 @@ New app roles on the existing registration, each assigned to a group, the same w
 
 ### The Scorecard engine (D1, D4, D5)
 - **Week:** Monday to Sunday, Australia/Sydney. **Lock:** Tuesday 5pm Sydney after the week ends, worked out from the clock, not a timer.
-- **Hourly collector** (sync app) computes each automatic measurable for the open week. It never touches a locked week or an override. Monthly measurables are *provisional* until Finance closes the month.
+- **Hourly collector** (sync app) computes each measurable that has a collector for the open weeks (current, and the one under review until it locks), plus a one-off fill of up to 12 earlier weeks. It never changes a locked week's automatic value once set, and never touches an override. **Trial (shadow) mode** first: the automatic value is stored beside the typed-in one and only counts once Leadership switches the measurable to automatic (with a reason, audited). Shipped for the four Autotask service measurables in 0.5.3. Monthly measurables are *provisional* until Finance closes the month.
 - **Overrides:** that week only; mandatory reason; automatic value kept beside it; revertible with a reason; all audited.
 - **Two weeks off target → suggested Issue** for the next L10.
 
@@ -99,7 +99,7 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 |---|---|---|---|
 | M0 | Foundations | Bicep for SQL, Key Vault, both Function Apps; setup-script `release1` step; migrations in the workflow; shared libs (auth, SQL, audit, Sydney week); `/api/me`; Brand V5 shell; audit log | 0.4.0 |
 | M1 | EOS core | Accountability Chart and seats, V/TO, Rocks, Issues, To-dos, Scorecard with manual measurables, overrides, lock, history | 0.5.0 |
-| M2 | Automatic Scorecard and people | Connections page credential entry (shipped early in 0.5.1); People directory and matching, Autotask departments view and two-way changes (0.5.2); collectors for Autotask, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
+| M2 | Automatic Scorecard and people | Connections page credential entry (shipped early in 0.5.1); People directory and matching, Autotask departments view and two-way changes (0.5.2); collectors for Autotask (service measurables on trial in 0.5.3), seats and MRR, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |

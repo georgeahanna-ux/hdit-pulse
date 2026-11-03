@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3 — 3 November 2026
+Milestone M2, part 2: Autotask collectors in trial ("shadow") mode.
+- Sync service works out four Managed Services measurables every hour from Autotask with the **Autotask: Service** credential (read-only use): SLA first response met, tickets closed per tech per day, first-contact resolution (proposed: one time entry), billable utilisation. Techs are resources whose default department was Service Desk at the end of the week (department history from 0.5.2). Working days come off Autotask's holiday set; standard day 7.6 hours.
+- Each run covers the current week, the week under review until it locks, and a one-off fill of up to 12 earlier weeks. A locked week's automatic value never changes once set.
+- Trial mode: the automatic value is stored and shown under the typed-in one but never counted until Leadership switches the measurable to automatic (`POST /measurables/:id/automatic`, with a reason, audited). Cell panels show how each value was worked out; the definition panel compares typed-in and automatic values week by week.
+- Leadership can ask for a run now (`POST /scorecard/refresh`, picked up within two minutes).
+- Migration `0006_collectors`: `measurable.collector`, who last switched automatic on or off, `scorecard_value.auto_detail`, settings for hours a day, tech department and holiday set; definitions of the four measurables rewritten with their calculation and a worked example.
+- 10 new tests (82 in total).
+
 ## 0.5.2 — 3 November 2026
 Milestone M2, part 1: People directory (D10) and Autotask departments (D16).
 - **People and departments** page (Platform → People and departments) for Leadership and Platform Admins, with three tabs:

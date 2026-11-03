@@ -183,3 +183,36 @@ test("V/TO: everyone reads, leadership edits", async () => {
   assert.equal((await call("GET", "vto", "staff")).status, 200);
   assert.equal((await call("PUT", "vto/core_values", "staff", { content: "x" })).status, 403);
 });
+
+test("switching a measurable to automatic: leadership only, needs a collector and a reason", async () => {
+  reset();
+  sla.collector = null;
+  let r = await call("POST", "measurables/6/automatic", "leader", { enabled: true, reason: "Matches the entered numbers" });
+  assert.equal(r.status, 409);
+  sla.collector = "autotask.sla_first_response";
+  r = await call("POST", "measurables/6/automatic", "tech", { enabled: true, reason: "Matches the entered numbers" });
+  assert.equal(r.status, 403);
+  r = await call("POST", "measurables/6/automatic", "leader", { enabled: true });
+  assert.equal(r.status, 400);
+  r = await call("POST", "measurables/6/automatic", "leader", { enabled: true, reason: "Matches the entered numbers" });
+  assert.equal(r.status, 200, JSON.stringify(r.jsonBody));
+  assert.ok(writes.some(w => /UPDATE pulse\.measurable SET auto_enabled/.test(w.text) && w.p.enabled === true));
+  assert.equal(audits()[0].action, "measurable.automatic");
+  sla.collector = null;
+});
+
+test("trial measurables show the automatic value beside the entered one, not instead of it", async () => {
+  reset();
+  sla.collector = "autotask.sla_first_response";
+  cells.set(`6|${lockedWeek}`, { measurable_id: 6, week: lockedWeek, auto_value: 93.5, auto_at: new Date(), auto_detail: JSON.stringify({ text: "187 of 200 tickets" }), entered_value: null, is_overridden: false });
+  const r = await call("GET", `scorecard?end=${thisWeek}`, "leader");
+  assert.equal(r.status, 200);
+  const m = r.jsonBody.measurables[0];
+  const c = m.cells.find(x => x.week === lockedWeek);
+  assert.equal(m.trial, true);
+  assert.equal(c.value, null);
+  assert.equal(c.auto, 93.5);
+  assert.equal(c.autoDetail.text, "187 of 200 tickets");
+  assert.equal(r.jsonBody.canRefresh, true);
+  sla.collector = null;
+});

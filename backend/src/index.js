@@ -36,6 +36,11 @@ if (component === "api") {
     schedule: "0 2/15 * * * *", runOnStartup: false,
     handler: (_t, context) => jobs.runIfConnected("departments", context, jobs.syncDepartments),
   });
+  // Scorecard collectors hourly at :12 past (UTC), after the departments sync at :02.
+  app.timer("scorecard", {
+    schedule: "0 12 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.run("scorecard", context, jobs.syncScorecard),
+  });
   // Full directory (Entra and Autotask) nightly at 15:40 UTC (1:40 or 2:40am Sydney).
   app.timer("directory", {
     schedule: "0 40 15 * * *", runOnStartup: false,

@@ -394,3 +394,13 @@ ul.roles { padding-left: 18px; margin: 0; font-size: 15px; }
 .dept-tags { margin: -6px 0 10px; }
 .review-sec h2 { font-size: 1.25rem; }
 td.nowrap { white-space: nowrap; }
+
+/* Scorecard: automatic values on trial (0.5.3) */
+.sc-bar { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 0 0 12px; }
+.trial-chip { margin-left: 4px; font-size: 0.68rem; vertical-align: 1px; }
+.trial-v { display: none; font-size: 0.72rem; font-weight: 500; color: var(--muted); border-top: 1px dashed currentColor; margin-top: 2px; padding-top: 1px; }
+.show-trial .trial-v { display: block; }
+.sw.trial { background: transparent; border: 1px dashed var(--muted); }
+.small-h { font-size: 1rem; margin: 18px 0 8px; }
+table.compact td, table.compact th { padding: 6px 10px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }

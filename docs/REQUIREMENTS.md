@@ -184,6 +184,7 @@ AI runs on Azure OpenAI hosted in Australia under HD IT's subscription; data is 
 - Who can change departments: Platform Admins and Leadership. Every change records who, when, old and new department, and a reason, in the audit log; Autotask's own history shows the Pulse API user.
 - Writing to Autotask uses a dedicated Autotask API user for people administration with only the resource permissions this needs, held in the central vault (D7).
 - Department history is kept in Pulse so past weeks use the department in force at the time.
+- **Used from 0.5.3:** tickets per tech and utilisation take the techs in Service Desk at the end of each week.
 - **Built in 0.5.2 (3 Nov 2026):** People and departments page; multi-select change (up to 50 at a time); Pulse re-reads each changed person from Autotask to confirm. Uses the `autotask-people` credential.
 
 ### D17. Xero: live organisation, read-only, standard connection (31 Oct 2026)

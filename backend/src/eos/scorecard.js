@@ -7,6 +7,8 @@
  *   POST /scorecard/revert    { measurableId, week, reason }           remove an override
  *   POST /measurables         (leadership) new measurable
  *   PATCH /measurables/:id    goal, owner, name, definition (leadership or the owner)
+ *   POST /measurables/:id/automatic { enabled, reason }   (leadership) switch from trial to automatic, or back
+ *   POST /scorecard/refresh   (leadership) work out automatic values now
  */
 const db = require("../lib/sql");
 const time = require("../lib/time");
@@ -15,7 +17,8 @@ const L = require("./logic");
 const C = require("./common");
 
 const COLS = `m.id, m.code, m.name, m.scope, m.division_code, m.seat_id, m.owner_name, m.owner_email, m.unit, m.direction,
-  m.goal_value, m.goal_text, m.frequency, m.source, m.auto_enabled, m.definition, m.definition_version, m.restricted, m.sort`;
+  m.goal_value, m.goal_text, m.frequency, m.source, m.auto_enabled, m.collector, m.auto_changed_by, m.auto_changed_at,
+  m.definition, m.definition_version, m.restricted, m.sort`;
 
 async function loadMeasurable(id) {
   const [m] = await db.query(`SELECT ${COLS} FROM pulse.measurable m WHERE m.id = @id AND m.is_active = 1`, { id });
@@ -34,7 +37,9 @@ function describe(ctx, m) {
     id: m.id, code: m.code, name: m.name, scope: m.scope, division: m.division_code, seatId: m.seat_id,
     owner: { name: m.owner_name, email: m.owner_email, isMe: C.isMeHolder(ctx, { name: m.owner_name, email: m.owner_email }) },
     unit: m.unit, direction: m.direction, goal: m.goal_value === null ? null : Number(m.goal_value), goalText: m.goal_text,
-    frequency: m.frequency, source: m.source, automatic: !!m.auto_enabled, definition: m.definition, definitionVersion: m.definition_version,
+    frequency: m.frequency, source: m.source, automatic: !!m.auto_enabled,
+    collector: m.collector || null, trial: !!m.collector && !m.auto_enabled,
+    autoChanged: m.auto_changed_at ? { by: m.auto_changed_by, at: m.auto_changed_at } : null, definition: m.definition, definitionVersion: m.definition_version,
     canOverride: allowed(ctx, m),
     canEdit: ctx.access.leadership || C.isMeHolder(ctx, { name: m.owner_name, email: m.owner_email }),
   };
@@ -52,7 +57,7 @@ async function getScorecard(ctx) {
   const all = await db.query(`SELECT ${COLS} FROM pulse.measurable m WHERE m.is_active = 1 ORDER BY m.scope, m.sort, m.id`);
   const list = all.filter(m => visible(ctx, m) && (divisionFilter ? m.division_code === divisionFilter : m.scope === "company"));
   const rows = list.length ? await db.query(
-    `SELECT measurable_id, week, auto_value, auto_at, provisional, entered_value, entered_by_name, entered_at,
+    `SELECT measurable_id, week, auto_value, auto_at, auto_detail, provisional, entered_value, entered_by_name, entered_at,
             override_value, is_overridden, override_reason, override_by_name, override_at, note
        FROM pulse.scorecard_value
       WHERE week BETWEEN @from AND @to AND measurable_id IN (${list.map((_, i) => "@m" + i).join(",")})`,
@@ -60,18 +65,22 @@ async function getScorecard(ctx) {
   const byKey = new Map(rows.map(r => [`${r.measurable_id}|${L.isoDay(r.week)}`, r]));
   const info = Object.fromEntries(weekIds.map(w => [w, time.weekInfo(w)]));
 
+  const [last] = await db.query("SELECT MAX(finished_at) AS at FROM pulse.sync_run WHERE job = N'scorecard' AND ok = 1");
   return {
     weeks: weekIds.map(w => info[w]),
+    collectedAt: last ? last.at : null,
+    canRefresh: !!ctx.access.leadership,
     scope: divisionFilter ? { division: divisionFilter } : { company: true },
     measurables: list.map(m => {
       const d = describe(ctx, m);
       const cells = weekIds.map(w => {
         const r = byKey.get(`${m.id}|${w}`);
-        const shown = L.shownValue(r);
+        const shown = L.shownValue(r, !!m.auto_enabled);
         const acts = L.cellActions({ allowed: d.canOverride, measurable: m, locked: info[w].locked, row: r });
         return {
           week: w, value: shown.value, source: shown.source, onTarget: L.onTarget(m, shown.value),
           auto: r && r.auto_value !== null ? Number(r.auto_value) : null, provisional: !!(r && r.provisional),
+          autoDetail: r && r.auto_at ? { at: r.auto_at, text: detailText(r.auto_detail) } : null,
           entered: r && r.entered_value !== null ? { value: Number(r.entered_value), by: r.entered_by_name, at: r.entered_at } : null,
           override: r && r.is_overridden ? { value: Number(r.override_value), reason: r.override_reason, by: r.override_by_name, at: r.override_at } : null,
           actions: acts,
@@ -80,6 +89,10 @@ async function getScorecard(ctx) {
       return { ...d, cells };
     }),
   };
+}
+
+function detailText(json) {
+  try { return JSON.parse(json || "{}").text || null; } catch { return null; }
 }
 
 async function loadCell(measurableId, week) {
@@ -100,7 +113,7 @@ async function prepare(ctx) {
   return { id, week, m, row, acts };
 }
 
-const snapshot = r => (r ? { shown: L.shownValue(r).value, auto: r.auto_value, entered: r.entered_value, override: r.is_overridden ? r.override_value : null } : null);
+const snapshot = (r, m) => (r ? { shown: L.shownValue(r, !m || !!m.auto_enabled).value, auto: r.auto_value, entered: r.entered_value, override: r.is_overridden ? r.override_value : null } : null);
 
 async function enter(ctx) {
   const { id, week, m, row, acts } = await prepare(ctx);
@@ -117,7 +130,7 @@ async function enter(ctx) {
      WHEN NOT MATCHED THEN INSERT (measurable_id, week, entered_value, entered_by_oid, entered_by_name, entered_at)
           VALUES (@id, @week, @value, @oid, @name, SYSUTCDATETIME());`,
     { id, week, value, oid: ctx.person.oid, name: ctx.person.name });
-  await C.record(ctx, "scorecard.enter", { type: "measurable", id: `${m.code}@${week}` }, snapshot(row), { entered: value });
+  await C.record(ctx, "scorecard.enter", { type: "measurable", id: `${m.code}@${week}` }, snapshot(row, m), { entered: value });
   return { ok: true };
 }
 
@@ -135,7 +148,7 @@ async function override(ctx) {
      WHEN NOT MATCHED THEN INSERT (measurable_id, week, override_value, is_overridden, override_reason, override_by_oid, override_by_name, override_at)
           VALUES (@id, @week, @value, 1, @why, @oid, @name, SYSUTCDATETIME());`,
     { id, week, value, why, oid: ctx.person.oid, name: ctx.person.name });
-  await C.record(ctx, "scorecard.override", { type: "measurable", id: `${m.code}@${week}` }, snapshot(row), { override: value }, why);
+  await C.record(ctx, "scorecard.override", { type: "measurable", id: `${m.code}@${week}` }, snapshot(row, m), { override: value }, why);
   return { ok: true };
 }
 
@@ -148,7 +161,7 @@ async function revert(ctx) {
             override_by_oid = @oid, override_by_name = @name, override_at = SYSUTCDATETIME()
       WHERE measurable_id = @id AND week = @week`,
     { id: m.id, week, why, oid: ctx.person.oid, name: ctx.person.name });
-  await C.record(ctx, "scorecard.revert", { type: "measurable", id: `${m.code}@${week}` }, snapshot(row), { override: null }, why);
+  await C.record(ctx, "scorecard.revert", { type: "measurable", id: `${m.code}@${week}` }, snapshot(row, m), { override: null }, why);
   return { ok: true };
 }
 
@@ -215,6 +228,27 @@ async function updateMeasurable(ctx) {
   return { ok: true };
 }
 
+/** Leadership switches a measurable from trial to automatic (or back), with a reason. */
+async function setAutomatic(ctx) {
+  const id = C.int(ctx.params.id);
+  const m = await loadMeasurable(id);
+  if (!m.collector) throw C.fail(409, "This measurable has no automatic source yet, so it can only be typed in.");
+  const enabled = ctx.body.enabled === true;
+  const why = C.reason(ctx.body.reason);
+  if (!!m.auto_enabled === enabled) return { ok: true, automatic: enabled };
+  await db.query("UPDATE pulse.measurable SET auto_enabled = @enabled, auto_changed_by = @name, auto_changed_at = SYSUTCDATETIME() WHERE id = @id",
+    { id, enabled, name: ctx.person.name });
+  await C.record(ctx, "measurable.automatic", { type: "measurable", id: m.code }, { automatic: !!m.auto_enabled }, { automatic: enabled }, why);
+  return { ok: true, automatic: enabled };
+}
+
+/** "Work out now": asks the sync service to run the collectors at its next check (within two minutes). */
+async function refreshScorecard(ctx) {
+  const [pending] = await db.query("SELECT TOP 1 id FROM pulse.sync_request WHERE job = N'scorecard' AND picked_at IS NULL AND requested_at > DATEADD(hour, -1, SYSUTCDATETIME())");
+  if (!pending) await db.query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (N'scorecard', @by)", { by: ctx.person.name });
+  return { ok: true, detail: "Pulse will work out the automatic values within the next few minutes." };
+}
+
 const routes = [
   { method: "GET", path: "/scorecard", auth: "person", fn: getScorecard },
   { method: "POST", path: "/scorecard/enter", auth: "person", fn: enter },
@@ -222,6 +256,8 @@ const routes = [
   { method: "POST", path: "/scorecard/revert", auth: "person", fn: revert },
   { method: "POST", path: "/measurables", auth: "person", allow: a => a.leadership, fn: createMeasurable },
   { method: "PATCH", path: "/measurables/:id", auth: "person", fn: updateMeasurable },
+  { method: "POST", path: "/measurables/:id/automatic", auth: "person", allow: a => a.leadership, fn: setAutomatic },
+  { method: "POST", path: "/scorecard/refresh", auth: "person", allow: a => a.leadership, fn: refreshScorecard },
 ];
 
 module.exports = { routes };

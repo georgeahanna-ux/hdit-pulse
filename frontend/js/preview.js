@@ -46,6 +46,18 @@ for (const m of measurables) for (let i = 1; i <= 13; i++) {
   cells.set(`${m.id}|${w}`, { value: m.unit === "count" || m.unit === "currency" ? Math.round(v) : Math.round(v * 10) / 10, source: "entered" });
 }
 
+// Trial collectors (0.5.3): Autotask works out 6–9 every hour; switched on per measurable by Leadership.
+const COLLECTORS = { 6: "autotask.sla_first_response", 7: "autotask.tickets_per_tech", 8: "autotask.fcr", 9: "autotask.utilisation" };
+const autoOn = new Set();
+const autoValue = (m, i) => { const v = m.base + (rand(m.id, i) - 0.5) * m.spread + (rand(m.id + 50, i) - 0.5) * m.spread * 0.3; return Math.round(v * 10) / 10; };
+const autoText = (m, v) => ({
+  6: n => `${Math.round(n * 1.8)} of 180 tickets had a first response in time. ${180 - Math.round(n * 1.8)} missed.`,
+  7: n => `${Math.round(n * 6 * 5)} tickets completed by 6 techs over 5 working days.`,
+  8: n => `${Math.round(n * 1.6)} of 160 tickets were resolved with a single time entry. 12 with no time left out.`,
+  9: n => `${Math.round(n * 2.28)} billable hours of 228 available (6 techs × 5 days × 7.6 hours). 31 other hours logged.`,
+})[m.id](v);
+let pvCollectedAt = new Date(Date.now() - 23 * 60e3).toISOString();
+
 // Mirrors db/migrations/0003_accountability_chart.sql (roles shortened), plus the preview people.
 const H = (name, title, team) => ({ name, title, team, email: null });
 const SEAT = (id, division, title, parentId, keyResult, roles, holders, apps = []) => ({ id, division, functionId: null, parentId, title, keyResult, roles, holders, apps });
@@ -188,22 +200,34 @@ export function previewApi(path, method, body = {}) {
     const end = weekOf(), weeks = Array.from({ length: 13 }, (_, i) => addDays(end, -7 * (12 - i)));
     const division = q.division || null;
     const list = measurables.filter(m => (division ? m.division === division : true));
-    return { weeks: weeks.map(w => weekInfo(w)), scope: division ? { division } : { company: true },
+    return { weeks: weeks.map(w => weekInfo(w)), scope: division ? { division } : { company: true }, collectedAt: pvCollectedAt, canRefresh: !!a.leadership,
       measurables: list.map(m => {
         const can = a.leadership || a.ownDivisions.includes(m.division);
-        return { ...m, seatId: { SalesMarketing: 8, ManagedServices: 16, Finance: 4 }[m.division] || null, owner: { ...m.owner, isMe: isMe(m.owner.email) }, automatic: false, canOverride: can, canEdit: a.leadership || isMe(m.owner.email),
+        return { ...m, seatId: { SalesMarketing: 8, ManagedServices: 16, Finance: 4 }[m.division] || null, owner: { ...m.owner, isMe: isMe(m.owner.email) }, source: COLLECTORS[m.id] || m.id === 5 ? "autotask" : m.division === "Finance" ? "xero" : m.id === 1 ? "mroi" : m.id <= 3 ? "pipeline" : m.id <= 11 ? "simplesat" : "autotask", automatic: autoOn.has(m.id), collector: COLLECTORS[m.id] || null, trial: !!COLLECTORS[m.id] && !autoOn.has(m.id), canOverride: can, canEdit: a.leadership || isMe(m.owner.email),
           definition: "Preview: the plain-English definition, calculation and worked example appear here.",
           cells: weeks.map(w => {
             const c = cells.get(`${m.id}|${w}`), info = weekInfo(w);
-            const v = c ? c.value : null;
+            const i = Math.round((Date.parse(end) - Date.parse(w)) / 6048e5);
+            const auto = COLLECTORS[m.id] ? autoValue(m, i) : null;
+            const on = autoOn.has(m.id);
+            const v = c && (c.source === "override" || !on || c.source === "entered") ? c.value : on ? auto : null;
             const onTarget = v === null || m.goal === null ? null : m.direction === "lower" ? v <= m.goal : v >= m.goal;
             const overridden = c && c.source === "override";
-            return { week: w, value: v, source: c ? c.source : null, onTarget, auto: null, provisional: false,
+            return { week: w, value: v, source: c && v === c.value ? c.source : v !== null ? "auto" : null, onTarget, auto, provisional: false,
+              autoDetail: auto !== null ? { at: pvCollectedAt, text: autoText(m, auto) } : null,
               entered: c && c.source === "entered" ? { value: v, by: "Preview" } : null,
               override: overridden ? { value: v, reason: c.reason, by: c.by } : null,
-              actions: { enter: can && !info.locked && !overridden, override: can && (info.locked || overridden), revert: can && overridden } };
+              actions: { enter: can && !on && !info.locked && !overridden, override: can && (on || info.locked || overridden), revert: can && overridden } };
           }) };
       }) };
+  }
+  if (p === "/scorecard/refresh") { pvCollectedAt = new Date().toISOString(); return { ok: true, detail: "Preview: worked out again (simulated)." }; }
+  const autoM = /^\/measurables\/(\d+)\/automatic$/.exec(p);
+  if (autoM) {
+    if (!a.leadership) fail(403, "You don't have access to that.");
+    if (String(body.reason || "").trim().length < 5) fail(400, "Please give a reason (at least a few words).");
+    if (body.enabled) autoOn.add(Number(autoM[1])); else autoOn.delete(Number(autoM[1]));
+    return { ok: true, automatic: !!body.enabled };
   }
   if (p.startsWith("/scorecard/")) {
     const key = `${body.measurableId}|${body.week}`;

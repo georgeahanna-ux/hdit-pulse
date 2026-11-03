@@ -22,7 +22,7 @@ const AUTOTASK_FIELDS = [
 const TYPES = {
   "autotask-service": { system: "Autotask", label: "Autotask: Service", kind: "autotask", fields: AUTOTASK_FIELDS,
     purpose: "Tickets, projects, time entries and resources for the Managed Services measurables; creates tickets from Issues.",
-    permissions: "Read tickets, projects, time entries, resources and companies. Add tickets and project tasks." },
+    permissions: "Read tickets, projects, time entries, resources, companies and holiday sets. Add tickets and project tasks." },
   "autotask-people": { system: "Autotask", label: "Autotask: People administration", kind: "autotask", fields: AUTOTASK_FIELDS,
     purpose: "Who's in each Autotask department, and changing default departments (D16).",
     permissions: "Read resources, roles and departments. Add and edit resource role departments." },

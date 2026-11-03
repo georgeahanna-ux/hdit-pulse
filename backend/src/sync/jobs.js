@@ -85,7 +85,13 @@ async function syncDirectory() {
   return `Entra: ${e.people} people, ${e.leavers} left; ${a ? `Autotask: ${a.resources} resources` : "Autotask not connected yet"}; ${m.linked} linked, ${m.review} to review`;
 }
 
-const REQUESTABLE = { directory: syncDirectory, departments: syncDepartments };
+/* ---------------- Scorecard collectors (M2) ---------------- */
+const collect = require("../collect");
+
+const isConnected = async cred => { const s = await vault.getSecret(cred).catch(() => null); return !!(s && s.value); };
+const syncScorecard = () => collect.runScorecard({ isConnected });
+
+const REQUESTABLE = { directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard };
 
 /** Picks up "Refresh now" requests made in Pulse (oldest first, one of each job at a time). */
 async function runRequests(context) {
@@ -100,4 +106,4 @@ async function runRequests(context) {
   }
 }
 
-module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, runRequests, CONNECTIONS };
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, runRequests, CONNECTIONS };

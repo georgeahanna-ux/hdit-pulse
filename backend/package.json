@@ -1,6 +1,6 @@
 {
   "name": "hdit-pulse-backend",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "description": "HD IT Pulse backend. One package, two Function Apps: PULSE_COMPONENT=api (user-facing HTTP API) or sync (timers and integrations). Entra ID tokens, Azure SQL, Key Vault.",
   "main": "src/index.js",
