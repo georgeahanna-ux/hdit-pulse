@@ -371,3 +371,13 @@ ul.roles { padding-left: 18px; margin: 0; font-size: 15px; }
 .holder.me .ht { color: var(--hd-deep-20); }
 .holders.col { flex-direction: column; align-items: flex-start; }
 .focus { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Connections (D7) */
+.conn-list { display: grid; gap: var(--hd-s3); }
+.conn { display: flex; gap: var(--hd-s5); padding: var(--hd-s5); background: var(--hd-cloud); border-radius: var(--hd-r-card); }
+.conn-main { flex: 1; min-width: 0; }
+.conn-main p { margin: 6px 0 0; max-width: 75ch; }
+.conn-h { display: flex; gap: var(--hd-s3); align-items: center; flex-wrap: wrap; }
+.conn-meta { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 10px; color: var(--muted); }
+.conn-act { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; white-space: nowrap; }
+@media (max-width: 700px) { .conn { flex-direction: column; } .conn-act { align-items: flex-start; } }

@@ -99,12 +99,12 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 |---|---|---|---|
 | M0 | Foundations | Bicep for SQL, Key Vault, both Function Apps; setup-script `release1` step; migrations in the workflow; shared libs (auth, SQL, audit, Sydney week); `/api/me`; Brand V5 shell; audit log | 0.4.0 |
 | M1 | EOS core | Accountability Chart and seats, V/TO, Rocks, Issues, To-dos, Scorecard with manual measurables, overrides, lock, history | 0.5.0 |
-| M2 | Automatic Scorecard and people | People directory and matching; Autotask departments view and two-way changes; collectors for Autotask, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
+| M2 | Automatic Scorecard and people | Connections page credential entry (shipped early in 0.5.1); People directory and matching; Autotask departments view and two-way changes; collectors for Autotask, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
-| M7 | Release readiness | Connections page, help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
+| M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken (31 October 2026)
 1. **Xero:** live organisation in test and production, read-only by scope, standard OAuth connection (D17).

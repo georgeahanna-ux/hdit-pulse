@@ -79,23 +79,6 @@ export async function audit(me, q = {}) {
     </tbody></table></div>`;
 }
 
-/* ---------------- Connections (Platform Admins) ---------------- */
-export async function connections(me) {
-  if (!me.access.manageConnections) return denied("Connections", "Pulse - Platform Admins");
-  if (!serverReady() && !CONFIG.PREVIEW) return needsServer("Connections");
-  api("/audit/view", { method: "POST", body: { page: "connections" } }).catch(() => {});
-  const { connections: list } = await api("/connections");
-  return `<div class="ph">${eyebrow("Platform")}<h1>Connections</h1>
-      <p>The credentials Pulse uses to read HD IT's systems. They live in Key Vault, each readable only by the part of Pulse that needs it. Pulse never shows a credential; entering and rotating them arrives in 1.0.</p></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Connection</th><th>Status</th><th>Last changed</th><th>Last checked</th></tr></thead><tbody>
-      ${list.length ? list.map(c => `<tr><td><b>${esc(c.name)}</b><div class="dim">${esc(c.description || "")}</div></td>
-        <td>${c.lastError ? `<span class="chip alert">Needs attention</span><div class="dim">${esc(c.lastError)}</div>` : c.configured ? `<span class="chip ok">Entered</span>` : `<span class="chip scheduled">Not entered yet</span>`}</td>
-        <td>${c.secretUpdatedAt ? esc(fmtDate(c.secretUpdatedAt)) : `<span class="dim">—</span>`}</td>
-        <td>${c.lastCheckedAt ? esc(fmtDateTime(c.lastCheckedAt)) : `<span class="dim">Not yet</span>`}</td></tr>`).join("")
-        : `<tr><td colspan="4" class="dim">The sync service hasn't checked the credentials yet. It runs every hour.</td></tr>`}
-    </tbody></table></div>`;
-}
-
 const denied = (what, group) => `<div class="denied"><span class="ic">${icon("compliance", "i-lg")}</span><h2>You don't have access to ${esc(what)}</h2>
   <p>Ask a Platform Admin to add you to <b>${esc(group)}</b>, then sign out and back in.</p><a href="#/">Back to Home</a></div>`;
 const needsServer = what => `<div class="ph">${eyebrow("Platform")}<h1>${esc(what)}</h1></div>

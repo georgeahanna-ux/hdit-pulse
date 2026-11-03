@@ -98,7 +98,7 @@ Definitions confirmed:
 - All integration credentials live in one Pulse Key Vault: Autotask, Xero, Datto RMM, SimpleSAT, IT Glue, CIPP, Microsoft Graph (SharePoint, Planner, Exchange, Teams) and Kaseya Quote Manager.
 - **Separate API users per area** with least privilege, e.g. Autotask: Sales (opportunities, quotes, companies), Service (tickets, projects, time entries), Finance (contracts, billing). Read-only wherever possible; write access only where Pulse changes something.
 - Each Pulse module's identity can read only its own secrets (Key Vault RBAC at secret scope), so one compromised component can't reach every credential.
-- **Connections** page for Platform Admins: status, last successful use, owner, expiry, rotation due. Credentials are write-only (entered or rotated, never displayed). Every change logged.
+- **Connections** page for Platform Admins: status, last successful use, owner, expiry, rotation due. Credentials are write-only (entered or rotated, never displayed). Every change logged. **Credential entry moved forward to 0.5.1 (3 Nov 2026)** so credentials are typed into Pulse rather than Cloud Shell; Autotask credentials are tested before saving.
 - Each source system's own audit log shows which Pulse area acted.
 
 ### D8. Security baseline and sign-in policy (30 Oct 2026)

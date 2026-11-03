@@ -81,14 +81,6 @@ function previewAnswer(path, method, body) {
       { id: 1, at: new Date(t - 86400e3).toISOString(), actor: { name: "Sam Leader" }, action: "session.start", entity: { type: "person", id: "preview-leadership" }, reason: null },
     ] };
   }
-  if (path.startsWith("/connections")) {
-    return { connections: [
-      ["autotask-service", "Autotask API user: Service", true], ["autotask-people", "Autotask API user: People administration", false],
-      ["autotask-finance", "Autotask API user: Finance, read-only", false], ["simplesat", "SimpleSAT API key, read-only", false],
-      ["xero-app", "Xero app (standard OAuth), read-only scopes", false], ["xero-token", "Xero refresh token", false],
-      ["datto-rmm", "Datto RMM API, read-only", false], ["itglue", "IT Glue API, read-only", false],
-    ].map(([name, description, configured]) => ({ name, description, configured, secretUpdatedAt: configured ? new Date(Date.now() - 5 * 86400e3).toISOString() : null, lastCheckedAt: new Date().toISOString(), lastError: null })) };
-  }
   if (path.startsWith("/audit/view")) return { ok: true };
   return {};
 }

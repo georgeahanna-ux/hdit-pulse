@@ -7,7 +7,7 @@
  *   GET  /calendar/week       Scorecard week facts (?week=YYYY-MM-DD, default: this week)
  *   POST /audit/view          record a view of a sensitive page { page }
  *   GET  /audit               audit log (Platform Admins, Compliance)
- *   GET  /connections         integration status, metadata only (Platform Admins)
+ *   /connections              Connections page (src/api/connections.js): Platform Admins enter, replace and remove credentials
  *
  * M1 EOS routes come from src/eos/: structure (divisions, seats, /me/summary), scorecard, rocks, issues, todos, vto, plan.
  */
@@ -99,20 +99,10 @@ const routes = [
       return { events };
     },
   },
-  {
-    method: "GET", path: "/connections", auth: "person", allow: a => a.manageConnections,
-    async fn() {
-      const rows = await db.query(`SELECT name, description, configured, secret_updated_at, owner, rotation_due, last_checked_at, last_success_at, last_error
-                                     FROM pulse.connection_status ORDER BY name`);
-      return { connections: rows.map(r => ({
-        name: r.name, description: r.description, configured: !!r.configured, secretUpdatedAt: r.secret_updated_at,
-        owner: r.owner, rotationDue: r.rotation_due, lastCheckedAt: r.last_checked_at, lastSuccessAt: r.last_success_at, lastError: r.last_error,
-      })) };
-    },
-  },
 ];
 
 // Release 1 EOS modules (M1)
 for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan"]) routes.push(...require(`../eos/${m}`).routes);
+routes.push(...require("./connections").routes);
 
 module.exports = { routes, SENSITIVE_PAGES };

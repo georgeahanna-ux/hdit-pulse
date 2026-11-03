@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 — 3 November 2026
+Connections page: credential entry moved forward from 1.0 (decided 3 Nov 2026).
+- Platform Admins enter, replace and remove each integration credential in Pulse. Values go straight to Key Vault through the API's write-only role ("Pulse Secret Writer"); they are never stored in SQL, logged, or returned to the browser, and can't be shown again.
+- Autotask credentials are tested before saving (zone lookup, then a signed-in call); the REST address found is saved with them.
+- Replacing or removing a credential needs a reason. Owner and rotation-due date per connection; "Rotation overdue" flag. Every change audited with field names only.
+- Migration `0004_connection_details` (who last changed each credential).
+- `backend/src/lib/credentials.js` defines every connection, its fields and the permissions its API user needs. 5 new tests (59 in total), including that no credential value reaches SQL or the audit log.
+
 ## 0.5.0 — 3 November 2026
 Milestone M1: EOS core, navigation by division and role (D18), FY progress bars (D19).
 - Migration `0003_accountability_chart`: 23 seats with roles, key results, reporting lines and holders (job title and team) from the Accountability Chart (19 Aug 2026) and Org Chart (21 Aug 2026); functions reworked to match; division key results; each seat's apps; company measurables linked to their division's head seat.

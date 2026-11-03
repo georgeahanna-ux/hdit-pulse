@@ -110,6 +110,19 @@ const plan = [
   { id: 4, code: "new_seats", name: "New seats", unit: "count", kind: "cumulative", target: 650, opening: null, months: { "2026-07-01": 41, "2026-08-01": 58, "2026-09-01": 49, "2026-10-01": 52 }, quarters: { 1: 150, 2: 160, 3: 170, 4: 170 } },
 ];
 
+const AT = [{ key: "username", label: "API username", secret: false, required: true }, { key: "secret", label: "API secret", secret: true, required: true }, { key: "integrationCode", label: "Tracking identifier (integration code)", secret: true, required: true }];
+const C = (name, system, label, kind, fields, purpose, permissions, configured = false) => ({ name, system, label, kind, fields, purpose, permissions, configured, secretUpdatedAt: configured ? new Date(Date.now() - 6 * 864e5).toISOString() : null, updatedBy: configured ? "George Hanna" : null, owner: null, rotationDue: null, lastSuccessAt: null, lastError: null });
+const previewConnections = [
+  C("autotask-service", "Autotask", "Autotask: Service", "autotask", AT, "Tickets, projects, time entries and resources for the Managed Services measurables.", "Read tickets, projects, time entries, resources and companies. Add tickets and project tasks.", true),
+  C("autotask-people", "Autotask", "Autotask: People administration", "autotask", AT, "Who's in each Autotask department, and changing default departments.", "Read resources, roles and departments. Add and edit resource role departments."),
+  C("autotask-finance", "Autotask", "Autotask: Finance", "autotask", AT, "Contracts and seats.", "Read-only: contracts, contract services and billing items."),
+  C("simplesat", "SimpleSAT", "SimpleSAT", "fields", [{ key: "apiKey", label: "API key", secret: true, required: true }], "CSAT and NPS.", "Read-only API key."),
+  C("xero-app", "Xero", "Xero app", "fields", [{ key: "clientId", label: "Client id", secret: false, required: true }, { key: "clientSecret", label: "Client secret", secret: true, required: true }], "Cash, debtor days, SGM, EBITDA % and revenue.", "A Xero web app with read-only scopes."),
+  C("xero-token", "Xero", "Xero connection", "oauth", [], "Xero's refresh token, renewed automatically.", "Not entered by hand."),
+  C("datto-rmm", "Datto RMM", "Datto RMM", "fields", [{ key: "apiUrl", label: "API address", secret: false, required: true }, { key: "apiKey", label: "API key", secret: false, required: true }, { key: "apiSecret", label: "API secret key", secret: true, required: true }], "Device and patch data (release 2).", "A read-only API user."),
+  C("itglue", "IT Glue", "IT Glue", "fields", [{ key: "apiUrl", label: "API address", secret: false, required: true }, { key: "apiKey", label: "API key", secret: true, required: true }], "Documentation coverage (release 2).", "A read-only API key."),
+];
+
 /* ---------------- progress maths (same rules as the server's logic.js) ---------------- */
 const FY = 2027;
 const fyMonths = () => Array.from({ length: 12 }, (_, i) => { const d = new Date(Date.UTC(2026, 6 + i, 1)); return iso(d); });
@@ -217,6 +230,15 @@ export function previewApi(path, method, body = {}) {
   if (p === "/todos" && method === "POST") { todos.push({ id: ++nextId, level: body.level || "individual", division: body.division || null, title: body.title, owner: { name: body.ownerName || me().name, email: body.ownerEmail || me().email }, dueDate: body.dueDate || addDays(iso(today()), 7), done: false }); return { id: nextId }; }
   if ((mm = /^\/todos\/(\d+)$/.exec(p))) { const t = todos.find(x => x.id === Number(mm[1])); if ("done" in body) t.done = !!body.done; if (body.deleted) todos.splice(todos.indexOf(t), 1); return { ok: true }; }
 
+  if (p === "/connections" && method === "GET") return { connections: previewConnections };
+  if ((mm = /^\/connections\/([a-z-]+)$/.exec(p))) {
+    const c = previewConnections.find(x => x.name === mm[1]);
+    if (method === "DELETE") { c.configured = false; return { ok: true }; }
+    if (method === "PATCH") { c.owner = body.owner || null; c.rotationDue = body.rotationDue || null; return { ok: true }; }
+    if (c.configured && String(body.reason || "").trim().length < 5) fail(400, "Please give a reason for replacing this credential.");
+    Object.assign(c, { configured: true, secretUpdatedAt: new Date().toISOString(), updatedBy: me().name, owner: body.owner || c.owner, rotationDue: body.rotationDue || c.rotationDue });
+    return { ok: true, tested: c.kind === "autotask", note: c.kind === "autotask" ? "Preview: signed in to Autotask (simulated)." : "Saved (preview)." };
+  }
   if (p === "/vto" && method === "GET") return { sections: vto };
   if ((mm = /^\/vto\/([a-z_]+)$/.exec(p))) { if (!a.leadership) fail(403, "Only Leadership edits the V/TO."); vto.find(s => s.key === mm[1]).content = body.content; return { ok: true }; }
 

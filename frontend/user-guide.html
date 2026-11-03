@@ -12,10 +12,10 @@
 <link rel="stylesheet" href="css/doc.css">
 <script src="js/doc-version.js" defer></script>
 </head>
-<body data-built-for="0.5.0">
+<body data-built-for="0.5.1">
 <header class="doc-band"><div class="inner">
   <img src="brand/hdit-logo-yellow.svg" alt="HD IT">
-  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.0</span></span>
+  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.1</span></span>
   <h1>Using Pulse</h1>
   <p>Pulse is where HD IT runs EOS: the weekly Scorecard, Rocks, Issues, To-dos and the Tuesday L10, with Pipeline, Marketing ROI and Whitespace Matrix alongside. One Microsoft 365 sign-in for all of it.</p>
 </div></header>
@@ -101,6 +101,18 @@
     <span class="hd-eyebrow">Apps</span>
     <h2>Pipeline, Marketing ROI and Whitespace Matrix</h2>
     <p>Each app opens inside Pulse and signs you in with your Microsoft 365 account, so there's no separate password. Your role in each app (user, editor or administrator) comes from its Pulse group. <b>Open on its own</b> opens the app's own address in a new tab.</p>
+  </section>
+
+  <section>
+    <span class="hd-eyebrow">Platform Admins</span>
+    <h2>Connections</h2>
+    <p>Under <b>Platform → Connections</b>, Platform Admins enter the credentials Pulse uses to read Autotask, SimpleSAT, Xero, Datto RMM and IT Glue. Each card says what the connection is for and the permissions its API user needs.</p>
+    <ul>
+      <li>Select <b>Enter</b>, type the details and save. Autotask details are tested first; Pulse only saves them if Autotask accepts them.</li>
+      <li>Pulse never shows a credential again. To change one, select <b>Replace</b> and give a reason.</li>
+      <li>Set an owner and a rotation-due date for each connection. Pulse flags it when rotation is overdue.</li>
+      <li>Every change is recorded in the audit log with your name and reason. The credential itself is never recorded.</li>
+    </ul>
   </section>
 
   <section>

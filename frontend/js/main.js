@@ -9,6 +9,7 @@ import { homePage, DIVISION_ICONS } from "./pages/home.js";
 import { scorecardPage } from "./pages/scorecard.js";
 import { rocksPage, issuesPage, todosPage, vtoPage } from "./pages/eos.js";
 import { planPage, chartPage, divisionPage, seatPage, canSeePlan } from "./pages/org.js";
+import { connectionsPage } from "./pages/connections.js";
 
 let ME = null, STRUCTURE = null;
 let compact = null;
@@ -111,7 +112,6 @@ async function pageFor(r) {
     case "home": return homePage(ME, STRUCTURE);
     case "access": return { title: "Your access", html: V.access(ME) };
     case "audit": return { title: "Audit log", html: await V.audit(ME, r.q) };
-    case "connections": return { title: "Connections", html: await V.connections(ME) };
     case "app": { const out = V.app(r.id); return out ? { title: (APPS.find(x => x.k === r.id) || {}).name, html: out.html, full: true } : null; }
     case "l10": case "people": { const [t, d, v] = SOON[r.page]; return { title: t, html: `<div class="ph"><span class="hd-eyebrow">Coming in ${v}</span><h1>${esc(t)}</h1><p>${esc(d)}</p></div><div class="note info">${icon("calendar")}<span>Arriving in Pulse ${v}. It switches on in the test environment first.</span></div>` }; }
   }
@@ -126,6 +126,7 @@ async function pageFor(r) {
     case "chart": return chartPage(ME, STRUCTURE);
     case "division": return divisionPage(ME, STRUCTURE, r.id, r.sub || "overview");
     case "seat": return seatPage(ME, STRUCTURE, r.id);
+    case "connections": return connectionsPage(ME);
   }
   return null;
 }
