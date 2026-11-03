@@ -404,6 +404,7 @@ output backendDeployed bool = backend
 output apiName string = backend ? api!.name : ''
 output apiHostname string = backend ? api!.properties.defaultHostName : ''
 output syncName string = backend ? sync!.name : ''
+output syncHostname string = backend ? sync!.properties.defaultHostName : ''
 output sqlServer string = backend ? sql!.properties.fullyQualifiedDomainName : ''
 output sqlServerName string = backend ? sql!.name : ''
 output sqlDatabase string = names.sqldb

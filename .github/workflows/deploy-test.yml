@@ -95,6 +95,7 @@ jobs:
             echo "API_NAME=$(o apiName)"
             echo "API_HOST=$(o apiHostname)"
             echo "SYNC_NAME=$(o syncName)"
+            echo "SYNC_HOST=$(o syncHostname)"
             echo "SQL_SERVER=$(o sqlServer)"
             echo "SQL_SERVER_NAME=$(o sqlServerName)"
             echo "SQL_DATABASE=$(o sqlDatabase)"
@@ -185,14 +186,15 @@ jobs:
               [ "$(echo "$api" | jq -r .version 2>/dev/null)" = "$want" ] && break
               echo "  attempt $i: API says ${api:-nothing}"; sleep 10
             done
-            sync_host=$(az functionapp show -g "$RG" -n "$SYNC_NAME" --query defaultHostName -o tsv)
+            echo "Sync service: https://${SYNC_HOST}/api/health"
             for i in $(seq 1 12); do
-              code=$(curl -s -o sync.json -w "%{http_code}" "https://${sync_host}/api/health" || true)
-              sync="HTTP $code $(cat sync.json 2>/dev/null)"
+              rm -f sync.json
+              code=$(curl -s -m 20 -o sync.json -w "%{http_code}" "https://${SYNC_HOST}/api/health" || true)
+              sync="HTTP $code $(cat sync.json 2>/dev/null || true)"
               [ "$code" = "200" ] && [ "$(jq -r .version sync.json 2>/dev/null)" = "$want" ] && break
               echo "  attempt $i: sync says $sync"; sleep 10
             done
-            [ "$code" = "200" ] || echo "::warning title=Sync health::${sync_host} answered: $sync"
+            [ "$code" = "200" ] || echo "::warning title=Sync health::${SYNC_HOST} answered: $sync"
             echo "API: $api"; echo "Sync: $sync"
             [ "$(echo "$api" | jq -r .version 2>/dev/null)" = "$want" ] || ok=0
             [ "$(echo "$api" | jq -r .database 2>/dev/null)" = "ok" ] || { echo "::warning title=Database::API health reports database: $(echo "$api" | jq -r .database 2>/dev/null)"; }
