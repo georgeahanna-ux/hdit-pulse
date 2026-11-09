@@ -184,10 +184,10 @@ AI runs on Azure OpenAI hosted in Australia under HD IT's subscription; data is 
 - Pulse shows the people in each Autotask default department (from the People directory, D10).
 - Pulse can change the default department for one person or several at once. The change is written to Autotask (`ResourceRoleDepartments`: the chosen department-and-role pairing is set as default, created if the person doesn't have it yet; Autotask then clears the old default itself). Changes made in Autotask show in Pulse at the next sync (every 15 minutes, and on demand).
 - Who can change departments: Platform Admins and Leadership. Every change records who, when, old and new department, and a reason, in the audit log; Autotask's own history shows the Pulse API user.
-- Writing to Autotask uses a dedicated Autotask API user for people administration with only the resource permissions this needs, held in the central vault (D7).
+- Writing to Autotask uses the single Pulse Autotask API user (D7, amended 9 Nov 2026); Pulse's people module may only edit resource role departments.
 - Department history is kept in Pulse so past weeks use the department in force at the time.
 - **Used from 0.5.3:** tickets per tech and utilisation take the techs in Service Desk at the end of each week.
-- **Built in 0.5.2 (3 Nov 2026):** People and departments page; multi-select change (up to 50 at a time); Pulse re-reads each changed person from Autotask to confirm. Uses the `autotask-people` credential.
+- **Built in 0.5.2 (3 Nov 2026):** People and departments page; multi-select change (up to 50 at a time); Pulse re-reads each changed person from Autotask to confirm.
 
 ### D17. Xero: live organisation, read-only, standard connection (31 Oct 2026)
 - Test and production both read HD IT's **live Xero** organisation. The test tenancy therefore holds real finance figures; in test, finance detail is limited to the Finance Detail group, as in production.
@@ -210,7 +210,7 @@ Pulse is organised so each person can go straight to their division, and from th
 - Metrics: **Revenue ($9.2M)** and **New seats (650)** add up month by month; **MRR ($560K)** and **Seats (2,350)** are month-end levels, measured from where the year started (30 June) to the target.
 - Each metric has a year bar and four quarter sub-bars. A tick shows how much of the year (or quarter) has gone, with an "On pace" or "Behind pace" label.
 - **Quarter targets are set by hand** (Leadership and Finance). For metrics that add up, Pulse flags it when the four quarters don't add up to the year.
-- **Actuals:** Finance enters month-end figures until Xero and Autotask fill them in automatically (0.6.0). Changing a figure that's already there needs a reason; every change is audited.
+- **Actuals:** Finance enters month-end figures. MRR, Seats and New seats fill in from Autotask on trial from 0.5.4 (Leadership or Finance switch each on); Revenue from Xero later. Changing a figure that's already there needs a reason; every change is audited.
 - Seen by Leadership, Finance & Accounts and Finance detail.
 
 ### D20. Apps sit under their division (9 Nov 2026)
