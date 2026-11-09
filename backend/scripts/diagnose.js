@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+"use strict";
+/**
+ * Read-only health report on the Pulse database, for the "Diagnose test" workflow:
+ * recent sync runs, which credentials are entered (never their values), and how much
+ * Autotask data Pulse holds. Signs in like migrate.js (the deploy identity, via az login).
+ */
+const sql = require("mssql");
+
+(async () => {
+  const pool = await new sql.ConnectionPool({
+    server: process.env.SQL_SERVER, database: process.env.SQL_DATABASE,
+    authentication: { type: "azure-active-directory-default", options: {} },
+    options: { encrypt: true },
+  }).connect();
+  const q = async (title, text) => {
+    const r = await pool.request().query(text);
+    console.log(`\n=== ${title} ===`);
+    console.table(r.recordset);
+  };
+  await q("Last 20 sync runs", "SELECT TOP 20 id, job, started_at, finished_at, ok, LEFT(detail, 400) AS detail FROM pulse.sync_run ORDER BY id DESC");
+  await q("Last failure of each job", `SELECT s.job, s.started_at, LEFT(s.detail, 600) AS detail FROM pulse.sync_run s
+    WHERE s.id IN (SELECT MAX(id) FROM pulse.sync_run WHERE ok = 0 GROUP BY job)`);
+  await q("Credentials entered", "SELECT name, configured, secret_updated_at, last_checked_at, last_error FROM pulse.connection_status ORDER BY name");
+  await q("Refresh requests", "SELECT TOP 10 id, job, requested_by, requested_at, picked_at FROM pulse.sync_request ORDER BY id DESC");
+  await q("Autotask data in Pulse", `SELECT
+    (SELECT COUNT(*) FROM pulse.at_resource) AS resources, (SELECT COUNT(*) FROM pulse.at_department) AS departments,
+    (SELECT COUNT(*) FROM pulse.at_project WHERE is_open = 1) AS open_projects, (SELECT COUNT(*) FROM pulse.at_task) AS tasks,
+    (SELECT COUNT(*) FROM pulse.at_task_predecessor) AS dependencies, (SELECT COUNT(*) FROM pulse.holiday) AS holidays,
+    (SELECT COUNT(*) FROM pulse.person_link) AS people_linked, (SELECT COUNT(*) FROM pulse.scorecard_value WHERE auto_value IS NOT NULL) AS auto_values`);
+  await pool.close();
+})().catch(e => { console.error("Diagnose failed:", e.message); process.exit(1); });

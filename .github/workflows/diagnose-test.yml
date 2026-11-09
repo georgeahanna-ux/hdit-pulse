@@ -1,0 +1,44 @@
+name: Diagnose test
+
+# Read-only report on the test database: recent sync runs and their errors, which credentials
+# are entered (never their values) and how much Autotask data Pulse holds. Run by hand.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: rg-hdit-pulse-test-aue
+  SQL_SERVER_NAME: sql-hdit-pulse-test-aue
+  SQL_SERVER: sql-hdit-pulse-test-aue.database.windows.net
+  SQL_DATABASE: sqldb-hdit-pulse-test-aue
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm, cache-dependency-path: backend/package-lock.json }
+      - run: npm ci --no-audit --no-fund --omit=dev
+        working-directory: backend
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID || '6dcedf3f-9147-4fd7-b8bf-472ab77b7cf1' }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || '1d9bced5-726c-4ef9-a4d3-63c350b6647c' }}
+      - name: Open firewall for this run
+        run: |
+          ip=$(curl -s --max-time 10 https://api.ipify.org); echo "RUNNER_IP=$ip" >> "$GITHUB_ENV"
+          az sql server firewall-rule create -g "$RG" -s "$SQL_SERVER_NAME" -n "diag-${{ github.run_id }}" --start-ip-address "$ip" --end-ip-address "$ip" -o none
+      - name: Report
+        working-directory: backend
+        run: |
+          for i in 1 2 3; do node scripts/diagnose.js && exit 0; sleep 20; done; exit 1
+      - name: Close firewall
+        if: always() && env.RUNNER_IP != ''
+        run: az sql server firewall-rule delete -g "$RG" -s "$SQL_SERVER_NAME" -n "diag-${{ github.run_id }}" -o none || true
