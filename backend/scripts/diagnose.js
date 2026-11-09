@@ -19,9 +19,9 @@ const sql = require("mssql");
     console.table(r.recordset);
   };
   await q("Last 20 sync runs", "SELECT TOP 20 id, job, started_at, finished_at, ok, LEFT(detail, 1500) AS detail FROM pulse.sync_run ORDER BY id DESC");
-  const last = await pool.request().query("SELECT TOP 3 job, detail FROM pulse.sync_run ORDER BY id DESC");
+  const last = await pool.request().query("SELECT TOP 8 job, started_at, detail FROM pulse.sync_run ORDER BY id DESC");
   console.log("\n=== Latest run details (full) ===");
-  for (const r of last.recordset) console.log(`${r.job}: ${r.detail}`);
+  for (const r of last.recordset) console.log(`${r.job} ${new Date(r.started_at).toISOString().slice(11, 16)}: ${r.detail}`);
   await q("Last failure of each job", `SELECT s.job, s.started_at, LEFT(s.detail, 600) AS detail FROM pulse.sync_run s
     WHERE s.id IN (SELECT MAX(id) FROM pulse.sync_run WHERE ok = 0 GROUP BY job)`);
   await q("Credentials entered", "SELECT name, configured, secret_updated_at, last_checked_at, last_error FROM pulse.connection_status ORDER BY name");
