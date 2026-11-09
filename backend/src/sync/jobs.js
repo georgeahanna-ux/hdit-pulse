@@ -107,6 +107,33 @@ const syncProjects = () => require("../projects/sync").syncAll();
 
 const REQUESTABLE = { connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects };
 
+/**
+ * Read-only look at one Autotask opportunity and its quotes (job "inspect:opportunity:<id>",
+ * asked for by the Diagnose workflow), to see how a sale records seats. Uses the scorecard
+ * module's read-only access. Written to pulse.sync_run in 1,900-character parts.
+ */
+async function inspectOpportunity(id) {
+  const at = require("../lib/autotask");
+  const M = "scorecard";
+  const compact = o => Object.fromEntries(Object.entries(o).filter(([k, v]) => v !== null && v !== "" && v !== 0 && k !== "userDefinedFields" || (k === "userDefinedFields" && v && v.some(u => u.value))).map(([k, v]) => [k, k === "userDefinedFields" ? v.filter(u => u.value) : v]));
+  const [opp] = await at.query(M, "Opportunities", [{ op: "eq", field: "id", value: id }]);
+  if (!opp) return [`Opportunity ${id} not found.`];
+  const [stages, statuses] = await Promise.all([at.picklist(M, "Opportunities", "stage"), at.picklist(M, "Opportunities", "status")]);
+  const quotes = await at.query(M, "Quotes", [{ op: "eq", field: "opportunityID", value: id }]);
+  const items = quotes.length ? await at.queryIn(M, "QuoteItems", "quoteID", quotes.map(q => q.id)) : [];
+  const svcIds = [...new Set(items.map(i => i.serviceID).filter(Boolean))];
+  const services = svcIds.length ? await at.queryIn(M, "Services", "id", svcIds, ["id", "name"]) : [];
+  const out = JSON.stringify({
+    opportunity: { ...compact(opp), stageLabel: (stages.find(s => s.value === Number(opp.stage)) || {}).label, statusLabel: (statuses.find(s => s.value === Number(opp.status)) || {}).label },
+    stages: stages.map(s => `${s.value}=${s.label}`),
+    quotes: quotes.map(compact),
+    items: items.map(i => ({ ...compact(i), serviceName: (services.find(s => s.id === i.serviceID) || {}).name })),
+  });
+  const parts = [];
+  for (let i = 0; i < out.length; i += 1900) parts.push(out.slice(i, i + 1900));
+  return parts.slice(0, 20);
+}
+
 /** Picks up "Refresh now" requests made in Pulse (oldest first, one of each job at a time). */
 async function runRequests(context) {
   const picked = await db.query(`
@@ -114,6 +141,14 @@ async function runRequests(context) {
     OUTPUT inserted.id, inserted.job, inserted.requested_by
      WHERE picked_at IS NULL AND requested_at > DATEADD(hour, -1, SYSUTCDATETIME())`);
   for (const job of [...new Set(picked.map(p => p.job))]) {
+    const insp = /^inspect:opportunity:(\d+)$/.exec(job);
+    if (insp) {
+      try {
+        const parts = await inspectOpportunity(Number(insp[1]));
+        for (const [i, part] of parts.entries()) await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (@job, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, @detail)", { job: `inspect ${i + 1}/${parts.length}`, detail: part });
+      } catch (e) { await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (N'inspect', SYSUTCDATETIME(), SYSUTCDATETIME(), 0, @detail)", { detail: String(e.message).slice(0, 2000) }); }
+      continue;
+    }
     if (!REQUESTABLE[job]) continue;
     const by = picked.filter(p => p.job === job).map(p => p.requested_by)[0];
     await run(job, context, async () => `Requested by ${by}. ` + await REQUESTABLE[job]()).catch(() => {});

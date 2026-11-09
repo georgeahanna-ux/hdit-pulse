@@ -13,6 +13,14 @@ const sql = require("mssql");
     authentication: { type: "azure-active-directory-default", options: {} },
     options: { encrypt: true },
   }).connect();
+  // Optional: ask the sync service for a read-only look at one opportunity (INSPECT_OPPORTUNITY=<id>).
+  if (process.env.INSPECT_OPPORTUNITY && /^\d+$/.test(process.env.INSPECT_OPPORTUNITY)) {
+    await pool.request().input("job", sql.NVarChar, `inspect:opportunity:${process.env.INSPECT_OPPORTUNITY}`)
+      .query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
+    console.log(`Asked the sync service to inspect opportunity ${process.env.INSPECT_OPPORTUNITY}; run Diagnose again in 3 minutes.`);
+  }
+  const insp = await pool.request().query("SELECT job, detail FROM pulse.sync_run WHERE job LIKE N'inspect%' AND started_at > DATEADD(hour, -2, SYSUTCDATETIME()) ORDER BY id");
+  if (insp.recordset.length) { console.log("\n=== Inspection ==="); console.log(insp.recordset.map(r => r.detail).join("")); }
   const q = async (title, text) => {
     const r = await pool.request().query(text);
     console.log(`\n=== ${title} ===`);

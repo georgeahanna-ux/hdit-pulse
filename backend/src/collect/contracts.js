@@ -136,12 +136,16 @@ function levelsOn(d, data) {
 async function loadWins(cache, from, today) {
   if (cache.wins && cache.wins.from <= from) return cache.wins;
   const data = await load(cache, from, today);
+  // Won = the stage "Stage 9: Closed Won" (confirmed 9 Nov 2026); status Closed/Implemented only if no such stage exists.
+  const stages = await picklist("Opportunities", "stage", cache);
+  const wonStages = stages.filter(s => /closed\s*-?\s*won/i.test(s.label)).map(s => s.value);
   const statuses = await picklist("Opportunities", "status", cache);
   const won = statuses.filter(s => /closed|won|implemented/i.test(s.label) && !/lost/i.test(s.label)).map(s => s.value);
   const [dateField] = await hasFields("Opportunities", ["closedDate", "projectedCloseDate"], cache);
-  const opps = won.length && dateField ? await at.query(MOD, "Opportunities", [
-    { op: "in", field: "status", value: won }, { op: "gte", field: dateField, value: from },
-  ], ["id", "title", "companyID", "status", dateField]) : [];
+  const wonFilter = wonStages.length ? { op: "in", field: "stage", value: wonStages } : { op: "in", field: "status", value: won };
+  const opps = wonFilter.value.length && dateField ? await at.query(MOD, "Opportunities", [
+    wonFilter, { op: "gte", field: dateField, value: from },
+  ], ["id", "title", "companyID", "status", "stage", dateField]) : [];
   const quotes = await at.queryIn(MOD, "Quotes", "opportunityID", opps.map(o => o.id), ["id", "opportunityID", "primaryQuote"]);
   const primary = new Map();
   for (const q of quotes) {
