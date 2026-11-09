@@ -6,7 +6,7 @@ Projects: set up dependencies by ticking tasks, saved to Autotask (requested 9 N
 - Loops are refused before anything is saved; links that already exist are skipped.
 - **Remove a dependency** from a task's panel (the only delete Pulse can make in Autotask: a link, never a record of work; audited).
 - Fixes from the first real run against Autotask: the next page of a query is POSTed again (Autotask answers 405 to GET); time-off fields are found by name; the people sync only asks for fields this Autotask has (Departments has no isActive); Key Vault refusals are reported as such.
-- New seats count opportunities at the stage "Stage 9: Closed Won" (confirmed 9 Nov 2026), falling back to Closed/Implemented status only where no such stage exists. Diagnose can ask for a read-only look at one opportunity and its quotes.
+- New seats: quotes record seats as product lines named after the seat services (checked on opportunity 29725715), so those lines now count; migration `0009_new_seats_recount` clears the earlier zeros so they are worked out again. New seats count opportunities at the stage "Stage 9: Closed Won" (confirmed 9 Nov 2026), falling back to Closed/Implemented status only where no such stage exists. Diagnose can ask for a read-only look at one opportunity and its quotes.
 - 3 new tests (102 in total).
 
 ## 0.6.2 — 9 November 2026

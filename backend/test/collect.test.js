@@ -172,3 +172,11 @@ test("plan actuals on trial aren't counted until switched on", () => {
   assert.equal(L.planProgress({ ...metric, auto_enabled: true }, [], rows).actual, 490000);
   assert.equal(L.planProgress({ ...metric, auto_enabled: false }, [], rows).months[0].auto, 490000);
 });
+
+test("a quote line is a seat when it is a seat service or a product named after one (as Autotask quotes record it)", () => {
+  const data = { seatIds: new Set([501]), names: contracts.DEFAULT_SEAT_SERVICES };
+  assert.ok(contracts.isSeatItem({ serviceID: 501, name: "x" }, data));
+  assert.ok(contracts.isSeatItem({ productID: 29727745, name: "HD IT - IT Managed Services Support - Business Class - Per User per Month" }, data));
+  assert.ok(!contracts.isSeatItem({ productID: 29725241, name: "M365 BACKUP - Datto SaaS Protection Monthly - Per User" }, data));
+  assert.ok(!contracts.isSeatItem({ serviceID: 631, name: "RMM AGENT - Datto Remote Monitoring & Management (RMM) Licenses" }, data));
+});

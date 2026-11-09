@@ -5,7 +5,8 @@
  *   Seats   = units of the seat services on recurring-service contracts in force on a date.
  *   MRR     = recurring contract services and bundles in force on a date, each line
  *             price × units ÷ months in the contract's billing period.
- *   New seats = quantity of seat services on the primary quote of opportunities won in a period.
+ *   New seats = quantity of seat lines (seat services, or products named after them) on the primary
+ *               quote of opportunities at "Stage 9: Closed Won", by close date.
  *
  * Seat services are named in the app_setting "collect.seat_services" (a JSON list of service names).
  * Autotask is read once per run for the whole window (FY start to today); every date is then
@@ -152,11 +153,23 @@ async function loadWins(cache, from, today) {
     const cur = primary.get(Number(q.opportunityID));
     if (!cur || (q.primaryQuote && !cur.primaryQuote) || (!!q.primaryQuote === !!cur.primaryQuote && Number(q.id) > Number(cur.id))) primary.set(Number(q.opportunityID), q);
   }
-  const items = await at.queryIn(MOD, "QuoteItems", "quoteID", [...primary.values()].map(q => q.id), ["id", "quoteID", "serviceID", "quantity"]);
+  const items = await at.queryIn(MOD, "QuoteItems", "quoteID", [...primary.values()].map(q => q.id), ["id", "quoteID", "serviceID", "productID", "name", "quantity"]);
   const seatsByQuote = new Map();
-  for (const it of items) if (data.seatIds.has(Number(it.serviceID))) seatsByQuote.set(Number(it.quoteID), (seatsByQuote.get(Number(it.quoteID)) || 0) + (num(it.quantity) || 0));
+  for (const it of items) if (isSeatItem(it, data)) seatsByQuote.set(Number(it.quoteID), (seatsByQuote.get(Number(it.quoteID)) || 0) + (num(it.quantity) || 0));
   cache.wins = { from, dateField, opps: opps.map(o => ({ id: o.id, title: o.title, date: day(o[dateField]), seats: primary.get(Number(o.id)) ? seatsByQuote.get(Number(primary.get(Number(o.id)).id)) || 0 : 0 })) };
   return cache.wins;
+}
+
+/**
+ * Is a quote line a seat? Quotes record seats as a product line named after the service
+ * (e.g. "HD IT - IT Managed Services Support - Business Class - Per User per Month",
+ * opportunity 29725715, checked 9 Nov 2026), so a line counts when it is one of the seat
+ * services or its name contains one of their names.
+ */
+function isSeatItem(it, data) {
+  if (data.seatIds.has(Number(it.serviceID))) return true;
+  const n = norm(it.name);
+  return !!n && (data.names || []).some(s => n.includes(norm(s)));
 }
 
 /** New seats won between two dates inclusive (YYYY-MM-DD). */
@@ -170,4 +183,4 @@ function newSeatsBetween(first, last, wins) {
   } };
 }
 
-module.exports = { load, loadWins, levelsOn, newSeatsBetween, monthsFor, DEFAULT_SEAT_SERVICES };
+module.exports = { load, loadWins, levelsOn, newSeatsBetween, isSeatItem, monthsFor, DEFAULT_SEAT_SERVICES };

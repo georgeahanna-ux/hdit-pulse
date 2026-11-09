@@ -71,7 +71,7 @@ Starting list of 15 measurables; goals marked "set with owner" are refined by ea
 Kept on division scorecards (roll up when red): patch and backup compliance, project budget, open ISO corrective actions, ESAT (quarterly), OML (quarterly).
 
 Definitions confirmed:
-- **Seat** (9 Nov 2026) = one unit of any of these Autotask contract services: *IT Support & Proactive Maintenance - Business Class Plan*; *Technical Services and Management*; *IT Managed Services Support - Business Class - Per User per Month*. Seats serviced counts them on recurring-service contracts in force; new seats counts them on the primary quote of opportunities won that week.
+- **Seat** (9 Nov 2026) = one unit of any of these Autotask contract services: *IT Support & Proactive Maintenance - Business Class Plan*; *Technical Services and Management*; *IT Managed Services Support - Business Class - Per User per Month*. Seats serviced counts them on recurring-service contracts in force; new seats counts them on the primary quote of opportunities that reached "Stage 9: Closed Won" that week, where quotes record them as product lines named after the seat services (e.g. "HD IT - IT Managed Services Support - Business Class - Per User per Month"; confirmed on opportunity 29725715, 9 Nov 2026).
 - **MRR** (9 Nov 2026) = recurring contract services (and bundles) in force, each converted to a monthly amount (price × units ÷ months in the billing period).
 - **SGM** = SLI F18 Services Gross Margin.
 - **Profit** = SLI IS4 EBITDA as a % of revenue (not Adjusted EBITDA). HD IT rolling 4 quarters 11.8%; industry 10.5%; best in class 20.7%.
