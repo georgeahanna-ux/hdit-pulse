@@ -50,11 +50,13 @@ async function syncEntra() {
 
 /* ------------------------------ Autotask ------------------------------ */
 async function syncAutotask() {
+  // Only ask for fields this Autotask has (e.g. Departments has no isActive); missing ones read as active.
+  const q = async (entity, fields) => at.query(MOD, entity, null, await at.known(MOD, entity, fields));
   const [departments, roles, resources, rrds] = await Promise.all([
-    at.query(MOD, "Departments", null, ["id", "name", "isActive"]),
-    at.query(MOD, "Roles", null, ["id", "name", "isActive"]),
-    at.query(MOD, "Resources", null, ["id", "firstName", "lastName", "email", "email2", "email3", "userName", "title", "licenseType", "isActive"]),
-    at.query(MOD, "ResourceRoleDepartments", null, ["id", "resourceID", "departmentID", "roleID", "isDefault", "isActive", "isDepartmentLead"]),
+    q("Departments", ["id", "name", "isActive"]),
+    q("Roles", ["id", "name", "isActive"]),
+    q("Resources", ["id", "firstName", "lastName", "email", "email2", "email3", "userName", "title", "licenseType", "isActive"]),
+    q("ResourceRoleDepartments", ["id", "resourceID", "departmentID", "roleID", "isDefault", "isActive", "isDepartmentLead"]),
   ]);
   await saveAutotask({ departments, roles, resources, rrds });
   return { departments: departments.length, roles: roles.length, resources: resources.length, pairings: rrds.length };
@@ -64,12 +66,12 @@ async function saveAutotask({ departments, roles, resources, rrds, onlyResourceI
   if (departments) await db.query(`
     MERGE pulse.at_department AS t
     USING (SELECT * FROM OPENJSON(@json) WITH (id INT, name NVARCHAR(200), isActive BIT)) AS s ON t.id = s.id
-    WHEN MATCHED AND EXISTS (SELECT s.name, s.isActive EXCEPT SELECT t.name, t.is_active) THEN UPDATE SET name = s.name, is_active = s.isActive
+    WHEN MATCHED AND EXISTS (SELECT s.name, ISNULL(s.isActive, 1) EXCEPT SELECT t.name, t.is_active) THEN UPDATE SET name = s.name, is_active = ISNULL(s.isActive, 1)
     WHEN NOT MATCHED BY TARGET THEN INSERT (id, name, is_active) VALUES (s.id, s.name, ISNULL(s.isActive, 1));`, { json: JSON.stringify(departments) });
   if (roles) await db.query(`
     MERGE pulse.at_role AS t
     USING (SELECT * FROM OPENJSON(@json) WITH (id INT, name NVARCHAR(200), isActive BIT)) AS s ON t.id = s.id
-    WHEN MATCHED AND EXISTS (SELECT s.name, s.isActive EXCEPT SELECT t.name, t.is_active) THEN UPDATE SET name = s.name, is_active = s.isActive
+    WHEN MATCHED AND EXISTS (SELECT s.name, ISNULL(s.isActive, 1) EXCEPT SELECT t.name, t.is_active) THEN UPDATE SET name = s.name, is_active = ISNULL(s.isActive, 1)
     WHEN NOT MATCHED BY TARGET THEN INSERT (id, name, is_active) VALUES (s.id, s.name, ISNULL(s.isActive, 1));`, { json: JSON.stringify(roles) });
 
   // Pairings: replace (for all resources, or just the ones given).
