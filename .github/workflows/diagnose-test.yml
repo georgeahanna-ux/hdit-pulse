@@ -31,6 +31,20 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID || '6dcedf3f-9147-4fd7-b8bf-472ab77b7cf1' }}
           tenant-id: ${{ vars.AZURE_TENANT_ID || '0b1e12e5-f6cd-4ae7-a9ff-4562637a0c44' }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID || '1d9bced5-726c-4ef9-a4d3-63c350b6647c' }}
+      - name: Key Vault access (role assignments on the vault and its secrets)
+        run: |
+          api=$(az identity show -g "$RG" -n id-hdit-pulse-api-test-aue --query principalId -o tsv)
+          sync=$(az identity show -g "$RG" -n id-hdit-pulse-sync-test-aue --query principalId -o tsv)
+          echo "API identity principal: $api"; echo "Sync identity principal: $sync"
+          kvid=$(az keyvault show -n kv-hdit-pulse-test -g "$RG" --query id -o tsv)
+          for who in api sync; do
+            pid=${!who}
+            echo "--- $who ---"
+            az role assignment list --assignee "$pid" --all --include-inherited \
+              --query "[?contains(scope, 'kv-hdit-pulse-test')].{role:roleDefinitionName, scope:scope}" -o tsv | sed "s|$kvid|<vault>|" || true
+          done
+          echo "--- secrets in the vault (names only) ---"
+          az keyvault secret list --vault-name kv-hdit-pulse-test --query "[].name" -o tsv 2>&1 | head -20 || true
       - name: Open firewall for this run
         run: |
           ip=$(curl -s --max-time 10 https://api.ipify.org); echo "RUNNER_IP=$ip" >> "$GITHUB_ENV"
