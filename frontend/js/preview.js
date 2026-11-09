@@ -130,7 +130,7 @@ const C = (name, system, label, kind, fields, purpose, permissions, configured =
 const previewConnections = [
   C("autotask-service", "Autotask", "Autotask", "autotask", AT, "Everything Pulse reads from or writes to Autotask: the Scorecard, the FY plan, People and departments, and Projects. Pulse limits each part to the records it needs.", "Read: tickets, time entries, contracts, opportunities, projects, tasks, resources and more. Write: resource role departments, project tasks, time entries.", true),
   C("simplesat", "SimpleSAT", "SimpleSAT", "fields", [{ key: "apiKey", label: "API key", secret: true, required: true }], "CSAT and NPS.", "Read-only API key."),
-  C("xero-app", "Xero", "Xero app", "fields", [{ key: "clientId", label: "Client id", secret: false, required: true }, { key: "clientSecret", label: "Client secret", secret: true, required: true }], "Cash, debtor days, SGM, EBITDA % and revenue.", "A Xero web app with read-only scopes."),
+  C("xero-app", "Xero", "Xero app", "fields", [{ key: "clientId", label: "Client id", secret: false, required: true }, { key: "clientSecret", label: "Client secret", secret: true, required: true }], "Cash, debtor days, SGM, EBITDA % and revenue.", "A Xero web app with read-only scopes.", true),
   C("xero-token", "Xero", "Xero connection", "oauth", [], "Xero's refresh token, renewed automatically.", "Not entered by hand."),
   C("datto-rmm", "Datto RMM", "Datto RMM", "fields", [{ key: "apiUrl", label: "API address", secret: false, required: true }, { key: "apiKey", label: "API key", secret: false, required: true }, { key: "apiSecret", label: "API secret key", secret: true, required: true }], "Device and patch data (release 2).", "A read-only API user."),
   C("itglue", "IT Glue", "IT Glue", "fields", [{ key: "apiUrl", label: "API address", secret: false, required: true }, { key: "apiKey", label: "API key", secret: true, required: true }], "Documentation coverage (release 2).", "A read-only API key."),
@@ -316,7 +316,8 @@ export function previewApi(path, method, body = {}) {
     Object.assign(person, body.none ? { link: null, none: true } : body.automatic ? { admin: false } : { link: body.resourceId, admin: true, none: false });
     return { ok: true };
   }
-  if (p === "/connections" && method === "GET") return { connections: previewConnections };
+  if (p === "/connections" && method === "GET") return { connections: previewConnections, xero: { organisation: null, redirectUri: "https://func-hdit-pulse-sync-test-aue.azurewebsites.net/api/xero/callback" } };
+  if (p === "/xero/start") return { url: "#/connections?xero=connected" };
   if ((mm = /^\/connections\/([a-z-]+)$/.exec(p))) {
     const c = previewConnections.find(x => x.name === mm[1]);
     if (method === "DELETE") { c.configured = false; return { ok: true }; }

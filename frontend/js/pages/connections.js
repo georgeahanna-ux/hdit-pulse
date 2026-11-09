@@ -9,7 +9,13 @@ export async function connectionsPage(me) {
     return { title: "Connections", html: `<div class="denied"><span class="ic">${icon("compliance", "i-lg")}</span><h2>Connections are for Platform Admins</h2><p>Ask George or Bernadette if a connection needs changing.</p><a href="#/">Back to Home</a></div>` };
   }
   api("/audit/view", { method: "POST", body: { page: "connections" } }).catch(() => {});
-  const { connections: list } = await api("/connections");
+  const { connections: list, xero } = await api("/connections");
+  const xeroApp = list.find(c => c.name === "xero-app");
+  // Back from Xero: say how it went (the sync service adds ?xero=… to the address).
+  const back = new URLSearchParams((location.hash.split("?")[1]) || "").get("xero");
+  const why = new URLSearchParams((location.hash.split("?")[1]) || "").get("why");
+  const XERO_MSG = { connected: "Xero connected. Finance figures fill in at the next hourly run.", declined: "Xero wasn't connected: access was declined in Xero.",
+    expired: "That Connect to Xero link has expired. Select Connect to Xero again.", "no-app": "Enter the Xero app's client id and secret first.", failed: `Xero couldn't be connected${why ? `: ${why}` : "."}` };
   const today = new Date().toISOString().slice(0, 10);
   const status = c => {
     if (c.kind === "oauth") return c.configured ? `<span class="chip ok">Connected</span>` : `<span class="chip quiet">Not connected</span>`;
@@ -36,10 +42,12 @@ export async function connectionsPage(me) {
               <span>Owner: ${esc(c.owner || "not set")}</span>
               <span>Rotation due: ${c.rotationDue ? esc(fmtDate(c.rotationDue)) : "not set"}</span>
             </div>
+            ${c.name === "xero-token" ? `<p class="small">${xero && xero.organisation ? `Organisation: <b>${esc(xero.organisation)}</b>` : "No organisation connected yet."}</p>` : ""}
+            ${c.name === "xero-app" && xero && xero.redirectUri ? `<p class="small">Redirect URI for the Xero app: <code class="copy">${esc(xero.redirectUri)}</code></p>` : ""}
             ${c.lastError ? `<div class="err small">${esc(c.lastError)}</div>` : ""}
           </div>
           <div class="conn-act">
-            ${c.kind === "oauth" ? `<span class="dim small">Set by "Connect to Xero" (0.6.0)</span>`
+            ${c.kind === "oauth" ? `<button class="btn sm" type="button" data-xero ${xeroApp && xeroApp.configured ? "" : "disabled title=\"Enter the Xero app first\""}>${c.configured ? "Reconnect" : "Connect to Xero"}</button>`
               : `<button class="btn sm" type="button" data-enter="${c.name}">${c.configured ? "Replace" : "Enter"}</button>`}
             <button class="link-btn small" type="button" data-details="${c.name}">Owner and rotation</button>
             ${c.configured && c.kind !== "oauth" ? `<button class="link-btn small" type="button" data-remove="${c.name}">Remove</button>` : ""}
@@ -47,6 +55,14 @@ export async function connectionsPage(me) {
         </article>`).join("")}</div></section>`).join("")}`,
     mount: (root, refresh) => {
       const find = n => list.find(c => c.name === n);
+      if (back && XERO_MSG[back]) { toast(XERO_MSG[back]); history.replaceState(null, "", "#/connections"); }
+      const xb = root.querySelector("[data-xero]");
+      if (xb) xb.onclick = () => dialog({
+        title: "Connect to Xero",
+        intro: "You'll sign in to Xero, choose HD IT's organisation and allow read-only access. Pulse can read reports (profit and loss, balance sheet, bank summary) and the chart of accounts. It can't change anything in Xero.",
+        submit: "Continue to Xero",
+        onSubmit: async () => { const r = await api("/xero/start", { method: "POST", body: {} }); location.href = r.url; },
+      });
       root.querySelectorAll("[data-enter]").forEach(b => {
         const c = find(b.dataset.enter);
         b.onclick = () => {

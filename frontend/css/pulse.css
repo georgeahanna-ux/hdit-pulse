@@ -566,3 +566,4 @@ fieldset.fld { border: 0; padding: 0; margin: 0 0 14px; }
 .g-sel { width: 16px; height: 16px; flex: none; margin: 0 2px 0 0; accent-color: var(--hd-deep); cursor: pointer; }
 .g-ord { flex: none; display: inline-grid; place-items: center; min-width: 18px; height: 18px; border-radius: 99px; background: var(--hd-deep); color: white; font: 700 10px/1 var(--hd-font-body); }
 .dep { display: flex; gap: 8px; align-items: baseline; } .dep-list { margin: 0 0 10px; padding-left: 18px; } .dep-list li { margin: 3px 0; }
+code.copy { user-select: all; background: var(--hd-cloud); padding: 2px 6px; border-radius: 6px; font-size: 12.5px; word-break: break-all; }

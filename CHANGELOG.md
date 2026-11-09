@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.4 — 9 November 2026
+Xero (D17): Connect to Xero and the finance measurables, on trial.
+- **Connect to Xero** on the Connections page (Platform Admins): Pulse's API issues a one-time state (10 minutes, single use), the browser goes via the sync service to Xero's sign-in, and Xero's reply comes back to the sync service, which saves the refresh token and organisation to Key Vault (`xero-token`) and returns to Connections. Read-only granular scopes only: profit and loss, balance sheet, bank summary, settings, plus offline_access. Audited (start and connect).
+- Each hourly run renews the token once and saves Xero's new refresh token before using it. If the connection lapses, the Connections card says to reconnect.
+- **On trial:** cash on hand (Bank Summary closing balances), debtor days (receivables ÷ last 91 days' revenue plus GST × 91), services gross margin (by SLI reporting codes once Finance sets them; the whole business's gross margin until then, labelled as such), EBITDA % (net profit plus depreciation, amortisation, interest and tax, less interest income, ÷ revenue). Monthly ones show month-to-date and provisional. FY plan **Revenue** fills in monthly from trading income.
+- A failing source no longer stops the others in the hourly run (the run is still marked failed so it shows).
+- Migration `0010_xero`. 6 new tests (109 in total).
+
 ## 0.6.3 — 9 November 2026
 Projects: set up dependencies by ticking tasks, saved to Autotask (requested 9 Nov 2026).
 - **Link tasks** (Project Managers and Leadership) on the project Gantt: tick tasks in the order they should happen, then choose one after another, all after the first ticked, or the last ticked after all the others, with an optional gap in working days. Pulse previews the new dependencies and, if ticked, moves tasks that would start before what they wait for (their own successors keep their gaps). Saved to Autotask as task predecessors (`/Tasks/{id}/Predecessors`), dates first; audited.

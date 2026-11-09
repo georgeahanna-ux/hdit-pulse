@@ -28,7 +28,9 @@ async function list() {
   const rows = await db.query(`SELECT name, configured, secret_updated_at, owner, rotation_due, last_checked_at, last_success_at, last_error, updated_by
                                  FROM pulse.connection_status`);
   const byName = new Map(rows.map(r => [r.name, r]));
+  const [org] = await db.query("SELECT [value] FROM pulse.app_setting WHERE [key] = N'xero.tenant_name'");
   return {
+    xero: { organisation: org ? org.value : null, redirectUri: `${String(process.env.PULSE_SYNC_URL || "").replace(/\/+$/, "")}/api/xero/callback` },
     connections: Object.keys(creds.TYPES).map(name => {
       const r = byName.get(name) || {};
       return {
@@ -39,6 +41,19 @@ async function list() {
       };
     }),
   };
+}
+
+/**
+ * "Connect to Xero": a one-time state (10 minutes) for the signed-in Platform Admin; the browser
+ * then goes to the sync app, which sends it on to Xero and receives the reply (D17).
+ */
+async function startXero(ctx) {
+  const sync = String(process.env.PULSE_SYNC_URL || "").replace(/\/+$/, "");
+  if (!sync) throw fail(503, "Pulse's sync service address isn't set yet. Try again after the next deploy.");
+  const state = require("crypto").randomBytes(32).toString("base64url");
+  await db.query("INSERT INTO pulse.xero_oauth_state (state, person_oid, person_name) VALUES (@state, @oid, @name)", { state, oid: ctx.person.oid, name: ctx.person.name });
+  await audit.record({ actor: actor(ctx), action: "connection.xero.start", entity: { type: "connection", id: "xero-token" }, request: ctx.request }, ctx.context);
+  return { url: `${sync}/api/xero/authorize?state=${state}` };
 }
 
 async function upsertStatus(name, fields) {
@@ -101,6 +116,7 @@ async function remove(ctx) {
 
 const routes = [
   { method: "GET", path: "/connections", auth: "person", allow: admin, fn: list },
+  { method: "POST", path: "/xero/start", auth: "person", allow: admin, fn: startXero },
   { method: "PUT", path: "/connections/:name", auth: "person", allow: admin, fn: put },
   { method: "PATCH", path: "/connections/:name", auth: "person", allow: admin, fn: patch },
   { method: "DELETE", path: "/connections/:name", auth: "person", allow: admin, fn: remove },

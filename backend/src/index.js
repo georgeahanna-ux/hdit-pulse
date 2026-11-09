@@ -26,6 +26,11 @@ if (component === "api") {
     route: "health", methods: ["GET"], authLevel: "anonymous",
     handler: async () => json(200, { status: "ok", component: "sync", version: VERSION, environment: process.env.APP_ENVIRONMENT || "local" }),
   });
+  // Connect to Xero (D17): sign-in redirect and callback. Anonymous; guarded by a one-time state.
+  const xeroOauth = require("./sync/xero-oauth");
+  const safe = fn => async (request, context) => { try { return await fn(request, context); } catch (e) { context.error(e); return { status: 500, body: "Pulse couldn't finish connecting Xero. Try again from the Connections page." }; } };
+  app.http("xeroAuthorize", { route: "xero/authorize", methods: ["GET"], authLevel: "anonymous", handler: safe(xeroOauth.authorize) });
+  app.http("xeroCallback", { route: "xero/callback", methods: ["GET"], authLevel: "anonymous", handler: safe(xeroOauth.callback) });
   // Hourly at :07 past (UTC).
   app.timer("connections", {
     schedule: "0 7 * * * *", runOnStartup: false,

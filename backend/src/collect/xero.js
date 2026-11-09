@@ -1,0 +1,159 @@
+"use strict";
+/**
+ * Finance measurables from Xero (D4 items 12–15) and FY plan revenue (D19), read-only.
+ *
+ *   Cash on hand   bank accounts' closing balances at the end of the week (Bank Summary)
+ *   Debtor days    accounts receivable at the end of the week ÷ the last 91 days' revenue
+ *                  including GST, × 91 (Balance Sheet, Profit and Loss)
+ *   SGM            services gross margin for the month so far: services revenue less services
+ *                  cost ÷ services revenue, by the SLI reporting codes set in Pulse; until those
+ *                  are set, the whole business's gross margin (marked as such)
+ *   EBITDA %       net profit plus depreciation, amortisation, interest and income tax, less
+ *                  interest income, ÷ revenue, for the month so far
+ *   Revenue        a month's trading income (FY plan)
+ * Monthly figures are provisional until Finance closes the month (D5).
+ */
+const db = require("../lib/sql");
+const time = require("../lib/time");
+
+const num = v => { const n = Number(String(v ?? "").replace(/,/g, "")); return Number.isFinite(n) ? n : 0; };
+const r1 = x => Math.round(x * 10) / 10;
+const money = x => (x < 0 ? "−$" : "$") + Math.round(Math.abs(x)).toLocaleString("en-AU");
+
+/** Flattens a Xero report into sections: [{ title, rows: [{ name, accountId, value }], total }] plus loose rows. */
+function parseReport(json) {
+  const rep = json && json.Reports && json.Reports[0];
+  if (!rep) return { sections: [], rows: [] };
+  const sections = [], loose = [];
+  const rowOf = r => ({ name: (r.Cells[0] || {}).Value || "", accountId: (((r.Cells[0] || {}).Attributes || []).find(a => a.Id === "account") || {}).Value || null,
+    value: num((r.Cells[r.Cells.length - 1] || {}).Value), cells: r.Cells.map(c => c.Value) });
+  for (const s of rep.Rows || []) {
+    if (s.RowType !== "Section") continue;
+    const rows = (s.Rows || []).filter(r => r.RowType === "Row").map(rowOf);
+    const sum = (s.Rows || []).find(r => r.RowType === "SummaryRow");
+    if (s.Title) sections.push({ title: s.Title, rows, total: sum ? num(sum.Cells[sum.Cells.length - 1].Value) : rows.reduce((a, r) => a + r.value, 0), summary: sum ? sum.Cells.map(c => c.Value) : null });
+    else loose.push(...rows);
+  }
+  return { sections, rows: loose };
+}
+
+/** Profit and loss in parts: income (trading), other income, cost of sales, expenses, gross and net profit. */
+function profitAndLoss(json) {
+  const p = parseReport(json);
+  const pick = re => p.sections.filter(s => re.test(s.title));
+  const sum = list => list.reduce((a, s) => a + s.total, 0);
+  const income = pick(/income|revenue|sales/i).filter(s => !/other/i.test(s.title) && !/cost/i.test(s.title));
+  const other = pick(/other income/i);
+  const cost = pick(/cost of sales|direct cost|cost of goods/i);
+  const expenses = pick(/expense|overhead/i);
+  const loose = name => (p.rows.find(r => new RegExp(name, "i").test(r.name)) || {}).value;
+  const revenue = sum(income);
+  const gross = loose("^gross profit") ?? revenue - sum(cost);
+  const net = loose("^net profit") ?? revenue + sum(other) - sum(cost) - sum(expenses);
+  const rows = s => s.flatMap(x => x.rows);
+  return { revenue, otherIncome: sum(other), cost: sum(cost), expenses: sum(expenses), gross, net,
+    incomeRows: rows(income), otherRows: rows(other), costRows: rows(cost), expenseRows: rows(expenses) };
+}
+
+/** EBITDA from a P&L: net profit + depreciation, amortisation, interest and income tax expense − interest income. */
+function ebitda(pl) {
+  const addBack = pl.expenseRows.concat(pl.costRows).filter(r => /depreciat|amorti[sz]|interest|income tax/i.test(r.name));
+  const interestIncome = pl.otherRows.concat(pl.incomeRows).filter(r => /interest/i.test(r.name));
+  const back = addBack.reduce((a, r) => a + r.value, 0), less = interestIncome.reduce((a, r) => a + r.value, 0);
+  return { value: pl.net + back - less, addBack: addBack.map(r => r.name), interestIncome: interestIncome.map(r => r.name) };
+}
+
+/** Services gross margin by SLI reporting codes (accountId → code), or overall gross margin when none are set. */
+function servicesMargin(pl, codeOf, rev, cost) {
+  if (codeOf && (rev.length || cost.length)) {
+    const match = (r, list) => { const c = codeOf.get(r.accountId) || ""; return list.some(p => c === p || c.startsWith(p + ".")); };
+    const sRev = pl.incomeRows.filter(r => match(r, rev)).reduce((a, r) => a + r.value, 0);
+    const sCost = pl.costRows.concat(pl.expenseRows).filter(r => match(r, cost)).reduce((a, r) => a + r.value, 0);
+    if (!sRev) return { value: null, text: "No services revenue this month yet (by the SLI reporting codes set in Pulse)." };
+    return { value: r1((100 * (sRev - sCost)) / sRev), text: `Services revenue ${money(sRev)} less services cost ${money(sCost)} (SLI reporting codes ${rev.join(", ")} / ${cost.join(", ")}).` };
+  }
+  if (!pl.revenue) return { value: null, text: "No revenue this month yet." };
+  return { value: r1((100 * pl.gross) / pl.revenue), text: `Whole-business gross margin for now: gross profit ${money(pl.gross)} of revenue ${money(pl.revenue)}. Set the SLI services codes in Pulse for the true SGM.` };
+}
+
+/** Bank Summary: total closing balance. */
+function cashFrom(json) {
+  // Bank Summary's section has no title, so read its rows directly: one per account, closing balance last.
+  const rep = json && json.Reports && json.Reports[0];
+  const sections = ((rep && rep.Rows) || []).filter(s => s.RowType === "Section");
+  const rows = sections.flatMap(s => (s.Rows || []).filter(r => r.RowType === "Row"));
+  const sum = sections.flatMap(s => (s.Rows || []).filter(r => r.RowType === "SummaryRow"))[0];
+  const last = r => num((r.Cells[r.Cells.length - 1] || {}).Value);
+  const total = sum ? last(sum) : rows.reduce((a, r) => a + last(r), 0);
+  return { value: Math.round(total), accounts: rows.length };
+}
+
+/** Balance Sheet: accounts receivable (trade debtors). */
+function receivablesFrom(json) {
+  const p = parseReport(json);
+  const rows = [...p.sections.flatMap(s => s.rows), ...p.rows].filter(r => /accounts receivable|trade debtors|^debtors/i.test(r.name) && !/total/i.test(r.name));
+  return rows.reduce((a, r) => a + r.value, 0);
+}
+
+async function settings() {
+  const rows = await db.query("SELECT [key], [value] FROM pulse.app_setting WHERE [key] LIKE N'xero.%'");
+  const s = Object.fromEntries(rows.map(r => [r.key, r.value]));
+  const list = k => { try { const v = JSON.parse(s[k] || "[]"); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
+  const gst = Number(s["xero.gst_rate"]);
+  return { gst: Number.isFinite(gst) ? gst : 0.1, sgmRevenue: list("xero.sgm_revenue_codes"), sgmCost: list("xero.sgm_cost_codes") };
+}
+
+/** Account id → reporting code, for SGM. Needs accounting.settings.read. */
+async function reportingCodes(x, cache) {
+  if (cache.codes !== undefined) return cache.codes;
+  try {
+    const r = await x.get("Accounts");
+    cache.codes = new Map((r.Accounts || []).map(a => [a.AccountID, a.ReportingCode || ""]));
+  } catch { cache.codes = null; }
+  return cache.codes;
+}
+
+const pl = async (x, cache, from, to) => {
+  const k = `pl:${from}:${to}`;
+  if (!cache[k]) cache[k] = profitAndLoss(await x.get("Reports/ProfitAndLoss", { fromDate: from, toDate: to }));
+  return cache[k];
+};
+
+/** All four measurables for one week. x = xero session; cache shared across the run. */
+async function collectWeek(week, cache, now = new Date()) {
+  const x = cache.xero;
+  const s = cache.xeroSettings || (cache.xeroSettings = await settings());
+  const today = time.sydneyDate(now);
+  const day = [time.addDays(week, 6), today].sort()[0];
+  const out = {};
+
+  const bank = cashFrom(await x.get("Reports/BankSummary", { fromDate: day, toDate: day }));
+  out["xero.cash"] = { value: bank.value, detail: { text: `Closing balance of ${bank.accounts} bank account${bank.accounts === 1 ? "" : "s"} on ${day}: ${money(bank.value)}.` } };
+
+  const ar = receivablesFrom(await x.get("Reports/BalanceSheet", { date: day }));
+  const last91 = await pl(x, cache, time.addDays(day, -90), day);
+  const withGst = last91.revenue * (1 + s.gst);
+  out["xero.dso"] = withGst > 0
+    ? { value: r1((ar / withGst) * 91), detail: { text: `Receivables ${money(ar)} ÷ the last 91 days' revenue ${money(last91.revenue)} plus ${Math.round(s.gst * 100)}% GST, × 91.` } }
+    : { value: null, detail: { text: "No revenue in the last 91 days." } };
+
+  // Month so far (the month the week ends in): provisional until Finance closes it.
+  const monthStart = day.slice(0, 8) + "01";
+  const month = await pl(x, cache, monthStart, day);
+  const codes = s.sgmRevenue.length || s.sgmCost.length ? await reportingCodes(x, cache) : null;
+  const sgm = servicesMargin(month, codes, s.sgmRevenue, s.sgmCost);
+  out["xero.sgm"] = { value: sgm.value, provisional: true, detail: { text: `${sgm.text} Month to ${day}, provisional.` } };
+  const e = ebitda(month);
+  out["xero.ebitda_pct"] = month.revenue
+    ? { value: r1((100 * e.value) / month.revenue), provisional: true, detail: { text: `EBITDA ${money(e.value)} (net profit ${money(month.net)}${e.addBack.length ? ` plus ${e.addBack.join(", ")}` : ""}${e.interestIncome.length ? ` less ${e.interestIncome.join(", ")}` : ""}) of revenue ${money(month.revenue)}, month to ${day}, provisional.` } }
+    : { value: null, provisional: true, detail: { text: "No revenue this month yet." } };
+  return out;
+}
+
+/** FY plan revenue for a month (trading income), to `last` (end of month or today). */
+async function revenueFor(month, last, cache) {
+  const p = await pl(cache.xero, cache, month, last);
+  return { value: Math.round(p.revenue * 100) / 100, detail: { text: `Trading income ${money(p.revenue)} from ${month} to ${last}.` } };
+}
+
+module.exports = { collectWeek, revenueFor, parseReport, profitAndLoss, ebitda, servicesMargin, cashFrom, receivablesFrom };

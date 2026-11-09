@@ -15,7 +15,12 @@ const time = require("../lib/time");
 const autotask = require("./autotask");
 const contracts = require("./contracts");
 
-const SOURCES = { autotask: { collectWeek: autotask.collectWeek, cred: autotask.CRED } };
+const xero = require("./xero");
+const SOURCES = {
+  autotask: { collectWeek: autotask.collectWeek, cred: autotask.CRED },
+  // Xero: one session per run (renews the token once and saves the new refresh token).
+  xero: { collectWeek: xero.collectWeek, cred: "xero-token", open: async cache => { cache.xero = await require("../lib/xero").session(); } },
+};
 const BACKFILL_WEEKS = 12;
 
 async function collectors() {
@@ -49,10 +54,10 @@ async function save(measurableId, week, result, locked) {
        ON t.measurable_id = s.measurable_id AND t.week = s.week
      WHEN MATCHED AND NOT (@locked = 1 AND t.auto_value IS NOT NULL)
           AND (ISNULL(t.auto_value, -999999) <> ISNULL(@value, -999999) OR ISNULL(t.auto_detail, N'') <> @detail)
-       THEN UPDATE SET auto_value = @value, auto_detail = @detail, auto_at = SYSUTCDATETIME()
-     WHEN NOT MATCHED THEN INSERT (measurable_id, week, auto_value, auto_detail, auto_at)
-          VALUES (@id, @week, @value, @detail, SYSUTCDATETIME());`,
-    { id: measurableId, week, value: result.value, detail, locked: locked ? 1 : 0 });
+       THEN UPDATE SET auto_value = @value, auto_detail = @detail, auto_at = SYSUTCDATETIME(), provisional = @provisional
+     WHEN NOT MATCHED THEN INSERT (measurable_id, week, auto_value, auto_detail, auto_at, provisional)
+          VALUES (@id, @week, @value, @detail, SYSUTCDATETIME(), @provisional);`,
+    { id: measurableId, week, value: result.value, detail, locked: locked ? 1 : 0, provisional: result.provisional ? 1 : 0 });
 }
 
 /**
@@ -66,13 +71,16 @@ async function runScorecard({ isConnected, now = new Date() } = {}) {
   for (const m of ms) (bySource[m.collector.split(".")[0]] ||= []).push(m);
 
   const notes = [];
+  const failed = [];
   for (const [source, list] of Object.entries(bySource)) {
     const src = SOURCES[source];
     if (!src) { notes.push(`${source}: no collector yet`); continue; }
     if (isConnected && !(await isConnected(src.cred))) { notes.push(`${source}: ${src.cred} not entered yet`); continue; }
+    try {
     const weeks = await weeksToRun(list, now);
     const fyStart = time.fyRange(time.fyOf(now).fy).start;
     const cache = { from: [weeks[0], time.addDays(fyStart, -1)].sort()[0], today: time.sydneyDate(now) };
+    if (src.open) await src.open(cache);
     let saved = 0;
     for (const week of weeks) {
       const values = await src.collectWeek(week, cache, now);
@@ -85,8 +93,15 @@ async function runScorecard({ isConnected, now = new Date() } = {}) {
     }
     notes.push(`${source}: ${list.length} measurables × ${weeks.length} weeks (${weeks[0]} to ${weeks[weeks.length - 1]}), ${saved} values`);
     if (source === "autotask") notes.push(await runPlan(cache, now));
+    if (source === "xero") notes.push(await runPlanXero(cache, now));
     if (cache.notes) notes.push(...cache.notes);
+    } catch (e) {
+      // One source failing doesn't stop the others; the run is still marked failed so it shows.
+      failed.push(`${source}: ${e.message}`);
+      if (source === "xero") await db.query("UPDATE pulse.connection_status SET last_error = @e, last_checked_at = SYSUTCDATETIME() WHERE name = N'xero-token'", { e: String(e.message).slice(0, 500) }).catch(() => {});
+    }
   }
+  if (failed.length) throw new Error([...failed, ...notes].join("; "));
   return notes.join("; ");
 }
 
@@ -128,6 +143,35 @@ async function runPlan(cache, now = new Date()) {
     }
   }
   return `plan: ${metrics.length} metrics × ${months.length} months, ${saved} values`;
+}
+
+/** FY plan revenue from Xero: each month of the FY so far (current and previous always; earlier once). */
+async function runPlanXero(cache, now = new Date()) {
+  const { fy } = time.fyOf(now);
+  const metrics = await db.query("SELECT id, code, collector FROM pulse.plan_metric WHERE fy = @fy AND collector LIKE N'xero.%'", { fy });
+  if (!metrics.length) return "xero plan: nothing to do";
+  const today = cache.today, thisMonth = today.slice(0, 7) + "-01";
+  const months = time.fyMonths(fy).filter(m => m <= thisMonth);
+  const have = await db.query(`SELECT metric_id, month FROM pulse.plan_month_actual WHERE auto_value IS NOT NULL AND metric_id IN (${metrics.map((_, i) => "@m" + i).join(",")})`,
+    Object.fromEntries(metrics.map((m, i) => ["m" + i, m.id])));
+  const filled = new Set(have.map(h => `${h.metric_id}|${new Date(h.month).toISOString().slice(0, 10)}`));
+  let saved = 0;
+  for (const month of months) {
+    const last = [time.addDays(time.addMonths(month, 1), -1), today].sort()[0];
+    const recent = month >= time.addMonths(thisMonth, -1);
+    for (const m of metrics) {
+      if (m.collector !== "xero.revenue" || (!recent && filled.has(`${m.id}|${month}`))) continue;
+      const r = await xero.revenueFor(month, last, cache);
+      await db.query(
+        `MERGE pulse.plan_month_actual AS t USING (SELECT @id AS metric_id, @month AS month) AS s ON t.metric_id = s.metric_id AND t.month = s.month
+         WHEN MATCHED AND (ISNULL(t.auto_value, -999999) <> ISNULL(@value, -999999) OR ISNULL(t.auto_detail, N'') <> @detail)
+           THEN UPDATE SET auto_value = @value, auto_detail = @detail, auto_at = SYSUTCDATETIME()
+         WHEN NOT MATCHED THEN INSERT (metric_id, month, auto_value, auto_detail, auto_at) VALUES (@id, @month, @value, @detail, SYSUTCDATETIME());`,
+        { id: m.id, month, value: r.value, detail: JSON.stringify(r.detail).slice(0, 2000) });
+      saved++;
+    }
+  }
+  return `xero plan: ${saved} months`;
 }
 
 function levelsCache(cache, d, data) {
