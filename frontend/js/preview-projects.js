@@ -105,12 +105,55 @@ function health(start, end, p, ts, today) {
 const span = ts => { const d = ts.flatMap(t => [t.start, t.end]).sort(); return [d[0], d[d.length - 1]]; };
 const name = id => (PEOPLE.find(p => p.id === id) || { name: `Resource ${id}` }).name;
 
+const delta = (a, b) => (a === b ? 0 : b > a ? workdays(addDays(a, 1), b) : -workdays(addDays(b, 1), a));
+function reschedule(tasks, links, { id, start, end }) {
+  const byId = new Map(tasks.map(t => [t.id, t])), t0 = byId.get(id);
+  if (end < start) { const e = new Error("A task can't end before it starts."); e.status = 400; throw e; }
+  const dEnd = delta(t0.end, end), dStart = delta(t0.start, start);
+  const out = new Map([[id, { id, start, end, from: { start: t0.start, end: t0.end }, because: null }]]);
+  const go = (map, dd) => { if (!dd) return; const q = [...(map.get(id) || [])].map(x => [x, id]); const seen = new Set([id]);
+    while (q.length) { const [tid, via] = q.shift(); if (seen.has(tid)) continue; seen.add(tid); const t = byId.get(tid); if (!t || t.complete) continue;
+      if (!out.has(tid)) out.set(tid, { id: tid, start: addWork(nextWork(t.start), dd), end: addWork(nextWork(t.end), dd), from: { start: t.start, end: t.end }, because: via });
+      for (const n of map.get(tid) || []) q.push([n, tid]); } };
+  const succ = new Map(), pred = new Map();
+  for (const l of links) { (succ.get(l.pred) || succ.set(l.pred, []).get(l.pred)).push(l.succ); (pred.get(l.succ) || pred.set(l.succ, []).get(l.succ)).push(l.pred); }
+  go(succ, dEnd); go(pred, dStart);
+  return [...out.values()].map(c => ({ ...c, title: byId.get(c.id).title, becauseTitle: c.because ? byId.get(c.because).title : null }));
+}
+
 export function projectsApi(p, method, body, a, me) {
   if (!p.startsWith("/projects")) return null;
   if (!a.viewProjects) { const e = new Error("You don't have access to that."); e.status = 403; throw e; }
   const d = built || build();
   const today = d.today;
   if (p === "/projects/refresh") return { ok: true, detail: "Preview: re-read (simulated)." };
+  const bad = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
+  let mm;
+  if ((mm = /^\/projects\/tasks\/(\d+)\/(time|complete)$/.exec(p))) {
+    const t = d.tasks.find(x => x.id === Number(mm[1]));
+    const mine = PEOPLE.find(x => x.email === (me.email || "").toLowerCase());
+    if (!mine) bad(409, "Your Pulse account isn't linked to an Autotask resource yet.");
+    if (t.resource !== mine.id && !a.editSchedules) bad(403, "You can log time and complete tasks you're assigned to.");
+    if (mm[2] === "time") {
+      const h = Number(String(body.hours || "").replace(",", "."));
+      if (!(h > 0 && h <= 16)) bad(400, "Enter the hours worked, between 0.1 and 16.");
+      if (!String(body.summary || "").trim()) bad(400, "Say what you did.");
+      if (body.date > today) bad(400, "Time can't be logged for a day that hasn't happened yet.");
+      t.worked = Math.round((t.worked + h) * 10) / 10; t.remaining = Math.max(0, Math.round((t.remaining - h) * 10) / 10);
+    }
+    if (mm[2] === "complete" || body.complete === true || body.complete === "on") { t.complete = true; t.remaining = 0; }
+    return { ok: true };
+  }
+  if ((mm = /^\/projects\/(\d+)\/(reschedule\/preview|reschedule|reschedule\/undo|baseline)$/.exec(p))) {
+    if (!a.editSchedules) bad(403, "Only Project Managers and Leadership can reschedule.");
+    const pid = Number(mm[1]), ts = d.tasks.filter(t => t.projectId === pid), ls = d.links.filter(l => ts.some(t => t.id === l.succ));
+    if (mm[2] === "baseline") { for (const t of ts) d.baselines.set(t.id, { start: t.start, end: t.end }); return { ok: true, tasks: ts.length }; }
+    if (mm[2] === "reschedule/undo") { for (const c of body.changes) { const t = d.tasks.find(x => x.id === c.id); t.start = c.from.start; t.end = c.from.end; } return { ok: true, restored: body.changes.length }; }
+    const changes = reschedule(ts, ls, { id: body.taskId, start: body.start, end: body.end });
+    if (mm[2] === "reschedule/preview") return { changes };
+    for (const c of changes) { const t = d.tasks.find(x => x.id === c.id); t.start = c.start; t.end = c.end; }
+    return { ok: true, saved: changes };
+  }
   if (p === "/projects" && method === "GET") {
     const clients = new Map();
     const all = [];

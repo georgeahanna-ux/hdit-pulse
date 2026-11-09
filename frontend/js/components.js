@@ -91,7 +91,7 @@ export function dialog({ title, intro = "", fields = [], submit = "Save", danger
     <h2>${esc(title)}</h2>${intro ? `<p class="dim">${intro}</p>` : ""}${extra}
     ${fields.map(f => field(f)).join("")}
     <div class="err" role="alert" hidden></div>
-    <div class="dlg-actions"><button type="button" class="btn outline" value="cancel">Cancel</button>
+    <div class="dlg-actions"><button type="button" class="btn outline" value="cancel">${onSubmit ? "Cancel" : "Close"}</button>
       ${onSubmit ? `<button type="submit" class="btn ${danger ? "danger" : ""}">${esc(submit)}</button>` : ""}</div>
   </form>`;
   document.body.appendChild(d);

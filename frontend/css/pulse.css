@@ -512,3 +512,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .legend .sw.base { height: 4px; background: var(--hd-deep-20); vertical-align: 2px; } .legend .sw.ms { width: 11px; height: 11px; transform: rotate(45deg); background: var(--hd-deep); border-radius: 2px; }
 @media (max-width: 900px) { .gantt { --labw: 220px !important; } .g-col { display: none; } }
 .g-top .g-cell span { position: sticky; left: calc(var(--labw) + 6px); }
+.task-acts { display: flex; gap: 10px; margin-top: 14px; }
+.undo-bar { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.move-tbl tr.lead td { background: color-mix(in srgb, var(--hd-lilac) 15%, white); }
+.dlg .tbl-wrap:has(.move-tbl) { max-height: 42vh; overflow: auto; }

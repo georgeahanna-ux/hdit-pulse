@@ -16,7 +16,8 @@ const chip = h => `<span class="chip h-${h}">${esc((HEALTH[h] || { label: h }).l
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const fmtD = d => (d ? `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]}${d.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? " " + d.slice(0, 4) : ""}` : "—");
 const hrs = h => (h === null || h === undefined ? "—" : `${Math.round(h * 10) / 10} h`);
-const RESCHEDULE = false;   // dragging bars arrives in 0.6.1
+const RESCHEDULE = true;
+let lastMove = null;   // { projectId, changes, at } for "Undo", kept across refreshes
 const initials = n => String(n || "?").split(/\s+/).map(s => s[0]).slice(0, 2).join("").toUpperCase();
 
 // Remembered per browser: zoom, collapsed rows and toggles. Storage can be unavailable.
@@ -207,9 +208,12 @@ export async function projectPage(me, id) {
       ${toggle("links", "Dependencies")}${toggle("critical", "Critical path")}${toggle("baseline", "Baseline")}
       ${data.me ? `<label class="check small"><input type="checkbox" data-opt="mine"> My tasks only</label>` : ""}
       <span class="grow"></span>
+      ${data.can.reschedule ? `<button type="button" class="btn outline sm" id="pj-baseline" title="Keep today's dates as the baseline to compare against">${p.baseline ? "Update baseline" : "Save baseline"}</button>` : ""}
       <button type="button" class="btn outline sm" id="pj-today">Today</button>
       <span id="pj-zoom">${zoomBar(state.scale, ["day", "week", "month"])}</span>
     </div>
+    ${lastMove && lastMove.projectId === p.id && Date.now() - lastMove.at < 15 * 60e3 ? `<div class="note info undo-bar">${icon("check")}<span>${lastMove.changes.length} task${lastMove.changes.length === 1 ? "" : "s"} rescheduled in Autotask.</span>
+      <button type="button" class="btn outline sm" id="pj-undo">Undo</button><button type="button" class="link-btn small" id="pj-undo-x">Dismiss</button></div>` : ""}
     ${RESCHEDULE && data.can.reschedule ? `<p class="small dim pj-hint">${icon("strategise", "i-sm")} Drag a bar to move a task, or drag its ends to change its dates. Dependent tasks move with it; you'll see every change before anything is saved to Autotask.</p>` : ""}
     <div id="pj-chart">${data.tasks.length ? ganttHtml(opts()) : empty("This project has no tasks in Autotask yet.")}</div>
     <div class="pj-foot"><div class="legend small">
@@ -249,18 +253,34 @@ export async function projectPage(me, id) {
       zoom();
       root.querySelector("#pj-today").onclick = () => scrollToDay(chart, opts(), data.today);
       root.querySelector("#pj-refresh").onclick = async e => { e.target.disabled = true; try { await api("/projects/refresh", { method: "POST", body: { id: p.id } }); toast("Re-read from Autotask"); refresh(); } catch (x) { toast(x.message); e.target.disabled = false; } };
+      const undoBtn = root.querySelector("#pj-undo");
+      if (undoBtn) undoBtn.onclick = async () => {
+        undoBtn.disabled = true;
+        try { const r = await api(`/projects/${p.id}/reschedule/undo`, { method: "POST", body: { changes: lastMove.changes } }); lastMove = null; toast(`${r.restored} task${r.restored === 1 ? "" : "s"} put back`); refresh(); }
+        catch (x) { toast(x.message); undoBtn.disabled = false; }
+      };
+      const dismiss = root.querySelector("#pj-undo-x");
+      if (dismiss) dismiss.onclick = () => { lastMove = null; root.querySelector(".undo-bar").remove(); };
+      const bl = root.querySelector("#pj-baseline");
+      if (bl) bl.onclick = () => dialog({
+        title: p.baseline ? "Update the baseline" : "Save a baseline",
+        intro: `Keeps every task's current dates as the plan to measure slippage against.${p.baseline ? ` This replaces the baseline ${esc(p.baseline.savedBy)} saved on ${esc(fmtDateTime(p.baseline.savedAt))}.` : ""}`,
+        submit: "Save baseline",
+        onSubmit: async () => { await api(`/projects/${p.id}/baseline`, { method: "POST", body: {} }); toast("Baseline saved"); refresh(); },
+      });
     },
   };
 }
 
-/* ---------- a task: details (0.6.0); time entry and complete arrive in 0.6.1 ---------- */
+/* ---------- a task: details, log time, complete ---------- */
 function openTask(t, data, who, refresh) {
   if (!t) return;
   const name = id => (who.get(id) || { name: `Resource ${id}` }).name;
   const title = id => (data.tasks.find(x => x.id === id) || { title: `Task ${id}` }).title;
   const before = data.links.filter(l => l.succ === t.id).map(l => title(l.pred) + (l.lag ? ` (+${l.lag} days)` : ""));
   const after = data.links.filter(l => l.pred === t.id).map(l => title(l.succ));
-  dialog({
+  const canWork = !!data.me && (t.mine || data.can.logAnyTask);
+  const d = dialog({
     title: t.title,
     extra: `<dl class="def">
       <dt>Status</dt><dd>${t.complete ? "Complete" : t.end && t.end < data.today ? `<b class="alert-t">Overdue</b>` : "Open"}${t.critical ? ` · <span class="chip h-late">Critical path</span>` : t.float !== null && t.float !== undefined && !t.complete ? ` · ${t.float} days of float` : ""}</dd>
@@ -269,12 +289,70 @@ function openTask(t, data, who, refresh) {
       <dt>Hours</dt><dd>${hrs(t.worked)} worked of ${hrs(t.estimated)} estimated${t.remaining !== null ? ` · ${hrs(t.remaining)} remaining` : ""}</dd>
       ${before.length ? `<dt>Waits for</dt><dd>${esc(before.join(", "))}</dd>` : ""}
       ${after.length ? `<dt>Then</dt><dd>${esc(after.join(", "))}</dd>` : ""}
-    </dl>`,
+    </dl>
+    ${canWork ? `<div class="task-acts"><button type="button" class="btn" data-act="time">${icon("clock", "i-sm")}Log time</button>
+      ${t.complete ? "" : `<button type="button" class="btn outline" data-act="complete">${icon("check", "i-sm")}Mark complete</button>`}</div>`
+      : !data.me ? `<p class="small dim">To log time here, your Pulse account needs linking to your Autotask resource (People and departments).</p>` : ""}`,
+  });
+  d.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { d.close(); (b.dataset.act === "time" ? logTime : markComplete)(t, data, refresh); });
+}
+
+function logTime(t, data, refresh) {
+  dialog({
+    title: `Log time: ${t.title}`,
+    intro: "Saved straight to Autotask as a time entry against this task, as you.",
+    fields: [
+      { name: "date", label: "Day worked", type: "date", value: data.today, required: true },
+      { name: "hours", label: "Hours", type: "number", required: true, hint: "e.g. 1.5" },
+      { name: "summary", label: "What you did", type: "textarea", rows: 3, required: true, hint: "Summary notes on the time entry." },
+      { name: "notes", label: "Internal notes", type: "textarea", rows: 2 },
+      ...(t.complete ? [] : [{ name: "complete", label: "This finishes the task: mark it complete", type: "checkbox" }]),
+    ],
+    submit: "Save time entry",
+    onSubmit: async f => {
+      await api(`/projects/tasks/${t.id}/time`, { method: "POST", body: f });
+      toast(f.complete ? "Time saved and task completed" : "Time saved to Autotask"); refresh();
+    },
   });
 }
 
-/** Dragging a bar (0.6.1 wires the save). */
-async function planMove(data, change, refresh) {
-  toast("Rescheduling arrives in 0.6.1.");
-  throw new Error("not yet");
+function markComplete(t, data, refresh) {
+  dialog({
+    title: `Mark complete: ${t.title}`,
+    intro: `Sets the task to Complete in Autotask.${t.remaining ? ` It still shows ${esc(hrs(t.remaining))} remaining; log any last time first.` : ""}`,
+    submit: "Mark complete",
+    onSubmit: async () => { await api(`/projects/tasks/${t.id}/complete`, { method: "POST", body: {} }); toast("Task completed"); refresh(); },
+  });
+}
+
+/**
+ * Dragging a bar: Pulse works out which tasks move with it, shows every change, and saves them
+ * all to Autotask only when the Project Manager confirms. Cancelling puts the bar back.
+ */
+function planMove(data, change, refresh) {
+  const pid = data.project.id;
+  return new Promise(async (resolve, reject) => {
+    let pv;
+    try { pv = await api(`/projects/${pid}/reschedule/preview`, { method: "POST", body: { taskId: change.id, start: change.start, end: change.end } }); }
+    catch (x) { toast(x.message); return reject(x); }
+    const others = pv.changes.length - 1;
+    const rows = pv.changes.map(c => `<tr class="${c.because ? "" : "lead"}"><td>${esc(c.title)}${c.because ? `<div class="dim small">moves with ${esc(c.becauseTitle || "")}</div>` : ""}</td>
+      <td class="nowrap">${esc(fmtD(c.from.start))} – ${esc(fmtD(c.from.end))}</td><td class="nowrap"><b>${esc(fmtD(c.start))} – ${esc(fmtD(c.end))}</b></td></tr>`).join("");
+    let saved = false;
+    const d = dialog({
+      title: others ? `Move ${pv.changes.length} tasks?` : "Move this task?",
+      intro: others ? `Moving this task moves ${others} dependent task${others === 1 ? "" : "s"} by the same number of working days, keeping the gaps between them. Complete tasks don't move.` : "No other tasks depend on this change.",
+      extra: `<div class="tbl-wrap"><table class="compact move-tbl"><thead><tr><th>Task</th><th>Now</th><th>New dates</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+      fields: [{ name: "reason", label: "Reason", type: "textarea", rows: 2, hint: "Kept in the audit log with each task's old and new dates." }],
+      submit: `Save to Autotask`,
+      onSubmit: async f => {
+        const r = await api(`/projects/${pid}/reschedule`, { method: "POST", body: { taskId: change.id, start: change.start, end: change.end, expect: pv.changes, reason: f.reason || null } });
+        saved = true;
+        lastMove = { projectId: pid, changes: r.saved, at: Date.now() };
+        toast(`${r.saved.length} task${r.saved.length === 1 ? "" : "s"} rescheduled`);
+        resolve(); refresh();
+      },
+    });
+    d.addEventListener("close", () => { if (!saved) reject(new Error("cancelled")); });
+  });
 }

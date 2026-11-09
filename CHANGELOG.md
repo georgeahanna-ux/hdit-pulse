@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1 — 9 November 2026
+Projects module, part 2 (D21): time entries, completing tasks and rescheduling.
+- **Log time** on a task from the project Gantt: day, hours, what you did, internal notes, and optionally mark the task complete. Saved to Autotask as a time entry as the person's own linked resource (People directory) and the task's role. Engineers on their own tasks (primary or secondary); Project Managers and Leadership on any. Last 30 days, 0.1–16 hours.
+- **Mark complete** sets the task's Complete status in Autotask.
+- **Drag to reschedule** (Project Managers and Leadership): drag a bar to move it, or its ends to change its dates; dates snap to working days. Pulse previews every task that moves: when an end date changes, successors move by the same number of working days; when a start date changes, predecessors do (complete tasks stay put). Nothing reaches Autotask until the Project Manager selects Save; the server re-checks the plan and refuses if the project changed since the preview. Each task's time of day is kept. **Undo** puts them back (for 15 minutes, if nobody has changed them since).
+- **Save baseline** keeps today's task dates to measure slippage against.
+- Every time entry, completion, reschedule, undo and baseline is in the audit log with old and new dates. 5 new tests (97 in total).
+
 ## 0.6.0 — 9 November 2026
 Projects module, part 1 (D21): programme and project Gantt charts.
 - **Projects** (under Managed Services in the menu) for Leadership, Project Managers and Managed Services: every active Autotask project (not templates or baselines), grouped by client, on one Gantt chart. Tiles for open, late and at-risk projects and work remaining in days, hours and person-weeks. Search, filter by health, zoom by weeks, months or quarters, collapse clients, open a project's phases inline.

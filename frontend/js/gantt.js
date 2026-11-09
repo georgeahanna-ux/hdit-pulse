@@ -180,7 +180,12 @@ export function enableDrag(root, opts, onDrop) {
         el.classList.remove("dragging"); tipEl.remove();
         if (!moved || !dd) { reset(); if (!moved) el.dataset.clicked = "1"; return; }
         el.dataset.justDragged = "1";
-        const next = { id: row.taskId, start: mode === "end" ? row.start : addDays(row.start, dd), end: mode === "start" ? row.end : addDays(row.end, dd), mode };
+        // Land on working days: moving later snaps forward, moving earlier snaps back.
+        const off = d => dow(d) === 0 || dow(d) === 6 || (opts.holidays && opts.holidays.has(d));
+        const snap = d => { let c = d; while (off(c)) c = addDays(c, dd > 0 ? 1 : -1); return c; };
+        let ns = mode === "end" ? row.start : snap(addDays(row.start, dd)), ne = mode === "start" ? row.end : snap(addDays(row.end, dd));
+        if (ne < ns) ne = ns;
+        const next = { id: row.taskId, start: ns, end: ne, mode };
         try { await onDrop(next); } catch { reset(); }
       };
       el.addEventListener("pointermove", onMove);
