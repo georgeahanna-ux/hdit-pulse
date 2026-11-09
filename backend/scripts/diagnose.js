@@ -19,6 +19,11 @@ const sql = require("mssql");
       .query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to inspect opportunity ${process.env.INSPECT_OPPORTUNITY}; run Diagnose again in 3 minutes.`);
   }
+  // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections).
+  if (/^(scorecard|projects|departments|directory|connections)$/.test(process.env.REFRESH_JOB || "")) {
+    await pool.request().input("job", sql.NVarChar, process.env.REFRESH_JOB).query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
+    console.log(`Asked the sync service to run ${process.env.REFRESH_JOB} now (within two minutes).`);
+  }
   const insp = await pool.request().query("SELECT job, detail FROM pulse.sync_run WHERE job LIKE N'inspect%' AND started_at > DATEADD(hour, -2, SYSUTCDATETIME()) ORDER BY id");
   if (insp.recordset.length) { console.log("\n=== Inspection ==="); console.log(insp.recordset.map(r => r.detail).join("")); }
   const q = async (title, text) => {
