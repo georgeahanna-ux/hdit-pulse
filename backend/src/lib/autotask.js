@@ -63,14 +63,14 @@ async function call(cred, method, path, body) {
   const c = await credsFor(cred);
   const url = /^https:/.test(path) ? path : c.baseUrl.replace(/\/+$/, "") + path;
   if (!url.startsWith(c.baseUrl.replace(/\/+$/, ""))) throw new Error("Refusing to send Autotask credentials to another address.");
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const res = await fetchImpl(url, {
       method,
       headers: { ApiIntegrationCode: c.integrationCode, UserName: c.username, Secret: c.secret, "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(60000),
     });
-    if (res.status === 429 || res.status === 503) { await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); continue; }
+    if (res.status === 429 || res.status === 503) { await new Promise(r => setTimeout(r, Math.min(30000, 2500 * 2 ** attempt))); continue;   // 2.5, 5, 10, 20, 30 s }
     if (res.status === 401 || res.status === 403) {
       if (res.status === 403 && method !== "GET" && !/\/query/.test(path)) throw fail(502, "Autotask's API user doesn't have permission for this. Check its security level in Autotask.", "forbidden");
       cache.delete(cred); throw fail(502, "Autotask refused Pulse's API credentials. Check them under Connections.", "rejected");
