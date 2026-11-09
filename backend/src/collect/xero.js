@@ -100,11 +100,19 @@ function cashFrom(json) {
   return { value: Math.round(total), accounts: rows.length };
 }
 
-/** Balance Sheet: accounts receivable (trade debtors). */
-function receivablesFrom(json) {
-  const p = parseReport(json);
-  const rows = [...p.sections.flatMap(s => s.rows), ...p.rows].filter(r => /accounts receivable|trade debtors|^debtors/i.test(r.name) && !/total/i.test(r.name));
-  return rows.reduce((a, r) => a + r.value, 0);
+/**
+ * Balance Sheet: accounts receivable. Matched by Xero's system account (DEBTORS) where the chart of
+ * accounts is available, otherwise by name. Every row of every section is read, titled or not.
+ */
+function receivablesFrom(json, accounts) {
+  const rep = json && json.Reports && json.Reports[0];
+  const rows = [];
+  const walk = list => { for (const r of list || []) { if (r.RowType === "Row") rows.push(r); if (r.Rows) walk(r.Rows); } };
+  walk(rep && rep.Rows);
+  const shaped = rows.map(r => ({ name: String((r.Cells[0] || {}).Value || ""), accountId: (((r.Cells[0] || {}).Attributes || []).find(a => a.Id === "account") || {}).Value || null, value: num((r.Cells[1] || {}).Value) }));
+  const bySystem = accounts ? shaped.filter(r => (accounts.get(r.accountId) || {}).system === "DEBTORS") : [];
+  const hits = bySystem.length ? bySystem : shaped.filter(r => /receivable|debtors/i.test(r.name) && !/total|provision|doubtful|other/i.test(r.name));
+  return { value: hits.reduce((a, r) => a + r.value, 0), names: hits.map(r => r.name) };
 }
 
 async function settings() {
@@ -121,7 +129,7 @@ async function reportingCodes(x, cache) {
   if (cache.codes !== undefined) return cache.codes;
   try {
     const r = await x.get("Accounts");
-    cache.codes = new Map((r.Accounts || []).map(a => [a.AccountID, { code: String(a.Code || ""), reportingCode: a.ReportingCode || "" }]));
+    cache.codes = new Map((r.Accounts || []).map(a => [a.AccountID, { code: String(a.Code || ""), reportingCode: a.ReportingCode || "", system: a.SystemAccount || "", name: a.Name }]));
   } catch { cache.codes = null; }
   return cache.codes;
 }
@@ -143,23 +151,30 @@ async function collectWeek(week, cache, now = new Date()) {
   const bank = cashFrom(await x.get("Reports/BankSummary", { fromDate: day, toDate: day }));
   out["xero.cash"] = { value: bank.value, detail: { text: `Closing balance of ${bank.accounts} bank account${bank.accounts === 1 ? "" : "s"} on ${day}: ${money(bank.value)}.` } };
 
-  const ar = receivablesFrom(await x.get("Reports/BalanceSheet", { date: day }));
+  const accounts = await reportingCodes(x, cache);
+  const ar = receivablesFrom(await x.get("Reports/BalanceSheet", { date: day }), accounts);
   const last91 = await pl(x, cache, time.addDays(day, -90), day);
   const withGst = last91.revenue * (1 + s.gst);
-  out["xero.dso"] = withGst > 0
-    ? { value: r1((ar / withGst) * 91), detail: { text: `Receivables ${money(ar)} ÷ the last 91 days' revenue ${money(last91.revenue)} plus ${Math.round(s.gst * 100)}% GST, × 91.` } }
-    : { value: null, detail: { text: "No revenue in the last 91 days." } };
+  out["xero.dso"] = !ar.names.length
+    ? { value: null, detail: { text: "Pulse couldn't find accounts receivable on Xero's balance sheet." } }
+    : withGst > 0
+      ? { value: r1((ar.value / withGst) * 91), detail: { text: `Receivables ${money(ar.value)} (${ar.names.join(", ")}) ÷ the last 91 days' revenue ${money(last91.revenue)} plus ${Math.round(s.gst * 100)}% GST, × 91.` } }
+      : { value: null, detail: { text: "No revenue in the last 91 days." } };
 
-  // Month so far (the month the week ends in): provisional until Finance closes it.
-  const monthStart = day.slice(0, 8) + "01";
-  const month = await pl(x, cache, monthStart, day);
-  const codes = s.sgmRevenue.length || s.sgmCost.length || s.sgmAccounts.rev.length ? await reportingCodes(x, cache) : null;
-  const sgm = servicesMargin(month, codes, s.sgmRevenue, s.sgmCost, s.sgmAccounts);
-  out["xero.sgm"] = { value: sgm.value, provisional: true, detail: { text: `${sgm.text} Month to ${day}, provisional.` } };
+  // SGM and EBITDA % are monthly: each week shows the latest whole month that had ended by the end of
+  // the week (a part month misleads, because wages and depreciation are posted later in the month).
+  // Provisional for 20 days after the month ends, while Finance closes it (D5).
+  const monthStart = time.addMonths(day.slice(0, 8) + "01", time.addDays(day, 1).slice(8) === "01" ? 0 : -1);
+  const monthEnd = time.addDays(time.addMonths(monthStart, 1), -1);
+  const provisional = time.addDays(monthEnd, 20) > today;
+  const label = `${new Date(monthStart + "T00:00:00Z").toLocaleString("en-AU", { month: "long", year: "numeric", timeZone: "UTC" })}${provisional ? ", provisional until Finance closes the month" : ""}`;
+  const month = await pl(x, cache, monthStart, monthEnd);
+  const sgm = servicesMargin(month, accounts, s.sgmRevenue, s.sgmCost, s.sgmAccounts);
+  out["xero.sgm"] = { value: sgm.value, provisional, detail: { text: `${sgm.text} ${label}.` } };
   const e = ebitda(month);
   out["xero.ebitda_pct"] = month.revenue
-    ? { value: r1((100 * e.value) / month.revenue), provisional: true, detail: { text: `EBITDA ${money(e.value)} (net profit ${money(month.net)}${e.addBack.length ? ` plus ${e.addBack.join(", ")}` : ""}${e.interestIncome.length ? ` less ${e.interestIncome.join(", ")}` : ""}) of revenue ${money(month.revenue)}, month to ${day}, provisional.` } }
-    : { value: null, provisional: true, detail: { text: "No revenue this month yet." } };
+    ? { value: r1((100 * e.value) / month.revenue), provisional, detail: { text: `EBITDA ${money(e.value)} (net profit ${money(month.net)}${e.addBack.length ? ` plus ${e.addBack.join(", ")}` : ""}${e.interestIncome.length ? ` less ${e.interestIncome.join(", ")}` : ""}) of revenue ${money(month.revenue)}, ${label}.` } }
+    : { value: null, provisional, detail: { text: `No revenue in ${label}.` } };
   return out;
 }
 

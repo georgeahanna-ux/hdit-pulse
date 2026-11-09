@@ -48,7 +48,10 @@ test("cash from Bank Summary totals; receivables from the Balance Sheet", () => 
     { RowType: "SummaryRow", Cells: [{ Value: "Total" }, { Value: "" }, { Value: "" }, { Value: "" }, { Value: "862400.00" }] }] }]);
   assert.deepEqual(X.cashFrom(bank), { value: 862400, accounts: 2 });
   const bs = report([{ RowType: "Section", Title: "Current Assets", Rows: [row("Accounts Receivable", 420000), row("Prepayments", 5000), sum("Total Current Assets", 425000)] }]);
-  assert.equal(X.receivablesFrom(bs), 420000);
+  assert.equal(X.receivablesFrom(bs).value, 420000);
+  // By Xero's system account when the chart of accounts is known, whatever the line is called.
+  const bs2 = report([{ RowType: "Section", Title: "Current Assets", Rows: [row("11000 Trade Accounts Owing", 300000, "ar1"), row("Provision for Doubtful Debts", -5000, "pd")] }]);
+  assert.equal(X.receivablesFrom(bs2, new Map([["ar1", { system: "DEBTORS" }]])).value, 300000);
 });
 
 test("Xero sign-in asks only for read-only scopes and goes back to the sync app's callback", () => {
