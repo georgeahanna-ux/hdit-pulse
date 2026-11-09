@@ -31,5 +31,10 @@ const sql = require("mssql");
     (SELECT COUNT(*) FROM pulse.at_project WHERE is_open = 1) AS open_projects, (SELECT COUNT(*) FROM pulse.at_task) AS tasks,
     (SELECT COUNT(*) FROM pulse.at_task_predecessor) AS dependencies, (SELECT COUNT(*) FROM pulse.holiday) AS holidays,
     (SELECT COUNT(*) FROM pulse.person_link) AS people_linked, (SELECT COUNT(*) FROM pulse.scorecard_value WHERE auto_value IS NOT NULL) AS auto_values`);
+  await q("Latest automatic values", `SELECT m.code, v.week, v.auto_value, LEFT(JSON_VALUE(v.auto_detail, '$.text'), 160) AS working
+    FROM pulse.scorecard_value v JOIN pulse.measurable m ON m.id = v.measurable_id
+    WHERE v.auto_value IS NOT NULL AND v.week = (SELECT MAX(week) FROM pulse.scorecard_value w WHERE w.measurable_id = v.measurable_id AND w.week < CAST(SYSUTCDATETIME() AS DATE) AND w.auto_value IS NOT NULL AND w.week <= DATEADD(day, -7, CAST(SYSUTCDATETIME() AS DATE)))`);
+  await q("FY plan automatic months", `SELECT p.code, a.month, a.auto_value, LEFT(JSON_VALUE(a.auto_detail, '$.text'), 120) AS working
+    FROM pulse.plan_month_actual a JOIN pulse.plan_metric p ON p.id = a.metric_id WHERE a.auto_value IS NOT NULL ORDER BY p.code, a.month`);
   await pool.close();
 })().catch(e => { console.error("Diagnose failed:", e.message); process.exit(1); });
