@@ -143,11 +143,18 @@ async function save(data, { full }) {
 async function syncCapacity(notes) {
   try {
     const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+    // Field names differ between Autotask versions: find the request's date and hours fields.
+    const names = (await at.fields(MOD, "TimeOffRequests")).map(f => f.name);
+    const pick = (prefer, re, not) => prefer.find(n => names.includes(n)) || names.find(n => re.test(n) && !(not && not.test(n)));
+    const dateF = pick(["timeOffDate", "requestDate", "date", "startDate", "startDateTime"], /date/i, /create|approv|modif|last|submit/i);
+    const hoursF = pick(["timeOffHours", "hours", "hoursRequested", "requestedHours"], /hour/i);
+    if (!dateF) throw new Error(`no date field among ${names.join(", ")}`);
     const statuses = await at.picklist(MOD, "TimeOffRequests", "status").catch(() => []);
     const bad = statuses.filter(s => /reject|cancel|denied/i.test(s.label)).map(s => s.value);
-    const rows = (await at.query(MOD, "TimeOffRequests", [{ op: "gte", field: "timeOffDate", value: from }],
-      await at.known(MOD, "TimeOffRequests", ["id", "resourceID", "timeOffDate", "timeOffHours", "status"])))
-      .filter(r => !bad.includes(Number(r.status)));
+    const rows = (await at.query(MOD, "TimeOffRequests", [{ op: "gte", field: dateF, value: from }],
+      ["id", "resourceID", dateF, ...(hoursF ? [hoursF] : []), ...(names.includes("status") ? ["status"] : [])]))
+      .filter(r => !bad.includes(Number(r.status)))
+      .map(r => ({ id: r.id, resourceID: r.resourceID, timeOffDate: r[dateF], timeOffHours: hoursF ? r[hoursF] : null }));
     await db.tx(async q => {
       await q("DELETE FROM pulse.at_time_off WHERE day >= @from", { from });
       await q(`INSERT INTO pulse.at_time_off (id, resource_id, day, hours) SELECT id, resourceID, CAST(LEFT(timeOffDate, 10) AS DATE), ISNULL(timeOffHours, 7.6)
