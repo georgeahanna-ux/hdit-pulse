@@ -10,6 +10,17 @@
 const db = require("../lib/sql");
 const vault = require("../lib/vault");
 
+/** Entered? A Key Vault refusal is an error to fix (setup), not "not entered yet". */
+const isConnected = async cred => {
+  let s;
+  try { s = await vault.getSecret(cred); }
+  catch (e) {
+    if (/HTTP 403/.test(e.message)) throw new Error(`The sync service isn't allowed to read ${cred} in Key Vault. Run "bash pulse-setup.sh release1" again (Azure account) to restore its access.`);
+    throw e;
+  }
+  return !!(s && s.value);
+};
+
 /** Credentials the sync app can read, with what each is for. Matches setup/pulse-setup.sh. */
 const CONNECTIONS = [
   ["autotask-service", "Autotask API user (one for all of Pulse; Pulse limits what each module can do)"],
@@ -64,8 +75,10 @@ const directory = require("../people/directory");
 
 /** Runs a job that needs a credential; quietly skips (no run recorded) while it hasn't been entered. */
 async function runIfConnected(job, context, fn, cred = directory.PEOPLE_CRED) {
-  const s = await vault.getSecret(cred).catch(() => null);
-  if (!s || !s.value) { context.log(`${job}: skipped, ${cred} not entered yet`); return; }
+  let entered;
+  try { entered = await isConnected(cred); }
+  catch (e) { await run(job, context, async () => { throw e; }).catch(() => {}); return; }
+  if (!entered) { context.log(`${job}: skipped, ${cred} not entered yet`); return; }
   await run(job, context, fn);
 }
 
@@ -86,7 +99,7 @@ async function syncDirectory() {
 /* ---------------- Scorecard collectors (M2) ---------------- */
 const collect = require("../collect");
 
-const isConnected = async cred => { const s = await vault.getSecret(cred).catch(() => null); return !!(s && s.value); };
+
 const syncScorecard = () => collect.runScorecard({ isConnected });
 
 /* ---------------- Projects (D21) ---------------- */

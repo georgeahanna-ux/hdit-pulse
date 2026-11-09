@@ -7,6 +7,7 @@ Projects module, part 3 (D21): resource planner, lead time and what-if.
 - **Capacity:** 7.6 hours a working day, less public holidays and approved leave from Autotask, less a share kept for service desk and other work (20% to start). Project Managers set the share and which departments always appear (Capacity settings).
 - **Project lead time** (for Sales too, under Sales & Marketing): work in the queue in hours, person-days and person-weeks; the team's weekly project capacity; weeks to clear the queue; the week a new project could start; when the Autotask schedule's last task ends. Size a new project (hours, engineers) for an estimated start and finish. **What if:** add people (how many, project hours a week, from when) to see the new lead time and a burn-down chart against today's team. Counts open projects only (decided 9 Nov 2026). Nothing in the what-if is saved.
 - New endpoints `/projects/resources`, `/projects/lead-time`, `/projects/settings`. 2 new tests (99 in total).
+- Follow-up (9 Nov): sync jobs report a Key Vault refusal as an error ("run pulse-setup.sh release1 again") instead of "not entered yet"; new read-only **Diagnose test** workflow (recent sync runs, credentials entered, Autotask data held, Key Vault role assignments).
 
 ## 0.6.1 — 9 November 2026
 Projects module, part 2 (D21): time entries, completing tasks and rescheduling.
