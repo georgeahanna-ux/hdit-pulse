@@ -8,6 +8,7 @@ Xero (D17): Connect to Xero and the finance measurables, on trial.
 - A failing source no longer stops the others in the hourly run (the run is still marked failed so it shows).
 - **SGM by Finance's account list** (10 Nov 2026): revenue 41113, 41114, 41115, 45131 (I22); costs 51114, 51119, 57100, 57110, 57120, 57130, 57140, 57150, 57170, 57190, 51115, 52222, 51103 (C11–C13), matched by Xero account code (migration `0011_sgm_accounts`).
 - After the first real Xero run (10 Nov): debtor days find receivables by Xero's system account (DEBTORS); SGM and EBITDA % show the latest whole month, provisional for 20 days after it ends, because a part month leaves out wages and depreciation posted later (migration `0012_xero_recount`).
+- Home progress cards show the automatic figure while a plan metric is on trial ("Autotask says…", "Xero says…") with a link to switch it on; before, the cards said "No figures yet".
 - Migration `0010_xero`. 6 new tests (109 in total).
 
 ## 0.6.3 — 9 November 2026

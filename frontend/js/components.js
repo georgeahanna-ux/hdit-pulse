@@ -55,6 +55,16 @@ export function paceChip(progress, elapsed) {
 }
 
 /** A plan metric card: the year bar with quarter sub-bars underneath. */
+/** While a plan figure is on trial, the bars count only what Finance enters; show the automatic figure beside them. */
+function trialLine(m, fmt) {
+  const autos = (m.months || []).filter(x => x.auto !== null && x.auto !== undefined);
+  if (!m.trial || !autos.length) return "";
+  const value = m.kind === "cumulative" ? autos.reduce((s, x) => s + x.auto, 0) : autos[autos.length - 1].auto;
+  const src = m.source === "xero" ? "Xero" : "Autotask";
+  return `<div class="trial-line small"><span class="chip quiet">On trial</span> ${src} says <b>${fmt(value)}</b>${m.kind === "level" ? ` at ${esc(fmtMonth(autos[autos.length - 1].month))}` : " so far"}.
+    <a href="#/plan">Check it and switch it on</a> to fill this bar.</div>`;
+}
+
 export function planCard(m, current) {
   const fmt = v => (m.unit === "currency" ? money(v) : fmtValue(v, "count"));
   const kindNote = m.kind === "cumulative" ? "Year to date" : m.lastMonth ? `At end of ${fmtMonth(m.lastMonth)}` : "Latest month-end";
@@ -65,6 +75,7 @@ export function planCard(m, current) {
         <div class="dim small">${esc(kindNote)}${m.kind === "level" && m.opening !== null ? ` · started the year at ${fmt(m.opening)}` : ""}</div></div>
       <div class="plan-pct"><b>${pct(m.progress)}</b>${paceChip(m.progress, m.elapsed)}</div>
     </div>
+    ${trialLine(m, fmt)}
     ${bar({ progress: m.progress, elapsed: m.elapsed, label: `${m.name} ${m.label}` })}
     <div class="plan-quarters">
       ${m.quarters.map(q => `<div class="pq ${current && current.fy === m.fy && current.quarter === q.quarter ? "now" : ""}">
