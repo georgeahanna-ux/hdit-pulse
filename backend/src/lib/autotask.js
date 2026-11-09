@@ -46,7 +46,7 @@ const POLICY = {
   projects: {   // Projects module: Gantt, time entry, completing and rescheduling tasks
     read: ["Projects", "Phases", "Tasks", "TaskPredecessors", "TaskSecondaryResources", "Companies", "Resources", "Roles",
       "ResourceRoleDepartments", "TimeEntries", "HolidaySets", "Holidays", "TimeOffRequests"],
-    write: { Tasks: ["update"], TimeEntries: ["create"] },
+    write: { Tasks: ["update"], TimeEntries: ["create"], TaskPredecessors: ["create", "delete"] },   // a dependency is a link; removing one deletes no work
   },
 };
 
@@ -116,8 +116,12 @@ async function queryIn(module, entity, field, ids, fields, extra = []) {
 
 /** parent: [ParentEntity, id] for child collections, e.g. Tasks are updated under ["Projects", projectId]. */
 const at = parent => (parent ? `/V1.0/${parent[0]}/${Number(parent[1])}/` : "/V1.0/");
-const create = async (module, entity, body, parent) => { allowed(module, "create", entity); return call(SECRET, "POST", at(parent) + entity, body); };
-const update = async (module, entity, body, parent) => { allowed(module, "update", entity); return call(SECRET, "PATCH", at(parent) + entity, body); };
+// Child collections whose URL name differs from the entity name (Autotask: /Tasks/{id}/Predecessors).
+const CHILD = { TaskPredecessors: "Predecessors" };
+const path = (entity, parent) => at(parent) + (parent && CHILD[entity] ? CHILD[entity] : entity);
+const create = async (module, entity, body, parent) => { allowed(module, "create", entity); return call(SECRET, "POST", path(entity, parent), body); };
+const update = async (module, entity, body, parent) => { allowed(module, "update", entity); return call(SECRET, "PATCH", path(entity, parent), body); };
+const remove = async (module, entity, id, parent) => { allowed(module, "delete", entity); return call(SECRET, "DELETE", `${path(entity, parent)}/${Number(id)}`); };
 const fieldInfo = async (module, entity) => { allowed(module, "read", entity); return call(SECRET, "GET", `/V1.0/${entity}/entityInformation/fields`); };
 
 /** Field information for an entity, cached for an hour (names, picklists). */
@@ -140,5 +144,5 @@ async function picklist(module, entity, field) {
   return f && f.isPickList ? (f.picklistValues || []).map(v => ({ value: Number(v.value), label: v.label, isActive: v.isActive !== false })) : [];
 }
 
-module.exports = { query, queryIn, create, update, fieldInfo, fields, known, picklist, credsFor, SECRET, POLICY,
+module.exports = { query, queryIn, create, update, remove, fieldInfo, fields, known, picklist, credsFor, SECRET, POLICY,
   _test: { setFetch(f) { fetchImpl = f; cache.clear(); infoCache.clear(); }, clear() { cache.clear(); infoCache.clear(); } } };

@@ -92,3 +92,12 @@ test("capacity and lead time: 7.6 h days less holidays, leave and the non-projec
   assert.ok(more.weeks < base.weeks);
   assert.equal(L.leadTime(0, weekly).weeks, 0);
 });
+
+test("linking with dates: a successor that starts too early moves after its predecessor, its own successors keep their gaps", () => {
+  const tasks = [T(1, "2026-11-02", "2026-11-04"), T(2, "2026-11-03", "2026-11-05"), T(3, "2026-11-09", "2026-11-10")];
+  const links = L.linksFor([1, 2, 3], "chain");
+  const moves = L.pushForLinks(tasks, [], links);
+  assert.deepEqual(moves.map(m => [m.id, m.start, m.end]), [[2, "2026-11-05", "2026-11-09"], [3, "2026-11-11", "2026-11-12"]]);
+  assert.deepEqual(L.linksFor([5, 6, 7], "before").map(l => [l.pred, l.succ]), [[5, 7], [6, 7]]);
+  assert.ok(L.findLoop([{ pred: 3, succ: 1 }], links));
+});

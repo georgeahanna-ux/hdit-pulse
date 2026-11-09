@@ -106,7 +106,7 @@ function floatAndCritical(tasks, preds, hol) {
  * A move of the whole bar changes both, so both chains move. Complete tasks never move.
  * Returns [{ id, start, end, from: {start, end}, because }] for every task that changes.
  */
-function reschedule(tasks, preds, { id, start, end }, hol) {
+function reschedule(tasks, preds, { id, start, end }, hol, { successorsOnly = false } = {}) {
   const byId = new Map(tasks.map(t => [t.id, t]));
   const t0 = byId.get(id);
   if (!t0 || !t0.start || !t0.end) throw new Error("That task has no dates to move.");
@@ -136,7 +136,7 @@ function reschedule(tasks, preds, { id, start, end }, hol) {
     }
   };
   shift(id, succ, dEnd);
-  shift(id, pred, dStart);
+  if (!successorsOnly) shift(id, pred, dStart);
   return [...changes.values()];
 }
 
@@ -201,4 +201,58 @@ function leadTime(backlog, weekly, extra = []) {
   return { weeks, clearsWeek: weeks === null ? null : weekly[0] && time.addDays(weekly[0].week, 7 * Math.ceil(weeks || 0)), burn };
 }
 
-Object.assign(module.exports, { HOURS_PER_DAY, weeksFrom, spread, weekOfDay, capacity, leadTime });
+/** Would adding these links make a loop (A waits for B waits for A)? Returns the looping pair or null. */
+function findLoop(preds, extra) {
+  const succ = new Map();
+  for (const p of [...preds, ...extra]) (succ.get(p.pred) || succ.set(p.pred, []).get(p.pred)).push(p.succ);
+  for (const l of extra) {   // can we get from l.succ back to l.pred?
+    const seen = new Set(), stack = [l.succ];
+    while (stack.length) { const n = stack.pop(); if (n === l.pred) return l; if (seen.has(n)) continue; seen.add(n); stack.push(...(succ.get(n) || [])); }
+  }
+  return null;
+}
+
+/**
+ * New links Pulse would add for a selection of tasks (in the order they were ticked):
+ *   chain   1 → 2 → 3 (each waits for the one before)
+ *   after   the first, then all the others wait for it (1 → 2, 1 → 3)
+ *   before  the last waits for all the others (1 → 3, 2 → 3)
+ */
+function linksFor(ids, shape, lag = 0) {
+  const out = [];
+  if (shape === "chain") for (let i = 1; i < ids.length; i++) out.push({ pred: ids[i - 1], succ: ids[i], lag });
+  if (shape === "after") for (let i = 1; i < ids.length; i++) out.push({ pred: ids[0], succ: ids[i], lag });
+  if (shape === "before") for (let i = 0; i < ids.length - 1; i++) out.push({ pred: ids[i], succ: ids[ids.length - 1], lag });
+  return out;
+}
+
+/**
+ * Dates that keep new links true: each successor that would start before its predecessor
+ * finishes (plus lag) moves later, with its own successors keeping their gaps.
+ */
+function pushForLinks(tasks, preds, links, hol) {
+  const all = [...preds, ...links];
+  let cur = tasks.map(t => ({ ...t }));
+  const moved = new Map();
+  for (let guard = 0; guard < 50; guard++) {
+    let changed = false;
+    for (const l of all) {
+      const a = cur.find(t => t.id === l.pred), b = cur.find(t => t.id === l.succ);
+      if (!a || !b || !a.end || !b.start || b.complete) continue;
+      const earliest = nextWorkday(addWorkdays(a.end, 1 + (l.lag || 0), hol), hol);
+      if (b.start >= earliest) continue;
+      const len = Math.max(0, workdays(b.start, b.end, hol) - 1);
+      const changes = reschedule(cur, all, { id: b.id, start: earliest, end: addWorkdays(earliest, len, hol) }, hol, { successorsOnly: true });
+      for (const c of changes) {
+        const t = cur.find(x => x.id === c.id);
+        if (!moved.has(c.id)) moved.set(c.id, { from: { start: t.start, end: t.end }, because: c.because ?? l.pred });
+        t.start = c.start; t.end = c.end;
+      }
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return [...moved.entries()].map(([id, m]) => { const t = cur.find(x => x.id === id); return { id, start: t.start, end: t.end, from: m.from, because: m.because }; });
+}
+
+Object.assign(module.exports, { findLoop, linksFor, pushForLinks, HOURS_PER_DAY, weeksFrom, spread, weekOfDay, capacity, leadTime });

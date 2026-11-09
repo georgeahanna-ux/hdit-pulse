@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.3 — 9 November 2026
+Projects: set up dependencies by ticking tasks, saved to Autotask (requested 9 Nov 2026).
+- **Link tasks** (Project Managers and Leadership) on the project Gantt: tick tasks in the order they should happen, then choose one after another, all after the first ticked, or the last ticked after all the others, with an optional gap in working days. Pulse previews the new dependencies and, if ticked, moves tasks that would start before what they wait for (their own successors keep their gaps). Saved to Autotask as task predecessors (`/Tasks/{id}/Predecessors`), dates first; audited.
+- Loops are refused before anything is saved; links that already exist are skipped.
+- **Remove a dependency** from a task's panel (the only delete Pulse can make in Autotask: a link, never a record of work; audited).
+- Fixes from the first real run against Autotask: the next page of a query is POSTed again (Autotask answers 405 to GET); time-off fields are found by name; Key Vault refusals are reported as such.
+- 3 new tests (102 in total).
+
 ## 0.6.2 — 9 November 2026
 Projects module, part 3 (D21): resource planner, lead time and what-if.
 - **Resource planner** (Projects → Resource planner): each person's project hours allocated against available, week by week for 8, 12 or 26 weeks, like MS Project's Resource Usage. Colour bands: under 60%, 60–85%, 85–100%, over-allocated; leave and overdue work marked. Expand a person to see the tasks behind each week. A whole-team row and an Unassigned row (open tasks with nobody on them). Tiles: next four weeks' utilisation, who's over-allocated, who's under 60%, unassigned hours.

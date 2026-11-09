@@ -43,7 +43,7 @@ db._test.use({
     if (/FROM pulse\.at_task WHERE id = @id/.test(text)) return tasks.filter(t => t.id === p.id);
     if (/FROM pulse\.at_task_secondary WHERE task_id/.test(text)) return [];
     if (/FROM pulse\.at_task WHERE project_id = @id/.test(text)) return tasks;
-    if (/at_task_predecessor/.test(text)) return [{ pred: 1, succ: 2, lag: 0 }, { pred: 2, succ: 3, lag: 0 }];
+    if (/at_task_predecessor/.test(text)) return [{ id: 11, pred: 1, succ: 2, lag: 0 }, { id: 12, pred: 2, succ: 3, lag: 0 }];
     return [];
   },
   async tx(fn) { return fn(this.query.bind(this)); },
@@ -109,4 +109,30 @@ test("rescheduling: preview, then save exactly that plan; dependants move and ke
   assert.equal(t3.startDateTime, time.sydneyToUtc("2026-11-10", 9).toISOString());
   assert.equal(t3.endDateTime, time.sydneyToUtc("2026-11-11", 17).toISOString());
   assert.equal(writes.filter(w => /audit_event/.test(w.text)).length, 3);
+});
+
+test("dependencies: Project Managers link ticked tasks; loops are refused; links go to Autotask under the successor task", async () => {
+  reset();
+  assert.equal((await call("POST", "projects/50/links/preview", "eng", { taskIds: [1, 3], shape: "chain" })).status, 403);
+  const loop = await call("POST", "projects/50/links/preview", "pm", { taskIds: [3, 1], shape: "chain" });
+  assert.equal(loop.status, 409);
+  assert.match(loop.jsonBody.error, /loop/);
+  const pv = await call("POST", "projects/50/links/preview", "pm", { taskIds: [1, 2, 3], shape: "after", lag: 1 });
+  assert.equal(pv.status, 200, JSON.stringify(pv.jsonBody));
+  assert.deepEqual(pv.jsonBody.add.map(l => [l.pred, l.succ, l.lag]), [[1, 3, 1]]);   // 1 → 2 already exists
+  assert.deepEqual(pv.jsonBody.already.map(l => [l.pred, l.succ]), [[1, 2]]);
+  const ok = await call("POST", "projects/50/links", "pm", { taskIds: [1, 2, 3], shape: "after", lag: 1, expect: [] });
+  assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
+  const post = calls.find(c => c.method === "POST" && /Predecessors$/.test(c.url));
+  assert.match(post.url, /\/V1\.0\/Tasks\/3\/Predecessors$/);
+  assert.deepEqual(post.body, { predecessorTaskID: 1, successorTaskID: 3, lagDays: 1 });
+});
+
+test("removing a dependency deletes only that link, under its successor task", async () => {
+  reset();
+  const r = await call("DELETE", "projects/50/links/12", "pm", { reason: "Not needed" });
+  assert.equal(r.status, 200, JSON.stringify(r.jsonBody));
+  const del = calls.find(c => c.method === "DELETE");
+  assert.match(del.url, /\/V1\.0\/Tasks\/3\/Predecessors\/12$/);
+  assert.equal((await call("DELETE", "projects/50/links/99", "pm", {})).status, 404);
 });

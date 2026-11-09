@@ -109,6 +109,7 @@ export function ganttHtml(opts) {
   const todayX = opts.today >= range.start && opts.today <= range.end ? daysBetween(range.start, opts.today) * px + px / 2 : null;
   const body = rows.map(r => `<div class="g-row k-${r.kind} ${r.mine ? "mine" : ""} ${r.complete ? "done" : ""}" data-row="${r.id}" style="height:${rowH}px">
       <div class="g-lab" style="padding-left:${12 + (r.depth || 0) * 18}px">
+        ${r.selectable ? `<input type="checkbox" class="g-sel" data-sel="${r.taskId}" ${r.selected ? "checked" : ""} aria-label="Tick ${esc(r.label)}">${r.selected ? `<b class="g-ord">${r.selected}</b>` : ""}` : ""}
         ${r.collapsible ? `<button type="button" class="g-tog" data-tog="${r.id}" aria-expanded="${!r.collapsed}" aria-label="${r.collapsed ? "Expand" : "Collapse"} ${esc(r.label)}">${r.collapsed ? "▸" : "▾"}</button>` : `<span class="g-tog-sp"></span>`}
         <span class="g-name">${r.href ? `<a href="${r.href}" data-open="${r.id}">${esc(r.label)}</a>` : `<button type="button" class="g-lbl" data-open="${r.id}">${esc(r.label)}</button>`}
           ${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</span>

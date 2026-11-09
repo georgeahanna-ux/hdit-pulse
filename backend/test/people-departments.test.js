@@ -59,6 +59,9 @@ test("one Autotask connection: each Pulse module may only touch its own Autotask
   await assert.rejects(at.create("projects", "Tasks", { id: 1 }), e => e.code === "not-allowed");   // projects may edit tasks, not add them
   await assert.rejects(at.query("billing", "Contracts"), /Unknown Pulse module/);
   for (const [mod, p] of Object.entries(at.POLICY)) for (const [entity, ops] of Object.entries(p.write)) {
-    assert.ok(ops.every(op => ["create", "update"].includes(op)), `${mod} ${entity}: no deletes`);
+    // The only thing Pulse may delete is a task dependency link (projects module).
+    const ok = mod === "projects" && entity === "TaskPredecessors" ? ["create", "delete"] : ["create", "update"];
+    assert.ok(ops.every(op => ok.includes(op)), `${mod} ${entity}: ${ops}`);
   }
+  await assert.rejects(at.remove("projects", "Tasks", 1, ["Projects", 2]), e => e.code === "not-allowed");
 });

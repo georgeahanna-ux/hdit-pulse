@@ -155,7 +155,7 @@ export async function projectPage(me, id) {
   const hol = new Set(data.holidays);
   const state = {
     scale: store.get("pscale", "day"), links: store.get("links", true), critical: store.get("critical", false), baseline: store.get("baseline", true),
-    mine: false, collapsed: new Set(),
+    mine: false, collapsed: new Set(), linking: false, ticked: [],
   };
   const byPhase = new Map();
   for (const t of data.tasks) (byPhase.get(t.phaseId || 0) || byPhase.set(t.phaseId || 0, []).get(t.phaseId || 0)).push(t);
@@ -170,7 +170,8 @@ export async function projectPage(me, id) {
       start: t.start, end: t.end, pct: t.complete ? 100 : t.estimated ? Math.min(99, Math.round((100 * t.worked) / Math.max(t.estimated, t.worked + (t.remaining || 0)))) : 0,
       health: t.complete ? "done" : t.end && t.end < data.today ? "late" : t.start && t.start > data.today ? "not-started" : "on-track",
       complete: t.complete, milestone: t.milestone, critical: state.critical && t.critical, mine: t.mine,
-      baseline: state.baseline ? t.baseline : null, drag: RESCHEDULE && data.can.reschedule && !t.complete,
+      baseline: state.baseline ? t.baseline : null, drag: RESCHEDULE && data.can.reschedule && !t.complete && !state.linking,
+      selectable: state.linking, selected: state.ticked.indexOf(t.id) + 1,
       cols: { who: person ? `<span class="av ${t.mine ? "me" : ""}" title="${esc(person.name)}">${esc(initials(person.name))}</span>` : `<span class="dim">—</span>`,
         hours: `${Math.round(t.worked * 10) / 10}/${t.estimated === null ? "—" : Math.round(t.estimated * 10) / 10}` },
     };
@@ -210,6 +211,7 @@ export async function projectPage(me, id) {
       ${toggle("links", "Dependencies")}${toggle("critical", "Critical path")}${toggle("baseline", "Baseline")}
       ${data.me ? `<label class="check small"><input type="checkbox" data-opt="mine"> My tasks only</label>` : ""}
       <span class="grow"></span>
+      ${data.can.reschedule ? `<button type="button" class="btn outline sm" id="pj-link" aria-pressed="${state.linking}">${icon("co-managed", "i-sm")}Link tasks</button>` : ""}
       ${data.can.reschedule ? `<button type="button" class="btn outline sm" id="pj-baseline" title="Keep today's dates as the baseline to compare against">${p.baseline ? "Update baseline" : "Save baseline"}</button>` : ""}
       <button type="button" class="btn outline sm" id="pj-today">Today</button>
       <span id="pj-zoom">${zoomBar(state.scale, ["day", "week", "month"])}</span>
@@ -217,6 +219,7 @@ export async function projectPage(me, id) {
     ${lastMove && lastMove.projectId === p.id && Date.now() - lastMove.at < 15 * 60e3 ? `<div class="note info undo-bar">${icon("check")}<span>${lastMove.changes.length} task${lastMove.changes.length === 1 ? "" : "s"} rescheduled in Autotask.</span>
       <button type="button" class="btn outline sm" id="pj-undo">Undo</button><button type="button" class="link-btn small" id="pj-undo-x">Dismiss</button></div>` : ""}
     ${RESCHEDULE && data.can.reschedule ? `<p class="small dim pj-hint">${icon("strategise", "i-sm")} Drag a bar to move a task, or drag its ends to change its dates. Dependent tasks move with it; you'll see every change before anything is saved to Autotask.</p>` : ""}
+    <div class="link-bar" id="pj-linkbar" hidden></div>
     <div id="pj-chart">${data.tasks.length ? ganttHtml(opts()) : empty("This project has no tasks in Autotask yet.")}</div>
     <div class="pj-foot"><div class="legend small">
       <span><i class="sw h-on-track"></i>In progress</span><span><i class="sw h-not-started"></i>Not started</span><span><i class="sw h-late"></i>Overdue</span><span><i class="sw h-done"></i>Complete</span>
@@ -239,13 +242,37 @@ export async function projectPage(me, id) {
       };
       const wire = o => {
         chart.querySelectorAll("[data-tog]").forEach(b => b.onclick = () => { const k = b.dataset.tog; state.collapsed.has(k) ? state.collapsed.delete(k) : state.collapsed.add(k); draw(); });
+        chart.querySelectorAll("[data-sel]").forEach(c => c.onchange = () => toggleTick(Number(c.dataset.sel)));
         chart.querySelectorAll("[data-bar], [data-open]").forEach(b => b.addEventListener("click", e => {
           if (b.dataset.justDragged) { delete b.dataset.justDragged; return; }
           const rid = b.dataset.bar || b.dataset.open;
+          if (state.linking && rid && rid.startsWith("t")) { e.preventDefault(); toggleTick(Number(rid.slice(1))); return; }
           if (rid && rid.startsWith("t")) { e.preventDefault(); openTask(data.tasks.find(t => `t${t.id}` === rid), data, who, refresh); }
         }));
         if (RESCHEDULE && data.can.reschedule) enableDrag(chart, o, change => planMove(data, change, refresh));
       };
+      // Linking: tick tasks (the order you tick them is the order they run), then link them.
+      const bar = root.querySelector("#pj-linkbar");
+      const drawBar = () => {
+        bar.hidden = !state.linking;
+        if (!state.linking) return;
+        const n = state.ticked.length;
+        bar.innerHTML = `${icon("co-managed", "i-sm")}<span>${n ? `<b>${n}</b> task${n === 1 ? "" : "s"} ticked, in this order: ${esc(state.ticked.map(id => (data.tasks.find(t => t.id === id) || {}).title).join(" → "))}` : "Tick the tasks to link, in the order they should happen. Select a task's name or bar to tick it."}</span>
+          <span class="grow"></span><button type="button" class="btn sm" id="pj-link-go" ${n < 2 ? "disabled" : ""}>Link ${n || ""} tasks</button>
+          <button type="button" class="link-btn small" id="pj-link-clear">${n ? "Clear" : "Done"}</button>`;
+        bar.querySelector("#pj-link-go").onclick = () => linkDialog(data, state.ticked.slice(), () => { state.ticked = []; state.linking = false; refresh(); });
+        bar.querySelector("#pj-link-clear").onclick = () => { if (state.ticked.length) state.ticked = []; else state.linking = false; syncLinkBtn(); drawBar(); draw(); };
+      };
+      const syncLinkBtn = () => { const b = root.querySelector("#pj-link"); if (b) { b.setAttribute("aria-pressed", state.linking); b.classList.toggle("on", state.linking); } };
+      var toggleTick = id => {
+        const t = data.tasks.find(x => x.id === id);
+        if (!t) return;
+        const i = state.ticked.indexOf(id);
+        if (i >= 0) state.ticked.splice(i, 1); else state.ticked.push(id);
+        drawBar(); draw();
+      };
+      const lb = root.querySelector("#pj-link");
+      if (lb) lb.onclick = () => { state.linking = !state.linking; if (!state.linking) state.ticked = []; syncLinkBtn(); drawBar(); draw(); };
       draw(false);
       root.querySelectorAll("[data-opt]").forEach(c => c.onchange = () => { state[c.dataset.opt] = c.checked; if (c.dataset.opt !== "mine") store.set(c.dataset.opt, c.checked); draw(); });
       const zoom = () => root.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => {
@@ -279,7 +306,8 @@ function openTask(t, data, who, refresh) {
   if (!t) return;
   const name = id => (who.get(id) || { name: `Resource ${id}` }).name;
   const title = id => (data.tasks.find(x => x.id === id) || { title: `Task ${id}` }).title;
-  const before = data.links.filter(l => l.succ === t.id).map(l => title(l.pred) + (l.lag ? ` (+${l.lag} days)` : ""));
+  const beforeLinks = data.links.filter(l => l.succ === t.id);
+  const before = beforeLinks.map(l => title(l.pred) + (l.lag ? ` (+${l.lag} days)` : ""));
   const after = data.links.filter(l => l.pred === t.id).map(l => title(l.succ));
   const canWork = !!data.me && (t.mine || data.can.logAnyTask);
   const d = dialog({
@@ -289,7 +317,9 @@ function openTask(t, data, who, refresh) {
       <dt>Dates</dt><dd>${esc(fmtD(t.start))} – ${esc(fmtD(t.end))}${t.baseline && (t.baseline.start !== t.start || t.baseline.end !== t.end) ? `<div class="dim small">Baseline ${esc(fmtD(t.baseline.start))} – ${esc(fmtD(t.baseline.end))}</div>` : ""}</dd>
       <dt>Assigned</dt><dd>${t.resource ? esc(name(t.resource)) : "Nobody"}${t.roleName ? ` <span class="dim">(${esc(t.roleName)})</span>` : ""}${t.secondary.length ? `<div class="dim small">Also: ${esc(t.secondary.map(name).join(", "))}</div>` : ""}</dd>
       <dt>Hours</dt><dd>${hrs(t.worked)} worked of ${hrs(t.estimated)} estimated${t.remaining !== null ? ` · ${hrs(t.remaining)} remaining` : ""}</dd>
-      ${before.length ? `<dt>Waits for</dt><dd>${esc(before.join(", "))}</dd>` : ""}
+      ${before.length ? `<dt>Waits for</dt><dd>${data.can.reschedule
+        ? beforeLinks.map((l, i) => `<div class="dep">${esc(before[i])} <button type="button" class="link-btn small" data-unlink="${l.id}">Remove</button></div>`).join("")
+        : esc(before.join(", "))}</dd>` : ""}
       ${after.length ? `<dt>Then</dt><dd>${esc(after.join(", "))}</dd>` : ""}
     </dl>
     ${canWork ? `<div class="task-acts"><button type="button" class="btn" data-act="time">${icon("clock", "i-sm")}Log time</button>
@@ -297,6 +327,17 @@ function openTask(t, data, who, refresh) {
       : !data.me ? `<p class="small dim">To log time here, your Pulse account needs linking to your Autotask resource (People and departments).</p>` : ""}`,
   });
   d.querySelectorAll("[data-act]").forEach(b => b.onclick = () => { d.close(); (b.dataset.act === "time" ? logTime : markComplete)(t, data, refresh); });
+  d.querySelectorAll("[data-unlink]").forEach(b => b.onclick = () => {
+    const l = data.links.find(x => String(x.id) === b.dataset.unlink);
+    d.close();
+    dialog({
+      title: "Remove this dependency?",
+      intro: `"${esc(t.title)}" will no longer wait for "${esc(title(l.pred))}" in Autotask. No dates change.`,
+      fields: [{ name: "reason", label: "Reason", type: "textarea", rows: 2, hint: "Kept in the audit log." }],
+      submit: "Remove dependency", danger: true,
+      onSubmit: async f => { await api(`/projects/${data.project.id}/links/${l.id}`, { method: "DELETE", body: { reason: f.reason || null } }); toast("Dependency removed"); refresh(); },
+    });
+  });
 }
 
 function logTime(t, data, refresh) {
@@ -324,6 +365,51 @@ function markComplete(t, data, refresh) {
     intro: `Sets the task to Complete in Autotask.${t.remaining ? ` It still shows ${esc(hrs(t.remaining))} remaining; log any last time first.` : ""}`,
     submit: "Mark complete",
     onSubmit: async () => { await api(`/projects/tasks/${t.id}/complete`, { method: "POST", body: {} }); toast("Task completed"); refresh(); },
+  });
+}
+
+/** Linking ticked tasks: choose the shape, preview the links (and any date moves), then save to Autotask. */
+function linkDialog(data, ids, done) {
+  const pid = data.project.id;
+  const name = id => (data.tasks.find(t => t.id === id) || {}).title || `Task ${id}`;
+  dialog({
+    title: `Link ${ids.length} tasks`,
+    intro: `In the order you ticked them: ${esc(ids.map(name).join(" → "))}.`,
+    fields: [
+      { name: "shape", label: "How do they depend on each other?", type: "select", value: "chain", options: [
+        { v: "chain", t: "One after another, in the order ticked" },
+        { v: "after", t: `All the others wait for "${name(ids[0])}"` },
+        { v: "before", t: `"${name(ids[ids.length - 1])}" waits for all the others` },
+      ] },
+      { name: "lag", label: "Gap between them (working days)", type: "number", value: 0 },
+      { name: "schedule", label: "Move tasks that would start too early, so each starts after the one it waits for", type: "checkbox", value: true },
+    ],
+    submit: "Preview",
+    onSubmit: async f => {
+      const body = { taskIds: ids, shape: f.shape, lag: Number(f.lag) || 0, schedule: !!f.schedule };
+      const pv = await api(`/projects/${pid}/links/preview`, { method: "POST", body });
+      setTimeout(() => confirmLinks(pid, body, pv, done), 0);
+    },
+  });
+}
+
+function confirmLinks(pid, body, pv, done) {
+  const links = pv.add.map(l => `<li>"${esc(l.succTitle)}" waits for "${esc(l.predTitle)}"${l.lag ? ` + ${l.lag} working day${l.lag === 1 ? "" : "s"}` : ""}</li>`).join("");
+  const moves = pv.moves.map(c => `<tr><td>${esc(c.title)}</td><td class="nowrap">${esc(fmtD(c.from.start))} – ${esc(fmtD(c.from.end))}</td><td class="nowrap"><b>${esc(fmtD(c.start))} – ${esc(fmtD(c.end))}</b></td></tr>`).join("");
+  dialog({
+    title: pv.add.length ? `Add ${pv.add.length} dependenc${pv.add.length === 1 ? "y" : "ies"} in Autotask?` : "Nothing new to add",
+    extra: `${pv.add.length ? `<ul class="dep-list">${links}</ul>` : ""}
+      ${pv.already.length ? `<p class="small dim">Already linked: ${esc(pv.already.map(l => `${l.succTitle} → ${l.predTitle}`).join("; "))}.</p>` : ""}
+      ${pv.moves.length ? `<p class="small"><b>${pv.moves.length} task${pv.moves.length === 1 ? "" : "s"} will move</b> so nothing starts before what it waits for:</p>
+        <div class="tbl-wrap"><table class="compact move-tbl"><thead><tr><th>Task</th><th>Now</th><th>New dates</th></tr></thead><tbody>${moves}</tbody></table></div>`
+        : body.schedule && pv.add.length ? `<p class="small dim">No dates need to change.</p>` : ""}`,
+    fields: pv.add.length ? [{ name: "reason", label: "Reason", type: "textarea", rows: 2, hint: "Kept in the audit log." }] : [],
+    submit: "Save to Autotask",
+    onSubmit: pv.add.length ? async f => {
+      const r = await api(`/projects/${pid}/links`, { method: "POST", body: { ...body, expect: pv.moves, reason: f.reason || null } });
+      toast(`${r.added} dependenc${r.added === 1 ? "y" : "ies"} added${r.moved ? `, ${r.moved} task${r.moved === 1 ? "" : "s"} moved` : ""}`);
+      done();
+    } : null,
   });
 }
 

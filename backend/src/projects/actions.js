@@ -9,6 +9,9 @@
  *   POST /projects/:id/reschedule       { taskId, start, end, expect, reason? }       saves the previewed plan
  *   POST /projects/:id/reschedule/undo  { changes }                                   puts those tasks back
  *   POST /projects/:id/baseline         {}                                            saves today's plan as the baseline
+ *   POST /projects/:id/links/preview    { taskIds, shape, lag, schedule }             dependencies for ticked tasks
+ *   POST /projects/:id/links            { taskIds, shape, lag, schedule, expect }     adds them in Autotask (and moves dates)
+ *   DELETE /projects/:id/links/:linkId  { reason? }                                   removes one dependency
  */
 const at = require("../lib/autotask");
 const db = require("../lib/sql");
@@ -91,7 +94,9 @@ async function projectPlan(projectId) {
     db.query("SELECT day FROM pulse.holiday"),
   ]);
   const tasks = rows.map(r => ({ id: r.id, title: r.title, start: L.toDay(r.start_at), end: L.toDay(r.end_at), complete: !!r.is_complete, raw: r }));
-  return { tasks, preds, hol: new Set(hol.map(h => new Date(h.day).toISOString().slice(0, 10))) };
+  const links = await db.query(`SELECT pr.id, pr.predecessor_task_id AS pred, pr.successor_task_id AS succ, pr.lag_days AS lag FROM pulse.at_task_predecessor pr
+               JOIN pulse.at_task t ON t.id = pr.successor_task_id WHERE t.project_id = @id`, { id: projectId });
+  return { tasks, preds, links, hol: new Set(hol.map(h => new Date(h.day).toISOString().slice(0, 10))) };
 }
 
 function planFor(ctx, plan) {
@@ -178,6 +183,72 @@ async function saveBaseline(ctx) {
   return { ok: true, tasks: n };
 }
 
+/* ---------------- dependencies ---------------- */
+const SHAPES = ["chain", "after", "before"];
+
+function linkPlan(ctx, plan) {
+  const b = ctx.body || {};
+  const ids = Array.isArray(b.taskIds) ? b.taskIds.map(Number).filter(Boolean) : [];
+  if (new Set(ids).size !== ids.length || ids.length < 2) throw C.fail(400, "Tick at least two different tasks.");
+  if (ids.length > 50) throw C.fail(400, "Link up to 50 tasks at a time.");
+  const missing = ids.find(id => !plan.tasks.some(t => t.id === id));
+  if (missing) throw C.fail(400, "Every task must belong to this project.");
+  if (!SHAPES.includes(b.shape)) throw C.fail(400, "Choose how the tasks depend on each other.");
+  const lag = Math.max(0, Math.min(60, Math.round(Number(b.lag) || 0)));
+  const title = id => plan.tasks.find(t => t.id === id).title;
+  const wanted = L.linksFor(ids, b.shape, lag);
+  const exists = l => plan.links.some(x => x.pred === l.pred && x.succ === l.succ);
+  const add = wanted.filter(l => !exists(l));
+  const already = wanted.filter(exists);
+  const loop = L.findLoop(plan.preds, add);
+  if (loop) throw C.fail(409, `That would make a loop: "${title(loop.pred)}" already waits (directly or indirectly) for "${title(loop.succ)}".`);
+  const moves = b.schedule ? L.pushForLinks(plan.tasks, plan.preds, add, plan.hol) : [];
+  const describeL = l => ({ ...l, predTitle: title(l.pred), succTitle: title(l.succ) });
+  return { add: add.map(describeL), already: already.map(describeL), moves: describe(moves, plan) };
+}
+
+async function linksPreview(ctx) {
+  const projectId = C.int(ctx.params.id, "Project");
+  return linkPlan(ctx, await projectPlan(projectId));
+}
+
+async function addLinks(ctx) {
+  const projectId = C.int(ctx.params.id, "Project");
+  const plan = await projectPlan(projectId);
+  const p = linkPlan(ctx, plan);
+  const key = list => list.map(c => `${c.id}:${c.start}:${c.end}`).sort().join("|");
+  if (!Array.isArray(ctx.body.expect) || key(ctx.body.expect) !== key(p.moves)) throw C.fail(409, "The project changed since the preview. Look at the changes again before saving.");
+  if (!p.add.length) return { ok: true, added: 0, moved: 0 };
+  const reason = ctx.body.reason ? C.text(ctx.body.reason, 1000) : null;
+  // Dates first, so Autotask never holds a link its dates contradict for long; then the links.
+  if (p.moves.length) await write(ctx, projectId, plan, p.moves, "project.reschedule", reason || "Moved for new dependencies");
+  let added = 0;
+  try {
+    for (const l of p.add) {
+      await at.create(MOD, "TaskPredecessors", { predecessorTaskID: l.pred, successorTaskID: l.succ, lagDays: l.lag }, ["Tasks", l.succ]);
+      added++;
+      await C.record(ctx, "project.link.add", { type: "task", id: String(l.succ) }, null, { waitsFor: l.pred, lagDays: l.lag }, reason);
+    }
+  } catch (e) {
+    await sync.syncProjects([projectId]).catch(() => {});
+    throw C.fail(502, `${added} of ${p.add.length} dependencies were added before Autotask refused one: ${e.message}`);
+  }
+  await sync.syncProjects([projectId]).catch(() => {});
+  return { ok: true, added, moved: p.moves.length };
+}
+
+async function removeLink(ctx) {
+  const projectId = C.int(ctx.params.id, "Project");
+  const linkId = C.int(ctx.params.linkId, "Dependency");
+  const plan = await projectPlan(projectId);
+  const l = plan.links.find(x => Number(x.id) === linkId);
+  if (!l) throw C.fail(404, "That dependency isn't in this project. Refresh from Autotask and try again.");
+  await at.remove(MOD, "TaskPredecessors", linkId, ["Tasks", l.succ]);
+  await C.record(ctx, "project.link.remove", { type: "task", id: String(l.succ) }, { waitsFor: l.pred, lagDays: l.lag }, null, ctx.body && ctx.body.reason ? C.text(ctx.body.reason, 1000) : null);
+  await sync.syncProjects([projectId]).catch(() => {});
+  return { ok: true };
+}
+
 const pm = a => a.editSchedules;
 const routes = [
   { method: "POST", path: "/projects/tasks/:id/time", auth: "person", allow: a => a.viewProjects, fn: logTime },
@@ -186,6 +257,9 @@ const routes = [
   { method: "POST", path: "/projects/:id/reschedule/undo", auth: "person", allow: pm, fn: undo },
   { method: "POST", path: "/projects/:id/reschedule", auth: "person", allow: pm, fn: reschedule },
   { method: "POST", path: "/projects/:id/baseline", auth: "person", allow: pm, fn: saveBaseline },
+  { method: "POST", path: "/projects/:id/links/preview", auth: "person", allow: pm, fn: linksPreview },
+  { method: "POST", path: "/projects/:id/links", auth: "person", allow: pm, fn: addLinks },
+  { method: "DELETE", path: "/projects/:id/links/:linkId", auth: "person", allow: pm, fn: removeLink },
 ];
 
 module.exports = { routes, _test: { onDay } };

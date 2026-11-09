@@ -106,7 +106,7 @@ const span = ts => { const d = ts.flatMap(t => [t.start, t.end]).sort(); return 
 const name = id => (PEOPLE.find(p => p.id === id) || { name: `Resource ${id}` }).name;
 
 const delta = (a, b) => (a === b ? 0 : b > a ? workdays(addDays(a, 1), b) : -workdays(addDays(b, 1), a));
-function reschedule(tasks, links, { id, start, end }) {
+function reschedule(tasks, links, { id, start, end }, succOnly = false) {
   const byId = new Map(tasks.map(t => [t.id, t])), t0 = byId.get(id);
   if (end < start) { const e = new Error("A task can't end before it starts."); e.status = 400; throw e; }
   const dEnd = delta(t0.end, end), dStart = delta(t0.start, start);
@@ -117,7 +117,7 @@ function reschedule(tasks, links, { id, start, end }) {
       for (const n of map.get(tid) || []) q.push([n, tid]); } };
   const succ = new Map(), pred = new Map();
   for (const l of links) { (succ.get(l.pred) || succ.set(l.pred, []).get(l.pred)).push(l.succ); (pred.get(l.succ) || pred.set(l.succ, []).get(l.succ)).push(l.pred); }
-  go(succ, dEnd); go(pred, dStart);
+  go(succ, dEnd); if (!succOnly) go(pred, dStart);
   return [...out.values()].map(c => ({ ...c, title: byId.get(c.id).title, becauseTitle: c.because ? byId.get(c.because).title : null }));
 }
 
@@ -194,6 +194,38 @@ export function projectsApi(p, method, body, a, me) {
     }
     if (mm[2] === "complete" || body.complete === true || body.complete === "on") { t.complete = true; t.remaining = 0; }
     return { ok: true };
+  }
+  if ((mm = /^\/projects\/(\d+)\/links(?:\/(preview|\d+))?$/.exec(p))) {
+    if (!a.editSchedules) bad(403, "Only Project Managers and Leadership can change dependencies.");
+    const pid = Number(mm[1]);
+    if (method === "DELETE") { const i = d.links.findIndex(l => l.id === Number(mm[2])); d.links.splice(i, 1); return { ok: true }; }
+    const ids = body.taskIds, lag = Number(body.lag) || 0, title = id => d.tasks.find(t => t.id === id).title;
+    const want = body.shape === "chain" ? ids.slice(1).map((s, i) => ({ pred: ids[i], succ: s, lag })) : body.shape === "after" ? ids.slice(1).map(s => ({ pred: ids[0], succ: s, lag })) : ids.slice(0, -1).map(x => ({ pred: x, succ: ids[ids.length - 1], lag }));
+    const has = l => d.links.some(x => x.pred === l.pred && x.succ === l.succ);
+    const add = want.filter(l => !has(l)), already = want.filter(has);
+    const reach = (from, to, ls) => { const seen = new Set(), st = [from]; while (st.length) { const n = st.pop(); if (n === to) return true; if (seen.has(n)) continue; seen.add(n); st.push(...ls.filter(l => l.pred === n).map(l => l.succ)); } return false; };
+    const all = [...d.links, ...add];
+    const loop = add.find(l => reach(l.succ, l.pred, all));
+    if (loop) bad(409, `That would make a loop: "${title(loop.pred)}" already waits for "${title(loop.succ)}".`);
+    let moves = [];
+    if (body.schedule) {
+      const ts = d.tasks.filter(t => t.projectId === pid).map(t => ({ ...t })), moved = new Map();
+      for (let g = 0; g < 30; g++) { let ch = false;
+        for (const l of all) { const x = ts.find(t => t.id === l.pred), y = ts.find(t => t.id === l.succ); if (!x || !y || y.complete) continue;
+          const earliest = nextWork(addWork(x.end, 1 + (l.lag || 0))); if (y.start >= earliest) continue;
+          const len = workdays(y.start, y.end) - 1;
+          for (const c of reschedule(ts, all, { id: y.id, start: earliest, end: addWork(earliest, Math.max(0, len)) }, true)) {
+            const t = ts.find(z => z.id === c.id); if (!moved.has(c.id)) moved.set(c.id, { from: { start: t.start, end: t.end }, because: c.because || l.pred }); t.start = c.start; t.end = c.end; }
+          ch = true; }
+        if (!ch) break; }
+      moves = [...moved].map(([id, m]) => { const t = ts.find(z => z.id === id); return { id, start: t.start, end: t.end, from: m.from, because: m.because, title: t.title }; });
+    }
+    const desc = l => ({ ...l, predTitle: title(l.pred), succTitle: title(l.succ) });
+    if (mm[2] === "preview") return { add: add.map(desc), already: already.map(desc), moves };
+    for (const c of moves) { const t = d.tasks.find(x => x.id === c.id); t.start = c.start; t.end = c.end; }
+    let next = Math.max(0, ...d.links.map(l => l.id));
+    for (const l of add) d.links.push({ id: ++next, ...l });
+    return { ok: true, added: add.length, moved: moves.length };
   }
   if ((mm = /^\/projects\/(\d+)\/(reschedule\/preview|reschedule|reschedule\/undo|baseline)$/.exec(p))) {
     if (!a.editSchedules) bad(403, "Only Project Managers and Leadership can reschedule.");
