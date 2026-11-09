@@ -65,3 +65,30 @@ test("projects access: Managed Services view, Project Managers and Leadership re
   assert.deepEqual([sales.viewProjects, sales.editSchedules, sales.viewLeadTime], [false, false, true]);
   assert.deepEqual([lead.viewProjects, lead.editSchedules], [true, true]);
 });
+
+test("allocation: remaining hours spread over remaining working days; overdue work lands today", () => {
+  const today = "2026-11-11";   // Wednesday
+  const pieces = L.spread([
+    { id: 1, projectId: 9, resource: 5, start: "2026-11-09", end: "2026-11-13", remaining: 9, complete: false },   // Wed–Fri: 3 h a day
+    { id: 2, projectId: 9, resource: 5, start: "2026-11-02", end: "2026-11-06", remaining: 4, complete: false },   // overdue
+    { id: 3, projectId: 9, resource: 5, start: "2026-11-16", end: "2026-11-17", estimated: 10, worked: 2, remaining: null, complete: false },
+    { id: 4, projectId: 9, resource: 5, start: "2026-11-16", end: "2026-11-17", remaining: 5, complete: true },
+  ], today);
+  const sum = (f) => pieces.filter(f).reduce((s, p) => s + p.hours, 0);
+  assert.equal(sum(p => p.taskId === 1 && p.day === "2026-11-12"), 3);
+  assert.equal(sum(p => p.taskId === 2 && p.day === today && p.overdue), 4);
+  assert.equal(sum(p => p.taskId === 3), 8);
+  assert.equal(sum(p => p.taskId === 4), 0);
+});
+
+test("capacity and lead time: 7.6 h days less holidays, leave and the non-project share; extra people shorten it", () => {
+  assert.equal(L.capacity("2026-11-09", 0, null, 0), 38);
+  assert.equal(Math.round(L.capacity("2026-12-21", 7.6, hol, 0.2) * 10) / 10, Math.round((4 * 7.6 - 7.6) * 0.8 * 10) / 10);   // 25 Dec off; 28 Dec is next week
+  const weekly = L.weeksFrom("2026-11-11", 6).map(week => ({ week, capacity: 100 }));
+  const base = L.leadTime(250, weekly);
+  assert.equal(base.weeks, 2.5);
+  assert.equal(base.clearsWeek, "2026-11-30");
+  const more = L.leadTime(250, weekly, [{ count: 2, hoursPerWeek: 30, from: "2026-11-09" }]);
+  assert.ok(more.weeks < base.weeks);
+  assert.equal(L.leadTime(0, weekly).weeks, 0);
+});

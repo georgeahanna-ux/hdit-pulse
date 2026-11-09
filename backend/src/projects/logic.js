@@ -141,3 +141,64 @@ function reschedule(tasks, preds, { id, start, end }, hol) {
 }
 
 module.exports = { toDay, isWorkday, workdays, addWorkdays, nextWorkday, workdayDelta, percentComplete, health, floatAndCritical, reschedule };
+
+/* ---------------- resource planning (0.6.2) ---------------- */
+const HOURS_PER_DAY = 7.6;
+
+/** Mondays of the next n weeks, starting with the week containing `today`. */
+function weeksFrom(today, n) {
+  const mon = time.addDays(today, -((dow(today) + 6) % 7));
+  return Array.from({ length: n }, (_, i) => time.addDays(mon, 7 * i));
+}
+
+/**
+ * Hours each open task still needs, spread evenly over its remaining working days (from today or
+ * its start, to its end). Overdue work (end before today) lands on today. Returns
+ * [{ taskId, projectId, resource, day, hours }] at day level, summed into weeks by the caller.
+ */
+function spread(tasks, today, hol) {
+  const out = [];
+  for (const t of tasks) {
+    if (t.complete) continue;
+    const left = Math.max(0, t.remaining ?? Math.max(0, (t.estimated || 0) - (t.worked || 0)));
+    if (!left) continue;
+    if (!t.end || t.end < today) { out.push({ ...pick(t), day: nextWorkday(today, hol), hours: left, overdue: true }); continue; }
+    const from = nextWorkday(t.start && t.start > today ? t.start : today, hol);
+    const days = [];
+    for (let d = from; d <= t.end; d = time.addDays(d, 1)) if (isWorkday(d, hol)) days.push(d);
+    if (!days.length) { out.push({ ...pick(t), day: from, hours: left }); continue; }
+    for (const d of days) out.push({ ...pick(t), day: d, hours: left / days.length });
+  }
+  return out;
+}
+const pick = t => ({ taskId: t.id, projectId: t.projectId, resource: t.resource || null });
+const weekOfDay = d => time.addDays(d, -((dow(d) + 6) % 7));
+
+/** Project capacity of one person in a week: working days × 7.6 h less leave, less the non-project share. */
+function capacity(week, leaveHours, hol, share) {
+  const days = workdays(week, time.addDays(week, 4), hol);
+  return Math.max(0, (days * HOURS_PER_DAY - (leaveHours || 0)) * (1 - share));
+}
+
+/**
+ * Lead time by capacity: weeks to clear `backlog` hours at each week's team capacity (plus any
+ * extra people from their start week). Returns { weeks, clearsWeek, burn: [remaining after each week] }.
+ */
+function leadTime(backlog, weekly, extra = []) {
+  let left = backlog;
+  const burn = [];
+  let i = 0;
+  const cap = j => {
+    const base = weekly[Math.min(j, weekly.length - 1)].capacity;
+    const wk = weekly[Math.min(j, weekly.length - 1)].week;
+    const add = extra.reduce((s, e) => s + (j >= weekly.length || !e.from || wk >= e.from ? (e.count || 0) * (e.hoursPerWeek || 0) : 0), 0);
+    return base + add;
+  };
+  while (left > 0.01 && i < 260) { const c = cap(i); if (c <= 0 && i >= weekly.length) break; left = Math.max(0, left - c); burn.push(Math.round(left)); i++; }
+  const lastCap = cap(Math.max(0, i - 1)) || 1;
+  const partial = i ? (burn.length > 1 ? burn[burn.length - 2] : backlog) / lastCap : 0;
+  const weeks = left > 0.01 ? null : Math.max(0, Math.round(((i - 1) + Math.min(1, partial)) * 10) / 10);
+  return { weeks, clearsWeek: weeks === null ? null : weekly[0] && time.addDays(weekly[0].week, 7 * Math.ceil(weeks || 0)), burn };
+}
+
+Object.assign(module.exports, { HOURS_PER_DAY, weeksFrom, spread, weekOfDay, capacity, leadTime });

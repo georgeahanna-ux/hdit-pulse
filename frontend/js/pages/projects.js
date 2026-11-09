@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { esc, icon, toast, fmtDateTime } from "../ui.js";
 import { dialog, empty } from "../components.js";
 import { ganttHtml, scrollToDay, SCALES, enableDrag } from "../gantt.js";
+import { projectTabs } from "./planning.js";
 
 const HEALTH = {
   "late": { label: "Late", cls: "alert" },
@@ -83,6 +84,7 @@ export async function programmePage(me) {
 
   const html = `<div class="ph"><span class="hd-eyebrow">Managed Services</span><h1>Projects</h1>
       <p>Every open project in Autotask, grouped by client. Select a project to see its tasks.</p></div>
+    ${projectTabs(me, "programme")}
     ${data.clients.length ? tiles : ""}
     <div class="pj-bar">
       <label class="fld inline"><span class="sr">Find</span><input type="search" id="pj-q" placeholder="Find a client, project or lead"></label>

@@ -121,12 +121,63 @@ function reschedule(tasks, links, { id, start, end }) {
   return [...out.values()].map(c => ({ ...c, title: byId.get(c.id).title, becauseTitle: c.because ? byId.get(c.because).title : null }));
 }
 
+let pvShare = 0.2, pvDepts = ["Projects"];
+const monday = s => addDays(s, -((dow(s) + 6) % 7));
+function planning(d, nWeeks) {
+  const today = d.today, weeks = Array.from({ length: nWeeks }, (_, i) => addDays(monday(today), 7 * i));
+  const pieces = [];
+  for (const t of d.tasks) {
+    if (t.complete || !t.remaining) continue;
+    if (t.end < today) { pieces.push({ taskId: t.id, resource: t.resource, day: nextWork(today), hours: t.remaining, overdue: true }); continue; }
+    const from = nextWork(t.start > today ? t.start : today), days = [];
+    for (let x = from; x <= t.end; x = addDays(x, 1)) if (work(x)) days.push(x);
+    for (const x of days.length ? days : [from]) pieces.push({ taskId: t.id, resource: t.resource, day: x, hours: t.remaining / Math.max(1, days.length) });
+  }
+  const leave = { "106": { [weeks[1]]: 15.2 }, "101": { [weeks[3]]: 38 } };
+  const cap = (rid, w) => Math.max(0, (5 * 7.6 - ((leave[rid] || {})[w] || 0)) * (1 - pvShare));
+  return { weeks, pieces, leave, cap };
+}
+
 export function projectsApi(p, method, body, a, me) {
   if (!p.startsWith("/projects")) return null;
-  if (!a.viewProjects) { const e = new Error("You don't have access to that."); e.status = 403; throw e; }
+  const bad0 = s => { const e = new Error("You don't have access to that."); e.status = s; throw e; };
+  if (!a.viewProjects && !(p === "/projects/lead-time" && a.viewLeadTime)) bad0(403);
   const d = built || build();
   const today = d.today;
   if (p === "/projects/refresh") return { ok: true, detail: "Preview: re-read (simulated)." };
+  if (p === "/projects/settings") { pvShare = body.nonProjectShare; pvDepts = body.departments || pvDepts; return { ok: true }; }
+  if (p.startsWith("/projects/resources")) {
+    const n = Number((/weeks=(\d+)/.exec(p) || [])[1]) || 12;
+    const pl = planning(d, n), last = pl.weeks[pl.weeks.length - 1];
+    const ids = [...new Set([...pl.pieces.map(x => x.resource).filter(Boolean), ...PEOPLE.filter(x => pvDepts.includes(x.department)).map(x => x.id)])];
+    const cell = (rid, w) => { const mine = pl.pieces.filter(x => x.resource === rid && monday(x.day) === w); const by = new Map(); for (const x of mine) by.set(x.taskId, (by.get(x.taskId) || 0) + x.hours);
+      return { week: w, leave: rid ? (pl.leave[rid] || {})[w] || 0 : 0, capacity: rid ? Math.round(pl.cap(String(rid), w) * 10) / 10 : null, allocated: Math.round(mine.reduce((s, x) => s + x.hours, 0) * 10) / 10,
+        overdue: mine.some(x => x.overdue), tasks: [...by].map(([taskId, hours]) => ({ taskId, hours: Math.round(hours * 10) / 10 })) }; };
+    const people = ids.map(id => ({ ...PEOPLE.find(x => x.id === id), weeks: pl.weeks.map(w => cell(id, w)) })).sort((x, y) => x.department.localeCompare(y.department) || x.name.localeCompare(y.name));
+    const unassigned = pl.weeks.map(w => cell(null, w));
+    return { today, share: pvShare, departments: pvDepts, allDepartments: [...new Set(PEOPLE.map(x => x.department))].sort(), holidays: [],
+      weeks: pl.weeks.map((w, i) => ({ week: w, capacity: Math.round(people.reduce((s, x) => s + x.weeks[i].capacity, 0)), allocated: Math.round(people.reduce((s, x) => s + x.weeks[i].allocated, 0)) })),
+      people, unassigned, tasks: Object.fromEntries(d.tasks.map(t => [t.id, { title: t.title, projectId: t.projectId }])),
+      projects: Object.fromEntries(d.projects.map(x => [x.id, { id: x.id, name: x.name, company: x.company }])),
+      beyond: Math.round(pl.pieces.filter(x => monday(x.day) > last).reduce((s, x) => s + x.hours, 0)), can: { settings: !!a.editSchedules } };
+  }
+  if (p === "/projects/lead-time") {
+    if (!a.viewLeadTime) bad0(403);
+    const pl = planning(d, 26);
+    const ids = [...new Set([...pl.pieces.map(x => x.resource).filter(Boolean), ...PEOPLE.filter(x => pvDepts.includes(x.department)).map(x => x.id)])];
+    const weekly = pl.weeks.map(w => ({ week: w, capacity: Math.round(ids.reduce((s, id) => s + pl.cap(String(id), w), 0) * 10) / 10 }));
+    const backlog = pl.pieces.reduce((s, x) => s + x.hours, 0);
+    let left = backlog, i = 0; const burn = [];
+    while (left > 0.01 && i < 260) { left = Math.max(0, left - weekly[Math.min(i, 25)].capacity); burn.push(Math.round(left)); i++; }
+    const partial = i ? (burn.length > 1 ? burn[burn.length - 2] : backlog) / weekly[Math.min(i - 1, 25)].capacity : 0;
+    const weeks = Math.round(((i - 1) + Math.min(1, partial)) * 10) / 10;
+    const ends = d.tasks.filter(t => !t.complete).map(t => t.end).sort();
+    return { today, share: pvShare,
+      backlog: { hours: Math.round(backlog), manDays: Math.round(backlog / 7.6 * 10) / 10, manWeeks: Math.round(backlog / 38 * 10) / 10, unassigned: 0,
+        overdue: Math.round(pl.pieces.filter(x => x.overdue).reduce((s, x) => s + x.hours, 0)), projects: new Set(d.tasks.filter(t => !t.complete).map(t => t.projectId)).size },
+      team: { people: ids.length, names: ids.map(id => PEOPLE.find(x => x.id === id).name).sort(), weeklyCapacity: Math.round(weekly.slice(0, 8).reduce((s, w) => s + w.capacity, 0) / 8) },
+      weekly, base: { weeks, clearsWeek: addDays(weekly[0].week, 7 * Math.ceil(weeks)), burn }, scheduleEnds: ends[ends.length - 1], can: { model: true, settings: !!a.editSchedules } };
+  }
   const bad = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
   let mm;
   if ((mm = /^\/projects\/tasks\/(\d+)\/(time|complete)$/.exec(p))) {

@@ -107,6 +107,7 @@ const routes = [
 for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan"]) routes.push(...require(`../eos/${m}`).routes);
 routes.push(...require("./connections").routes);
 routes.push(...require("./people").routes);
+routes.push(...require("../projects/resources").routes);   // before /projects/:id
 routes.push(...require("../projects/routes").routes);
 routes.push(...require("../projects/actions").routes);
 

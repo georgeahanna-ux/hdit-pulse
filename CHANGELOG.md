@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2 — 9 November 2026
+Projects module, part 3 (D21): resource planner, lead time and what-if.
+- **Resource planner** (Projects → Resource planner): each person's project hours allocated against available, week by week for 8, 12 or 26 weeks, like MS Project's Resource Usage. Colour bands: under 60%, 60–85%, 85–100%, over-allocated; leave and overdue work marked. Expand a person to see the tasks behind each week. A whole-team row and an Unassigned row (open tasks with nobody on them). Tiles: next four weeks' utilisation, who's over-allocated, who's under 60%, unassigned hours.
+- **Allocation:** each open task's remaining hours (or estimate less time worked) spread evenly over its remaining working days; overdue work lands this week.
+- **Capacity:** 7.6 hours a working day, less public holidays and approved leave from Autotask, less a share kept for service desk and other work (20% to start). Project Managers set the share and which departments always appear (Capacity settings).
+- **Project lead time** (for Sales too, under Sales & Marketing): work in the queue in hours, person-days and person-weeks; the team's weekly project capacity; weeks to clear the queue; the week a new project could start; when the Autotask schedule's last task ends. Size a new project (hours, engineers) for an estimated start and finish. **What if:** add people (how many, project hours a week, from when) to see the new lead time and a burn-down chart against today's team. Counts open projects only (decided 9 Nov 2026). Nothing in the what-if is saved.
+- New endpoints `/projects/resources`, `/projects/lead-time`, `/projects/settings`. 2 new tests (99 in total).
+
 ## 0.6.1 — 9 November 2026
 Projects module, part 2 (D21): time entries, completing tasks and rescheduling.
 - **Log time** on a task from the project Gantt: day, hours, what you did, internal notes, and optionally mark the task complete. Saved to Autotask as a time entry as the person's own linked resource (People directory) and the task's role. Engineers on their own tasks (primary or secondary); Project Managers and Leadership on any. Last 30 days, 0.1–16 hours.
