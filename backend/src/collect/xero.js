@@ -63,10 +63,22 @@ function ebitda(pl) {
   return { value: pl.net + back - less, addBack: addBack.map(r => r.name), interestIncome: interestIncome.map(r => r.name) };
 }
 
-/** Services gross margin by SLI reporting codes (accountId → code), or overall gross margin when none are set. */
-function servicesMargin(pl, codeOf, rev, cost) {
+/**
+ * Services gross margin. byAccount: Finance's own list of account codes (decided 10 Nov 2026), matched
+ * on each P&L line's Xero account code; else SLI reporting codes; else the whole business's gross margin.
+ * codeOf: accountId → { code, reportingCode }.
+ */
+function servicesMargin(pl, codeOf, rev, cost, byAccount = null) {
+  if (codeOf && byAccount && (byAccount.rev.length || byAccount.cost.length)) {
+    const acc = r => (codeOf.get(r.accountId) || {}).code || "";
+    const sRevRows = pl.incomeRows.concat(pl.otherRows).filter(r => byAccount.rev.includes(acc(r)));
+    const sCostRows = pl.costRows.concat(pl.expenseRows).filter(r => byAccount.cost.includes(acc(r)));
+    const sRev = sRevRows.reduce((a, r) => a + r.value, 0), sCost = sCostRows.reduce((a, r) => a + r.value, 0);
+    if (!sRev) return { value: null, text: "No services revenue this month yet (Finance's SGM accounts)." };
+    return { value: r1((100 * (sRev - sCost)) / sRev), text: `Services revenue ${money(sRev)} (${sRevRows.length} accounts) less services cost ${money(sCost)} (${sCostRows.length} accounts), Finance's SGM account list.` };
+  }
   if (codeOf && (rev.length || cost.length)) {
-    const match = (r, list) => { const c = codeOf.get(r.accountId) || ""; return list.some(p => c === p || c.startsWith(p + ".")); };
+    const match = (r, list) => { const c = (codeOf.get(r.accountId) || {}).reportingCode || ""; return list.some(p => c === p || c.startsWith(p + ".")); };
     const sRev = pl.incomeRows.filter(r => match(r, rev)).reduce((a, r) => a + r.value, 0);
     const sCost = pl.costRows.concat(pl.expenseRows).filter(r => match(r, cost)).reduce((a, r) => a + r.value, 0);
     if (!sRev) return { value: null, text: "No services revenue this month yet (by the SLI reporting codes set in Pulse)." };
@@ -100,7 +112,8 @@ async function settings() {
   const s = Object.fromEntries(rows.map(r => [r.key, r.value]));
   const list = k => { try { const v = JSON.parse(s[k] || "[]"); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
   const gst = Number(s["xero.gst_rate"]);
-  return { gst: Number.isFinite(gst) ? gst : 0.1, sgmRevenue: list("xero.sgm_revenue_codes"), sgmCost: list("xero.sgm_cost_codes") };
+  return { gst: Number.isFinite(gst) ? gst : 0.1, sgmRevenue: list("xero.sgm_revenue_codes"), sgmCost: list("xero.sgm_cost_codes"),
+    sgmAccounts: { rev: list("xero.sgm_revenue_accounts"), cost: list("xero.sgm_cost_accounts") } };
 }
 
 /** Account id → reporting code, for SGM. Needs accounting.settings.read. */
@@ -108,7 +121,7 @@ async function reportingCodes(x, cache) {
   if (cache.codes !== undefined) return cache.codes;
   try {
     const r = await x.get("Accounts");
-    cache.codes = new Map((r.Accounts || []).map(a => [a.AccountID, a.ReportingCode || ""]));
+    cache.codes = new Map((r.Accounts || []).map(a => [a.AccountID, { code: String(a.Code || ""), reportingCode: a.ReportingCode || "" }]));
   } catch { cache.codes = null; }
   return cache.codes;
 }
@@ -140,8 +153,8 @@ async function collectWeek(week, cache, now = new Date()) {
   // Month so far (the month the week ends in): provisional until Finance closes it.
   const monthStart = day.slice(0, 8) + "01";
   const month = await pl(x, cache, monthStart, day);
-  const codes = s.sgmRevenue.length || s.sgmCost.length ? await reportingCodes(x, cache) : null;
-  const sgm = servicesMargin(month, codes, s.sgmRevenue, s.sgmCost);
+  const codes = s.sgmRevenue.length || s.sgmCost.length || s.sgmAccounts.rev.length ? await reportingCodes(x, cache) : null;
+  const sgm = servicesMargin(month, codes, s.sgmRevenue, s.sgmCost, s.sgmAccounts);
   out["xero.sgm"] = { value: sgm.value, provisional: true, detail: { text: `${sgm.text} Month to ${day}, provisional.` } };
   const e = ebitda(month);
   out["xero.ebitda_pct"] = month.revenue

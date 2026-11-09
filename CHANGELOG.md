@@ -6,6 +6,7 @@ Xero (D17): Connect to Xero and the finance measurables, on trial.
 - Each hourly run renews the token once and saves Xero's new refresh token before using it. If the connection lapses, the Connections card says to reconnect.
 - **On trial:** cash on hand (Bank Summary closing balances), debtor days (receivables ÷ last 91 days' revenue plus GST × 91), services gross margin (by SLI reporting codes once Finance sets them; the whole business's gross margin until then, labelled as such), EBITDA % (net profit plus depreciation, amortisation, interest and tax, less interest income, ÷ revenue). Monthly ones show month-to-date and provisional. FY plan **Revenue** fills in monthly from trading income.
 - A failing source no longer stops the others in the hourly run (the run is still marked failed so it shows).
+- **SGM by Finance's account list** (10 Nov 2026): revenue 41113, 41114, 41115, 45131 (I22); costs 51114, 51119, 57100, 57110, 57120, 57130, 57140, 57150, 57170, 57190, 51115, 52222, 51103 (C11–C13), matched by Xero account code (migration `0011_sgm_accounts`).
 - Migration `0010_xero`. 6 new tests (109 in total).
 
 ## 0.6.3 — 9 November 2026

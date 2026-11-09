@@ -29,9 +29,13 @@ test("EBITDA adds back depreciation, amortisation, interest and tax expense, and
 
 test("SGM by SLI reporting codes, or the whole business's gross margin until they're set", () => {
   const pl = X.profitAndLoss(PL);
-  const codes = new Map([["a1", "REV.SRV"], ["a2", "REV.SRV.PRJ"], ["a3", "REV.HW"], ["c1", "COS.SRV"], ["c2", "COS.HW"]]);
+  const codes = new Map([["a1", "REV.SRV"], ["a2", "REV.SRV.PRJ"], ["a3", "REV.HW"], ["c1", "COS.SRV"], ["c2", "COS.HW"]].map(([id, rc], i) => [id, { code: String(41110 + i), reportingCode: rc }]));
   const s = X.servicesMargin(pl, codes, ["REV.SRV"], ["COS.SRV"]);
   assert.equal(s.value, Math.round(1000 * (700000 - 250000) / 700000) / 10);   // 64.3
+  // Finance's account list wins (account codes, 10 Nov 2026): revenue 41110 + 41111, cost 41113 (c1).
+  const byAcc = X.servicesMargin(pl, codes, [], [], { rev: ["41110", "41111"], cost: ["41113"] });
+  assert.equal(byAcc.value, Math.round(1000 * (700000 - 250000) / 700000) / 10);
+  assert.match(byAcc.text, /Finance's SGM account list/);
   const all = X.servicesMargin(pl, null, [], []);
   assert.equal(all.value, 60.5);
   assert.match(all.text, /Whole-business gross margin/);
