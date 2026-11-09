@@ -33,13 +33,15 @@ test("Autotask client: follows paging, sends the right credential, stays on its 
   vault.getSecret = async name => ({ value: JSON.stringify({ username: "u-" + name, secret: "s", integrationCode: "ic", baseUrl: "https://webservices29.autotask.net/ATServicesRest/" }) });
   const seen = [];
   at._test.setFetch(async (url, opt) => {
-    seen.push({ url, user: opt.headers.UserName });
+    seen.push({ url, user: opt.headers.UserName, method: opt.method, body: opt.body });
     if (url.endsWith("/query")) return { ok: true, status: 200, json: async () => ({ items: [{ id: 1 }], pageDetails: { nextPageUrl: "https://webservices29.autotask.net/ATServicesRest/V1.0/Resources/query/next?paging=x" } }) };
     return { ok: true, status: 200, json: async () => ({ items: [{ id: 2 }], pageDetails: { nextPageUrl: null } }) };
   });
   const items = await at.query("people", "Resources", null, ["id"]);
   assert.deepEqual(items.map(i => i.id), [1, 2]);
   assert.ok(seen.every(s => s.user === "u-autotask-service"));
+  assert.equal(seen[1].method, "POST", "the next page of a POST query is POSTed again");
+  assert.equal(seen[1].body, seen[0].body, "with the same filter");
   at._test.setFetch(async () => ({ ok: true, status: 200, json: async () => ({ items: [], pageDetails: { nextPageUrl: "https://evil.example/steal" } }) }));
   await assert.rejects(at.query("people", "Resources"), /another address/);
 });

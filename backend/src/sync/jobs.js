@@ -105,7 +105,7 @@ const syncScorecard = () => collect.runScorecard({ isConnected });
 /* ---------------- Projects (D21) ---------------- */
 const syncProjects = () => require("../projects/sync").syncAll();
 
-const REQUESTABLE = { directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects };
+const REQUESTABLE = { connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects };
 
 /** Picks up "Refresh now" requests made in Pulse (oldest first, one of each job at a time). */
 async function runRequests(context) {

@@ -95,8 +95,10 @@ async function query(module, entity, filter, fields) {
   const items = [...(res.items || [])];
   let next = res.pageDetails && res.pageDetails.nextPageUrl;
   let pages = 1;
+  // Autotask's next-page address for a POST query must be POSTed again with the same body
+  // (GET there answers 405); a GET-style query (?search=) is followed with GET.
   while (next && pages < 200) {
-    res = await call(SECRET, "GET", next);
+    res = /[?&]search=/i.test(next) ? await call(SECRET, "GET", next) : await call(SECRET, "POST", next, body);
     items.push(...(res.items || []));
     next = res.pageDetails && res.pageDetails.nextPageUrl;
     pages++;
