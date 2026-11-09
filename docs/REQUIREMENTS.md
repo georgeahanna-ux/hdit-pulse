@@ -225,6 +225,7 @@ Pipeline, Marketing ROI and Whitespace Matrix are only relevant to Sales & Marke
 - **Capacity:** 7.6 hours a day less public holidays, leave booked in Autotask and a set share for non-project work.
 - **Lead time for Sales:** remaining hours on open projects ÷ project capacity, in man-days and man-weeks, and the earliest realistic start date for a new project of a given size. Counts open projects only.
 - **What-if:** the Project Manager adds resources (role, hours a week, from a date) to see the effect on lead time. Scenarios aren't saved to Autotask.
+- **Built 9 Nov 2026:** 0.6.0 programme and project Gantt; 0.6.1 time entry, complete, drag to reschedule with preview, undo and baseline; 0.6.2 resource planner, lead time (also under Sales & Marketing) and what-if. Non-project share starts at 20%, set by Project Managers.
 
 ## Release plan
 **Release 1: Leadership and EOS core**
