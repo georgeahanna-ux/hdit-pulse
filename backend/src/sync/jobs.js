@@ -12,9 +12,7 @@ const vault = require("../lib/vault");
 
 /** Credentials the sync app can read, with what each is for. Matches setup/pulse-setup.sh. */
 const CONNECTIONS = [
-  ["autotask-service", "Autotask API user: Service (tickets, projects, time entries)"],
-  ["autotask-people", "Autotask API user: People administration (resources, default departments)"],
-  ["autotask-finance", "Autotask API user: Finance (contracts, billing), read-only"],
+  ["autotask-service", "Autotask API user (one for all of Pulse; Pulse limits what each module can do)"],
   ["simplesat", "SimpleSAT API key, read-only"],
   ["xero-app", "Xero app (standard OAuth), read-only scopes"],
   ["xero-token", "Xero refresh token"],

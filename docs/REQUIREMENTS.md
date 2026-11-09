@@ -55,8 +55,8 @@ Starting list of 15 measurables; goals marked "set with owner" are refined by ea
 | 1 | MQLs | Faben Miglani | ≥ 7 a week (30 a month) | Autotask (Marketing ROI) | Weekly |
 | 2 | New MRR signed | Faben Miglani | Pace to $560K MRR | Autotask | Weekly |
 | 3 | Weighted pipeline (Stages 6–7) | Faben Miglani | Set with owner | Autotask (Pipeline) | Weekly |
-| 4 | New seats signed | Faben Miglani | ≥ 12.5 a week (650 a year) | Autotask contracts | Weekly |
-| 5 | Seats serviced | Tony Parzakonis | ≥ 2,350 | Autotask contracts / Datto RMM | Weekly |
+| 4 | New seats signed | Faben Miglani | ≥ 12.5 a week (650 a year) | Autotask: seats on opportunities won that week (primary quote) | Weekly |
+| 5 | Seats serviced | Tony Parzakonis | ≥ 2,350 | Autotask contracts (seat services, below) | Weekly |
 | 6 | SLA first response met | Tony Parzakonis | ≥ 95% | Autotask | Weekly |
 | 7 | Tickets closed per tech per day | Tony Parzakonis | Set with owner (Evergreen benchmark 10) | Autotask (techs = default department Service Desk, D16) | Weekly |
 | 8 | First-contact resolution | Tony Parzakonis | Set with owner | Autotask | Weekly |
@@ -71,6 +71,8 @@ Starting list of 15 measurables; goals marked "set with owner" are refined by ea
 Kept on division scorecards (roll up when red): patch and backup compliance, project budget, open ISO corrective actions, ESAT (quarterly), OML (quarterly).
 
 Definitions confirmed:
+- **Seat** (9 Nov 2026) = one unit of any of these Autotask contract services: *IT Support & Proactive Maintenance - Business Class Plan*; *Technical Services and Management*; *IT Managed Services Support - Business Class - Per User per Month*. Seats serviced counts them on recurring-service contracts in force; new seats counts them on the primary quote of opportunities won that week.
+- **MRR** (9 Nov 2026) = recurring contract services (and bundles) in force, each converted to a monthly amount (price × units ÷ months in the billing period).
 - **SGM** = SLI F18 Services Gross Margin.
 - **Profit** = SLI IS4 EBITDA as a % of revenue (not Adjusted EBITDA). HD IT rolling 4 quarters 11.8%; industry 10.5%; best in class 20.7%.
 - **OML** = SLI Operational Maturity Level.
@@ -96,7 +98,7 @@ Definitions confirmed:
 
 ### D7. API credentials: one central vault, separate API users per area (30 Oct 2026)
 - All integration credentials live in one Pulse Key Vault: Autotask, Xero, Datto RMM, SimpleSAT, IT Glue, CIPP, Microsoft Graph (SharePoint, Planner, Exchange, Teams) and Kaseya Quote Manager.
-- **Separate API users per area** with least privilege, e.g. Autotask: Sales (opportunities, quotes, companies), Service (tickets, projects, time entries), Finance (contracts, billing). Read-only wherever possible; write access only where Pulse changes something.
+- ~~Separate API users per area~~ **Changed 9 Nov 2026 for Autotask: one API user for all of Pulse**, so there's only one Autotask credential to manage and rotate. Least privilege is enforced inside Pulse instead: each module may only read and write the Autotask entities on its allow-list (people: resources, roles, departments, and editing resource role departments; scorecard: read-only tickets, time entries, holidays, contracts, services, opportunities, quotes; projects: read projects, phases, tasks, predecessors, companies, resources, time entries and time off, and edit tasks and add time entries). No module can delete. Every write is audited in Pulse, and Autotask's own history shows the Pulse API user. Other systems keep read-only keys.
 - Each Pulse module's identity can read only its own secrets (Key Vault RBAC at secret scope), so one compromised component can't reach every credential.
 - **Connections** page for Platform Admins: status, last successful use, owner, expiry, rotation due. Credentials are write-only (entered or rotated, never displayed). Every change logged. **Credential entry moved forward to 0.5.1 (3 Nov 2026)** so credentials are typed into Pulse rather than Cloud Shell; Autotask credentials are tested before saving.
 - Each source system's own audit log shows which Pulse area acted.
@@ -210,6 +212,19 @@ Pulse is organised so each person can go straight to their division, and from th
 - **Quarter targets are set by hand** (Leadership and Finance). For metrics that add up, Pulse flags it when the four quarters don't add up to the year.
 - **Actuals:** Finance enters month-end figures until Xero and Autotask fill them in automatically (0.6.0). Changing a figure that's already there needs a reason; every change is audited.
 - Seen by Leadership, Finance & Accounts and Finance detail.
+
+### D20. Apps sit under their division (9 Nov 2026)
+Pipeline, Marketing ROI and Whitespace Matrix are only relevant to Sales & Marketing, so they appear in the menu under that division rather than in a separate Apps section. Anyone who can open an app without seeing its division finds it under "Your apps". New modules follow the same rule (Projects under Managed Services).
+
+### D21. Projects module (9 Nov 2026)
+- Reads active Autotask projects (not templates) with phases, tasks, predecessors and resources.
+- **Programme view:** a Gantt chart of all open projects grouped by client; select a bar or project name to drill into the **project Gantt** (phases, tasks, dependencies, milestones, today line, progress, baseline).
+- **Engineers** select a task to log a time entry against it or mark it complete (their own tasks; Project Managers any).
+- **Rescheduling:** Project Managers and Leadership (new group *Pulse - Project Managers*) drag a bar to move it or drag its end to change its length. Changing an end date moves dependent (successor) tasks; changing a start date moves predecessor tasks. Pulse previews every task that will move, old and new dates, and saves them all to Autotask on confirmation; every change is audited and can be undone straight after.
+- **Resource planner** (like MS Project's Resource Usage): each resource's allocated vs available hours per week, over- and under-allocation highlighted.
+- **Capacity:** 7.6 hours a day less public holidays, leave booked in Autotask and a set share for non-project work.
+- **Lead time for Sales:** remaining hours on open projects ÷ project capacity, in man-days and man-weeks, and the earliest realistic start date for a new project of a given size. Counts open projects only.
+- **What-if:** the Project Manager adds resources (role, hours a week, from a date) to see the effect on lead time. Scenarios aren't saved to Autotask.
 
 ## Release plan
 **Release 1: Leadership and EOS core**

@@ -68,9 +68,7 @@ SYNC_GRAPH_PERMISSIONS="User.Read.All GroupMember.Read.All Tasks.ReadWrite.All"
 # Integration credentials: secret name | who reads it | what it is. Values are entered later
 # (Connections page, or Key Vault) and are never printed. "sync+" = read and write (token renewal).
 SECRETS=$(cat <<'EOF'
-autotask-service|api,sync|Autotask API user: Service (tickets, projects, time entries; creates tickets from Issues)
-autotask-people|api,sync|Autotask API user: People administration (resources and default departments)
-autotask-finance|sync|Autotask API user: Finance (contracts, billing), read-only
+autotask-service|api,sync|Autotask API user (one for all of Pulse; Pulse limits each module)
 simplesat|sync|SimpleSAT API key, read-only
 xero-app|sync|Xero app client id and secret (standard OAuth)
 xero-token|sync+|Xero refresh token, renewed every run

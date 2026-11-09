@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4 — 9 November 2026
+One Autotask connection; apps under their division; seats, new seats and MRR on trial.
+- **One Autotask API user for all of Pulse** (decided 9 Nov 2026, replacing D7's per-area users). Stored in the existing Key Vault secret `autotask-service`, so no Key Vault change is needed. Least privilege now lives in Pulse: each module (people, scorecard, projects) may only read and write the Autotask entities listed in `lib/autotask.js` `POLICY`; anything else is refused before a request leaves Pulse. No module can delete. The Connections page shows a single **Autotask** card listing every permission the API user needs.
+- **Apps sit under their division** in the menu: Pipeline, Marketing ROI and Whitespace Matrix under Sales & Marketing. Anyone who can open an app without seeing its division finds it under "Your apps".
+- **Seats serviced** and **New seats signed** fill in on trial (seat = units of the three seat services named by George on recurring-service contracts; new seats = seat quantity on won opportunities' primary quotes, by close date).
+- **FY plan:** MRR (recurring contract services converted to a monthly amount), Seats and New seats month-end figures fill in on trial from Autotask; Leadership or Finance switch each to automatic with a reason. Entered figures always take priority.
+- Migration `0007_seats_mrr`. 4 new tests (87 in total).
+
 ## 0.5.3 — 3 November 2026
 Milestone M2, part 2: Autotask collectors in trial ("shadow") mode.
 - Sync service works out four Managed Services measurables every hour from Autotask with the **Autotask: Service** credential (read-only use): SLA first response met, tickets closed per tech per day, first-contact resolution (proposed: one time entry), billable utilisation. Techs are resources whose default department was Service Desk at the end of the week (department history from 0.5.2). Working days come off Autotask's holiday set; standard day 7.6 hours.

@@ -12,10 +12,10 @@
 <link rel="stylesheet" href="css/doc.css">
 <script src="js/doc-version.js" defer></script>
 </head>
-<body data-built-for="0.5.3">
+<body data-built-for="0.5.4">
 <header class="doc-band"><div class="inner">
   <img src="brand/hdit-logo-yellow.svg" alt="HD IT">
-  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.3</span></span>
+  <span class="hd-eyebrow">HD IT Pulse · user guide · <span id="built-for">v0.5.4</span></span>
   <h1>Using Pulse</h1>
   <p>Pulse is where HD IT runs EOS: the weekly Scorecard, Rocks, Issues, To-dos and the Tuesday L10, with Pipeline, Marketing ROI and Whitespace Matrix alongside. One Microsoft 365 sign-in for all of it.</p>
 </div></header>
@@ -78,7 +78,7 @@
       <li>When they agree, Leadership switches the measurable to automatic from the same panel, with a reason. From then on open weeks fill in by themselves; locked weeks can still be overridden. Leadership can switch it back the same way.</li>
       <li>Leadership can select <b>Work out now</b> to refresh the automatic values within a few minutes.</li>
     </ul>
-    <p>On trial from 0.5.3: SLA first response, tickets closed per tech per day, first-contact resolution and billable utilisation, from Autotask. A tech is anyone whose default department in Autotask is Service Desk. Seats, MRR, SimpleSAT and Xero measurables follow.</p>
+    <p>On trial: SLA first response, tickets closed per tech per day, first-contact resolution and billable utilisation (from 0.5.3), and seats serviced and new seats signed (from 0.5.4), all from Autotask. A tech is anyone whose default department in Autotask is Service Desk. A seat is one unit of IT Support &amp; Proactive Maintenance - Business Class Plan, Technical Services and Management, or IT Managed Services Support - Business Class - Per User per Month. New seats are the seats on opportunities won that week. SimpleSAT and Xero measurables follow.</p>
   </section>
 
   <section>
@@ -103,11 +103,13 @@
       <li>Leadership sets the year targets and the opening levels. Leadership and Finance set quarter targets and enter month-end figures under <b>Company → FY plan</b>. Changing a figure that's already there needs a reason.</li>
     </ul>
     <p>From 0.6.0, revenue comes from Xero and MRR, seats and new seats from Autotask automatically.</p>
+      <p>MRR, Seats and New seats also fill in from Autotask, <b>on trial</b> first: the automatic figure shows under each month. Leadership or Finance select <b>Switch to automatic</b> once it matches. A figure Finance enters always takes priority. MRR is recurring contract services converted to a monthly amount.</p>
   </section>
 
   <section>
     <span class="hd-eyebrow">Apps</span>
     <h2>Pipeline, Marketing ROI and Whitespace Matrix</h2>
+    <p>The apps sit in the menu under the division they serve: Pipeline, Marketing ROI and Whitespace Matrix are under <b>Sales &amp; Marketing</b>. If you can open an app but don't see its division, it's under <b>Your apps</b>.</p>
     <p>Each app opens inside Pulse and signs you in with your Microsoft 365 account, so there's no separate password. Your role in each app (user, editor or administrator) comes from its Pulse group. <b>Open on its own</b> opens the app's own address in a new tab.</p>
   </section>
 
@@ -115,6 +117,7 @@
     <span class="hd-eyebrow">Platform Admins</span>
     <h2>Connections</h2>
     <p>Under <b>Platform → Connections</b>, Platform Admins enter the credentials Pulse uses to read Autotask, SimpleSAT, Xero, Datto RMM and IT Glue. Each card says what the connection is for and the permissions its API user needs.</p>
+    <p>Autotask uses <b>one API user for all of Pulse</b>. Pulse itself limits what each part can do with it: the Scorecard only reads, People and departments can only change resource departments, and Projects can only edit tasks and add time entries. Nothing in Pulse can delete Autotask records.</p>
     <ul>
       <li>Select <b>Enter</b>, type the details and save. Autotask details are tested first; Pulse only saves them if Autotask accepts them.</li>
       <li>Pulse never shows a credential again. To change one, select <b>Replace</b> and give a reason.</li>
@@ -151,7 +154,11 @@
         <tr><td>0.5.0</td><td>Scorecard (typed in), Rocks, Issues, To-dos, V/TO, Accountability Chart, division and seat pages, FY plan <b>(now available)</b></td></tr>
         <tr><td>0.5.2</td><td>People and departments: who's in each Autotask department, and changing default departments <b>(now available)</b></td></tr>
         <tr><td>0.5.3</td><td>Automatic values on trial for the four Autotask service measurables <b>(now available)</b></td></tr>
-        <tr><td>0.6.0</td><td>Automatic values for seats, MRR, SimpleSAT and Xero; numbers from Pipeline and Marketing ROI</td></tr>
+        <tr><td>0.5.4</td><td>Seats, new seats and MRR on trial; apps under their division; one Autotask connection <b>(now available)</b></td></tr>
+        <tr><td>0.6.0</td><td>Projects: programme and project Gantt charts from Autotask</td></tr>
+        <tr><td>0.6.1</td><td>Projects: log time, complete tasks, drag to reschedule with dependent tasks</td></tr>
+        <tr><td>0.6.2</td><td>Projects: resource planner, project lead time and what-if modelling</td></tr>
+        <tr><td>0.6.3</td><td>Automatic values from SimpleSAT and Xero; numbers from Pipeline and Marketing ROI</td></tr>
         <tr><td>0.7.0</td><td>The L10 meeting, run in Pulse</td></tr>
         <tr><td>0.8.0</td><td>To-dos in Planner; Issue to Autotask ticket; Rocks linked to Planner or Autotask projects</td></tr>
         <tr><td>0.9.0</td><td>Pulse in Teams, with reminders from the Pulse bot</td></tr>

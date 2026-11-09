@@ -27,7 +27,7 @@ v0.3.0 is a static shell: MSAL sign-in, a nav built from app roles, and a token 
 ```
 
 ### Two Function Apps, not one
-- **`func-hdit-pulse-api`** faces users. It reads and writes Pulse data and can only *write* integration secrets (for the Connections page), never read them. It reads two secrets: the Autotask Service API user (for "Issue → Autotask ticket") and the Autotask People Admin API user (for default-department changes, D16).
+- **`func-hdit-pulse-api`** faces users. It reads and writes Pulse data and can only *write* integration secrets (for the Connections page), never read them. It reads one integration secret: the single Autotask API user (Key Vault secret `autotask-service`, 9 Nov 2026), for default-department changes, project task edits and time entries. What each Pulse module may do with it is limited in code (`lib/autotask.js` `POLICY`).
 - **`func-hdit-pulse-sync`** has no user-facing routes. It runs the timers and is the only thing that can read the other integration credentials. It also renews the Xero refresh token, so it can write that one secret.
 
 This is D7's "each module reads only its own secrets": a flaw in the user-facing API can't reach Xero or Datto credentials. Each app has its own user-assigned managed identity, created and granted roles by `pulse-setup.sh` (the deploy identity can't grant roles, as with the existing apps).
@@ -63,8 +63,8 @@ New app roles on the existing registration, each assigned to a group, the same w
 |---|---|---|
 | MQLs (1) | Marketing ROI | `GET /api/pulse/measures`, app-only token with `Pulse.Collector` |
 | New MRR, weighted pipeline (2–3) | Pipeline | same |
-| New seats, seats serviced (4–5) | Autotask (Finance API user: contracts) | sync app, read-only |
-| SLA, tickets/tech/day, FCR, utilisation (6–9) | Autotask (Service API user) | sync app, read-only; techs = default department Service Desk (D16) |
+| New seats, seats serviced (4–5) | Autotask (scorecard module: contracts, won opportunities' quotes) | sync app, read-only; seat = units of the three seat services; on trial from 0.5.4 |
+| SLA, tickets/tech/day, FCR, utilisation (6–9) | Autotask (scorecard module) | sync app, read-only; techs = default department Service Desk (D16); on trial from 0.5.3 |
 | CSAT, NPS (10–11) | SimpleSAT | API key, read-only |
 | Cash, DSO, SGM, EBITDA % (12–15) | Live Xero, read-only (D17) | standard OAuth, granular `.read` scopes, SLI reporting codes |
 
@@ -100,13 +100,18 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M0 | Foundations | Bicep for SQL, Key Vault, both Function Apps; setup-script `release1` step; migrations in the workflow; shared libs (auth, SQL, audit, Sydney week); `/api/me`; Brand V5 shell; audit log | 0.4.0 |
 | M1 | EOS core | Accountability Chart and seats, V/TO, Rocks, Issues, To-dos, Scorecard with manual measurables, overrides, lock, history | 0.5.0 |
 | M2 | Automatic Scorecard and people | Connections page credential entry (shipped early in 0.5.1); People directory and matching, Autotask departments view and two-way changes (0.5.2); collectors for Autotask (service measurables on trial in 0.5.3), seats and MRR, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
+| MP | Projects (D21) | Programme and project Gantt (0.6.0); time entry, complete, drag with dependencies (0.6.1); resource planner, lead time, what-if (0.6.2) | 0.6.0–0.6.2 |
+| M2b | Rest of M2 | SimpleSAT, Xero, `/api/pulse/measures` in the three apps | 0.6.3 |
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
-## 5. Decisions taken (31 October 2026)
+## 5. Decisions taken
+**9 November 2026:** one Autotask API user with in-app module allow-lists (D7 amended); apps under their division (D20); Projects module next (D21): Project Managers and Leadership reschedule, preview then save to Autotask, lead time from open projects only, capacity 7.6 h/day less holidays, leave and non-project share.
+
+**31 October 2026:**
 1. **Xero:** live organisation in test and production, read-only by scope, standard OAuth connection (D17).
 2. **Teams and Planner:** tested in the Testing Tenancy, which has Business Premium licences.
 3. **Tech:** any Autotask resource whose default department is Service Desk; Pulse shows people by department and changes default departments two-way (D16).

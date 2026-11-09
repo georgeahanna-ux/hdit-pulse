@@ -20,15 +20,10 @@ const AUTOTASK_FIELDS = [
 
 /** Every credential Pulse uses. Names match the Key Vault secrets created by pulse-setup.sh release1. */
 const TYPES = {
-  "autotask-service": { system: "Autotask", label: "Autotask: Service", kind: "autotask", fields: AUTOTASK_FIELDS,
-    purpose: "Tickets, projects, time entries and resources for the Managed Services measurables; creates tickets from Issues.",
-    permissions: "Read tickets, projects, time entries, resources, companies and holiday sets. Add tickets and project tasks." },
-  "autotask-people": { system: "Autotask", label: "Autotask: People administration", kind: "autotask", fields: AUTOTASK_FIELDS,
-    purpose: "Who's in each Autotask department, and changing default departments (D16).",
-    permissions: "Read resources, roles and departments. Add and edit resource role departments." },
-  "autotask-finance": { system: "Autotask", label: "Autotask: Finance", kind: "autotask", fields: AUTOTASK_FIELDS,
-    purpose: "Contracts and seats for new seats signed, seats serviced and MRR.",
-    permissions: "Read-only: contracts, contract services and billing items." },
+  // One Autotask API user for all of Pulse (9 Nov 2026). Pulse limits what each module may do (lib/autotask.js POLICY).
+  "autotask-service": { system: "Autotask", label: "Autotask", kind: "autotask", fields: AUTOTASK_FIELDS,
+    purpose: "Everything Pulse reads from or writes to Autotask: the Scorecard, the FY plan, People and departments, and Projects. Pulse limits each part to the records it needs.",
+    permissions: "Read: tickets, time entries, holiday sets, contracts and contract services, services, opportunities and quotes, projects, phases, tasks and their predecessors and secondary resources, companies, resources, roles, departments and time off. Write: resource role departments (add, edit), project tasks (edit), time entries (add)." },
   "simplesat": { system: "SimpleSAT", label: "SimpleSAT", kind: "fields",
     fields: [{ key: "apiKey", label: "API key", secret: true, required: true }],
     purpose: "CSAT and NPS.", permissions: "Read-only API key." },

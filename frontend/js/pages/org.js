@@ -26,6 +26,10 @@ export async function planPage(me) {
   const tables = data.metrics.map(m => `<section class="panel" data-metric="${m.id}">
     <div class="sec-h"><div><span class="hd-eyebrow">${esc(m.label)}</span><h2>${esc(m.name)}</h2></div>
       <span class="aside">${m.kind === "cumulative" ? "Adds up month by month" : "Month-end level"}</span></div>
+    ${m.collector ? `<p class="small auto-line">${m.automatic
+      ? `${icon("check", "i-sm")} Month-end figures fill in automatically from Autotask${m.autoChanged ? ` (switched on by ${esc(m.autoChanged.by)})` : ""}. A figure Finance enters still takes priority.`
+      : `<span class="chip quiet">Automatic on trial</span> Pulse works this out from Autotask every hour and shows it under each month. Finance's figures count until it's switched on.`}
+      ${data.canEnter ? `<button class="link-btn small" type="button" data-auto="${m.id}">${m.automatic ? "Switch back to entered" : "Switch to automatic"}</button>` : ""}</p>` : ""}
     <div class="tbl-wrap"><table class="plan-tbl"><thead><tr><th></th><th>Target</th>${m.kind === "level" ? "<th>Opening (30 June)</th>" : ""}</tr></thead>
       <tbody><tr><th scope="row">${esc(m.label)}</th><td>${fmt(m, m.target)} ${data.canEditTargets ? `<button class="link-btn small" data-edit-year="${m.id}">Edit</button>` : ""}</td>
         ${m.kind === "level" ? `<td>${fmt(m, m.opening) || "—"} ${data.canEditTargets ? `<button class="link-btn small" data-edit-open="${m.id}">Edit</button>` : ""}</td>` : ""}</tr></tbody></table></div>
@@ -36,12 +40,13 @@ export async function planPage(me) {
       ${m.kind === "cumulative" ? `<tr><th scope="row">Quarters total</th><td>${fmt(m, m.quarterTargetsTotal) || "—"}${m.quarterTargetsMismatch ? ` <span class="chip alert">Differs from the year</span>` : ""}</td><td></td><td></td></tr>` : ""}
     </tbody></table></div>
     <div class="months">${m.months.map(x => `<button type="button" class="month ${x.value === null ? "empty" : ""}" data-month="${m.id}:${x.month.slice(0, 7)}" ${data.canEnter ? "" : "disabled"}>
-      <span>${esc(fmtMonthShort(x.month))}</span><b>${x.value === null ? "—" : esc(m.unit === "currency" ? money(x.value) : fmtValue(x.value, "count"))}</b></button>`).join("")}</div>
+      <span>${esc(fmtMonthShort(x.month))}</span><b>${x.value === null ? "—" : esc(m.unit === "currency" ? money(x.value) : fmtValue(x.value, "count"))}</b>
+      ${m.trial && x.auto !== null ? `<i class="trial-v show" title="Automatic value on trial">${esc(m.unit === "currency" ? money(x.auto) : fmtValue(x.auto, "count"))}</i>` : ""}</button>`).join("")}</div>
   </section>`).join("");
   return {
     title: "FY plan",
     html: `<div class="ph"><span class="hd-eyebrow">Company · ${esc(data.label)}</span><h1>FY plan</h1>
-      <p>The V/TO 1-year plan, tracked month by month. Leadership sets the year and quarter targets; Finance enters month-end figures until Xero fills them in automatically (0.6.0).</p></div>
+      <p>The V/TO 1-year plan, tracked month by month. Leadership sets the year and quarter targets; Finance enters month-end figures; MRR, Seats and New seats come from Autotask (on trial first) and Revenue from Xero later.</p></div>
       ${html}${tables}`,
     mount: (root, refresh) => {
       const metric = id => data.metrics.find(m => m.id === Number(id));
@@ -54,8 +59,15 @@ export async function planPage(me) {
         b.onclick = () => dialog({ title: `${m.name}: ${cur.label} target`, intro: m.kind === "cumulative" ? "The amount for this quarter alone." : "The level to reach by the end of this quarter.",
           fields: [{ name: "v", label: "Quarter target", type: "number", value: cur.target }],
           onSubmit: async f => { await put(`/plan/metrics/${m.id}/quarters/${q}`, { target: f.v }); toast("Quarter target saved"); refresh(); } }); });
+      root.querySelectorAll("[data-auto]").forEach(b => { const m = metric(b.dataset.auto); b.onclick = () => dialog({
+        title: m.automatic ? `${m.name}: switch back to entered figures` : `${m.name}: switch to automatic`,
+        intro: m.automatic ? "Finance enters month-end figures again. Automatic values already worked out stay beside them." : "Months without a figure from Finance will use the automatic value. Figures Finance has entered still take priority.",
+        fields: [{ name: "reason", label: "Reason", type: "textarea", rows: 2, required: true, hint: "Kept in the audit log." }],
+        submit: m.automatic ? "Switch back" : "Switch to automatic",
+        onSubmit: async f => { await api(`/plan/metrics/${m.id}/automatic`, { method: "POST", body: { enabled: !m.automatic, reason: f.reason } }); toast("Saved"); refresh(); } }); });
       root.querySelectorAll("[data-month]").forEach(b => { const [id, ym] = b.dataset.month.split(":"); const m = metric(id); const cur = m.months.find(x => x.month.startsWith(ym));
-        b.onclick = () => dialog({ title: `${m.name}: ${fmtMonth(ym + "-01")}`, intro: m.kind === "cumulative" ? "The month's total." : "The level at the end of the month.",
+        const autoInfo = cur.auto !== null ? `<dl class="def"><dt>Automatic${m.trial ? " (trial)" : ""}</dt><dd>${esc(m.unit === "currency" ? money(cur.auto, { exact: true }) : fmtValue(cur.auto, "count"))}${cur.autoText ? `<div class="dim small">${esc(cur.autoText)}</div>` : ""}</dd></dl>` : "";
+        b.onclick = () => dialog({ title: `${m.name}: ${fmtMonth(ym + "-01")}`, intro: m.kind === "cumulative" ? "The month's total." : "The level at the end of the month.", extra: autoInfo,
           fields: [{ name: "value", label: "Month-end figure", type: "number", value: cur.value, required: true },
             ...(cur.value !== null ? [{ name: "reason", label: "Reason for the change", type: "textarea", rows: 2, required: true, hint: "Kept in the audit log." }] : [])],
           onSubmit: async f => { await put(`/plan/metrics/${m.id}/months/${ym}`, f); toast("Saved"); refresh(); } }); });

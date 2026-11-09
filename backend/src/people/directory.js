@@ -3,7 +3,7 @@
  * People directory sync (D10, D16).
  *   syncEntra()      Microsoft Graph users → pulse.person (sync service only: needs Graph)
  *   syncAutotask()   Autotask departments, roles, resources and role-department pairings
- *                    → pulse.at_* (autotask-people credential; sync service, or the API on demand)
+ *                    → pulse.at_* (Autotask connection, people module; sync service, or the API on demand)
  *   runMatching()    links people to Autotask resources and rebuilds the Needs review list
  *                    (database only; both components can run it)
  *
@@ -14,7 +14,8 @@ const db = require("../lib/sql");
 const at = require("../lib/autotask");
 const M = require("./match");
 
-const PEOPLE_CRED = "autotask-people";
+const PEOPLE_CRED = at.SECRET;   // the single Autotask connection
+const MOD = "people";
 
 /* ------------------------------ Entra ------------------------------ */
 async function syncEntra() {
@@ -48,12 +49,12 @@ async function syncEntra() {
 }
 
 /* ------------------------------ Autotask ------------------------------ */
-async function syncAutotask(cred = PEOPLE_CRED) {
+async function syncAutotask() {
   const [departments, roles, resources, rrds] = await Promise.all([
-    at.query(cred, "Departments", null, ["id", "name", "isActive"]),
-    at.query(cred, "Roles", null, ["id", "name", "isActive"]),
-    at.query(cred, "Resources", null, ["id", "firstName", "lastName", "email", "email2", "email3", "userName", "title", "licenseType", "isActive"]),
-    at.query(cred, "ResourceRoleDepartments", null, ["id", "resourceID", "departmentID", "roleID", "isDefault", "isActive", "isDepartmentLead"]),
+    at.query(MOD, "Departments", null, ["id", "name", "isActive"]),
+    at.query(MOD, "Roles", null, ["id", "name", "isActive"]),
+    at.query(MOD, "Resources", null, ["id", "firstName", "lastName", "email", "email2", "email3", "userName", "title", "licenseType", "isActive"]),
+    at.query(MOD, "ResourceRoleDepartments", null, ["id", "resourceID", "departmentID", "roleID", "isDefault", "isActive", "isDepartmentLead"]),
   ]);
   await saveAutotask({ departments, roles, resources, rrds });
   return { departments: departments.length, roles: roles.length, resources: resources.length, pairings: rrds.length };

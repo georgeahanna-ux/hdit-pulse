@@ -404,3 +404,6 @@ td.nowrap { white-space: nowrap; }
 .small-h { font-size: 1rem; margin: 18px 0 8px; }
 table.compact td, table.compact th { padding: 6px 10px; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.trial-v.show { display: block; font-style: normal; }
+.month .trial-v { margin-top: 3px; }
+.auto-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: -4px 0 12px; }

@@ -84,7 +84,7 @@ test("Autotask credentials are tested, then written to Key Vault only", async ()
 
 test("rejected Autotask credentials are not saved", async () => {
   reset(); creds._test.setFetch(autotaskBad);
-  const r = await call("PUT", "connections/autotask-people", ADMIN, { username: "u@HDIT.com", secret: "wrong", integrationCode: "x" });
+  const r = await call("PUT", "connections/autotask-service", ADMIN, { username: "u@HDIT.com", secret: "wrong", integrationCode: "x" });
   assert.equal(r.status, 400);
   assert.match(r.jsonBody.error, /rejected/);
   assert.equal(saved.length, 0);

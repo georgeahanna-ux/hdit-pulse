@@ -108,7 +108,7 @@ async function departmentsTab(me, head) {
         <button class="btn outline sm" type="button" data-sync="departments">${icon("discover", "i-sm")}Refresh from Autotask</button>
       </div>
       <p class="dim small">Autotask last read ${d.lastSync && d.lastSync.departments ? esc(fmtDateTime(d.lastSync.departments)) : "not yet"}. ${can ? "Tick people, then change their default department. Pulse updates Autotask straight away." : ""}</p>
-      ${!d.departments.length ? `<div class="note info">${icon("infrastructure")}<span>No departments yet. Enter the <b>Autotask: People administration</b> credential under Connections, then select Refresh from Autotask.</span></div>` : ""}
+      ${!d.departments.length ? `<div class="note info">${icon("infrastructure")}<span>No departments yet. Enter the <b>Autotask</b> connection under Connections, then select Refresh from Autotask.</span></div>` : ""}
       <div class="dept-grid">${d.departments.filter(x => x.active || x.people.length).map(card).join("")}</div>
       ${d.noDepartment.length ? `<section class="panel"><h2>No default department</h2><ul class="plain">${d.noDepartment.map(p => `<li>${can ? `<label class="check"><input type="checkbox" data-res="${p.resourceId}"> ` : ""}<b>${esc(p.name)}</b>${can ? "</label>" : ""}</li>`).join("")}</ul></section>` : ""}`,
     mount: (root, refresh) => {

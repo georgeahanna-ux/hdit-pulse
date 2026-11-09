@@ -47,10 +47,12 @@ for (const m of measurables) for (let i = 1; i <= 13; i++) {
 }
 
 // Trial collectors (0.5.3): Autotask works out 6–9 every hour; switched on per measurable by Leadership.
-const COLLECTORS = { 6: "autotask.sla_first_response", 7: "autotask.tickets_per_tech", 8: "autotask.fcr", 9: "autotask.utilisation" };
+const COLLECTORS = { 4: "autotask.new_seats", 5: "autotask.seats_serviced", 6: "autotask.sla_first_response", 7: "autotask.tickets_per_tech", 8: "autotask.fcr", 9: "autotask.utilisation" };
 const autoOn = new Set();
-const autoValue = (m, i) => { const v = m.base + (rand(m.id, i) - 0.5) * m.spread + (rand(m.id + 50, i) - 0.5) * m.spread * 0.3; return Math.round(v * 10) / 10; };
+const autoValue = (m, i) => { const v = m.base + (rand(m.id, i) - 0.5) * m.spread + (rand(m.id + 50, i) - 0.5) * m.spread * 0.3; return m.unit === "count" ? Math.round(v) : Math.round(v * 10) / 10; };
 const autoText = (m, v) => ({
+  4: n => `${Math.round(n)} seats on 2 of 3 opportunities won: Acme Dental (${Math.round(n * 0.6)}), Parra Legal (${Math.round(n) - Math.round(n * 0.6)}).`,
+  5: n => `${Math.round(n).toLocaleString("en-AU")} seats on 118 recurring contracts in force.`,
   6: n => `${Math.round(n * 1.8)} of 180 tickets had a first response in time. ${180 - Math.round(n * 1.8)} missed.`,
   7: n => `${Math.round(n * 6 * 5)} tickets completed by 6 techs over 5 working days.`,
   8: n => `${Math.round(n * 1.6)} of 160 tickets were resolved with a single time entry. 12 with no time left out.`,
@@ -125,9 +127,7 @@ const plan = [
 const AT = [{ key: "username", label: "API username", secret: false, required: true }, { key: "secret", label: "API secret", secret: true, required: true }, { key: "integrationCode", label: "Tracking identifier (integration code)", secret: true, required: true }];
 const C = (name, system, label, kind, fields, purpose, permissions, configured = false) => ({ name, system, label, kind, fields, purpose, permissions, configured, secretUpdatedAt: configured ? new Date(Date.now() - 6 * 864e5).toISOString() : null, updatedBy: configured ? "George Hanna" : null, owner: null, rotationDue: null, lastSuccessAt: null, lastError: null });
 const previewConnections = [
-  C("autotask-service", "Autotask", "Autotask: Service", "autotask", AT, "Tickets, projects, time entries and resources for the Managed Services measurables.", "Read tickets, projects, time entries, resources and companies. Add tickets and project tasks.", true),
-  C("autotask-people", "Autotask", "Autotask: People administration", "autotask", AT, "Who's in each Autotask department, and changing default departments.", "Read resources, roles and departments. Add and edit resource role departments."),
-  C("autotask-finance", "Autotask", "Autotask: Finance", "autotask", AT, "Contracts and seats.", "Read-only: contracts, contract services and billing items."),
+  C("autotask-service", "Autotask", "Autotask", "autotask", AT, "Everything Pulse reads from or writes to Autotask: the Scorecard, the FY plan, People and departments, and Projects. Pulse limits each part to the records it needs.", "Read: tickets, time entries, contracts, opportunities, projects, tasks, resources and more. Write: resource role departments, project tasks, time entries.", true),
   C("simplesat", "SimpleSAT", "SimpleSAT", "fields", [{ key: "apiKey", label: "API key", secret: true, required: true }], "CSAT and NPS.", "Read-only API key."),
   C("xero-app", "Xero", "Xero app", "fields", [{ key: "clientId", label: "Client id", secret: false, required: true }, { key: "clientSecret", label: "Client secret", secret: true, required: true }], "Cash, debtor days, SGM, EBITDA % and revenue.", "A Xero web app with read-only scopes."),
   C("xero-token", "Xero", "Xero connection", "oauth", [], "Xero's refresh token, renewed automatically.", "Not entered by hand."),
@@ -158,8 +158,17 @@ const FY = 2027;
 const fyMonths = () => Array.from({ length: 12 }, (_, i) => { const d = new Date(Date.UTC(2026, 6 + i, 1)); return iso(d); });
 const qRange = q => { const s = [["2026-07-01", "2026-09-30"], ["2026-10-01", "2026-12-31"], ["2027-01-01", "2027-03-31"], ["2027-04-01", "2027-06-30"]][q - 1]; return { start: s[0], end: s[1] }; };
 const elapsed = r => { const t = iso(today()); if (t < r.start) return 0; if (t > r.end) return 1; const d = s => Date.parse(s) / 864e5; return (d(t) - d(r.start) + 1) / (d(r.end) - d(r.start) + 1); };
+const planAutoOn = new Set();
+const planAuto = (m, mo) => {
+  if (!["mrr", "seats", "new_seats"].includes(m.code) || mo > weekOf().slice(0, 7) + "-01") return null;
+  const base = m.months[mo] ?? (m.kind === "level" ? m.months["2026-10-01"] : 50);
+  return m.code === "new_seats" ? base + 2 : Math.round(base * 1.004);
+};
+const planAutoText = (m, v) => m.code === "mrr" ? `$${Math.round(v).toLocaleString("en-AU")} a month from 212 recurring contracts in force.` : m.code === "seats" ? `${v.toLocaleString("en-AU")} seats on 118 recurring contracts in force.` : `${v} seats on 3 of 4 opportunities won.`;
 function progressOf(m) {
-  const months = fyMonths().map(mo => ({ month: mo, value: m.months[mo] ?? null, entered: m.months[mo] != null }));
+  const on = planAutoOn.has(m.id), col = ["mrr", "seats", "new_seats"].includes(m.code);
+  const months = fyMonths().map(mo => { const auto = col ? planAuto(m, mo) : null;
+    return { month: mo, value: m.months[mo] ?? (on ? auto : null), entered: m.months[mo] != null, auto, autoText: auto !== null ? planAutoText(m, auto) : null }; });
   const rep = months.filter(x => x.value !== null);
   const actual = m.kind === "cumulative" ? (rep.length ? rep.reduce((s, x) => s + x.value, 0) : null) : (rep.length ? rep[rep.length - 1].value : null);
   const progress = actual === null ? null : m.kind === "cumulative" ? actual / m.target : m.opening !== null ? (actual - m.opening) / (m.target - m.opening) : actual / m.target;
@@ -172,7 +181,8 @@ function progressOf(m) {
   const total = quarters.every(q => q.target !== null) ? quarters.reduce((s, q) => s + q.target, 0) : null;
   return { id: m.id, code: m.code, name: m.name, unit: m.unit, kind: m.kind, fy: FY, label: "FY27", target: m.target, opening: m.opening, actual, progress,
     elapsed: elapsed({ start: "2026-07-01", end: "2027-06-30" }), lastMonth: rep.length ? rep[rep.length - 1].month : null, quarters, months,
-    quarterTargetsTotal: total, quarterTargetsMismatch: m.kind === "cumulative" && total !== null && Math.abs(total - m.target) > 0.5, source: "manual" };
+    quarterTargetsTotal: total, quarterTargetsMismatch: m.kind === "cumulative" && total !== null && Math.abs(total - m.target) > 0.5, source: col ? "autotask" : "xero",
+    collector: col ? "autotask." + m.code : null, automatic: col && on, trial: col && !on };
 }
 
 /* ---------------- the stand-in API ---------------- */
@@ -318,6 +328,11 @@ export function previewApi(path, method, body = {}) {
   if (p === "/plan" && method === "GET") {
     if (!(a.leadership || a.financeDetail || a.ownDivisions.includes("Finance"))) fail(403, "You don't have access to that.");
     return { fy: FY, label: "FY27", range: { start: "2026-07-01", end: "2027-06-30" }, current: { fy: 2027, quarter: 2 }, canEditTargets: a.leadership, canEnter: a.leadership || a.ownDivisions.includes("Finance"), metrics: plan.map(progressOf) };
+  }
+  if ((mm = /^\/plan\/metrics\/(\d+)\/automatic$/.exec(p))) {
+    if (String(body.reason || "").trim().length < 5) fail(400, "Please give a reason (at least a few words).");
+    if (body.enabled) planAutoOn.add(Number(mm[1])); else planAutoOn.delete(Number(mm[1]));
+    return { ok: true };
   }
   if ((mm = /^\/plan\/metrics\/(\d+)(?:\/(quarters|months)\/([\d-]+))?$/.exec(p))) {
     const m = plan.find(x => x.id === Number(mm[1]));

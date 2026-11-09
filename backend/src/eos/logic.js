@@ -71,10 +71,11 @@ function parseNumber(v) {
        quarter bar  = level at the quarter's last reported month ÷ that quarter's target
    Each bar also carries "time elapsed" so the page can show whether we're on pace.
    --------------------------------------------------------------------------- */
-function monthValue(m) {
+/** autoOn: the plan metric is switched to automatic; while on trial its automatic value isn't counted. */
+function monthValue(m, autoOn = true) {
   if (!m) return null;
   if (m.entered_value !== null && m.entered_value !== undefined) return Number(m.entered_value);
-  if (m.auto_value !== null && m.auto_value !== undefined) return Number(m.auto_value);
+  if (autoOn && m.auto_value !== null && m.auto_value !== undefined) return Number(m.auto_value);
   return null;
 }
 
@@ -84,7 +85,12 @@ function planProgress(metric, quarterTargets, monthRows, now = new Date()) {
   const fy = Number(metric.fy);
   const months = time.fyMonths(fy);
   const byMonth = new Map(monthRows.map(r => [isoDay(r.month), r]));
-  const monthly = months.map(m => ({ month: m, value: monthValue(byMonth.get(m)), entered: !!(byMonth.get(m) && byMonth.get(m).entered_value != null) }));
+  const autoOn = metric.auto_enabled === undefined || metric.auto_enabled === null ? true : !!metric.auto_enabled;
+  const monthly = months.map(m => {
+    const r = byMonth.get(m);
+    return { month: m, value: monthValue(r, autoOn), entered: !!(r && r.entered_value != null),
+      auto: r && r.auto_value != null ? Number(r.auto_value) : null, autoText: r && r.auto_detail ? detailText(r.auto_detail) : null };
+  });
   const target = metric.annual_target === null || metric.annual_target === undefined ? null : Number(metric.annual_target);
   const opening = metric.opening_value === null || metric.opening_value === undefined ? null : Number(metric.opening_value);
   const reported = monthly.filter(m => m.value !== null);
@@ -132,6 +138,7 @@ function planProgress(metric, quarterTargets, monthRows, now = new Date()) {
 }
 
 const round = x => Math.round(x * 10000) / 10000;
+function detailText(json) { try { return JSON.parse(json).text || null; } catch { return null; } }
 const isoDay = d => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
 
 module.exports = { shownValue, onTarget, cellActions, requireReason, parseNumber, planProgress, MIN_REASON, isoDay };

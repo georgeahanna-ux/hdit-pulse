@@ -15,28 +15,22 @@ const at = require("../lib/autotask");
 const db = require("../lib/sql");
 const time = require("../lib/time");
 const calc = require("./calc");
+const contracts = require("./contracts");
 
-const CRED = "autotask-service";
+const MOD = "scorecard";
+const CRED = at.SECRET;
 const TICKET_FIELDS = ["id", "createDate", "completedDate", "status", "assignedResourceID", "completedByResourceID",
   "firstResponseDateTime", "firstResponseDueDateTime"];
 const ENTRY_FIELDS = ["id", "resourceID", "ticketID", "taskID", "dateWorked", "hoursWorked", "isNonBillable"];
 
-/** Autotask "in" filters, 500 ids at a time. */
-async function queryIn(entity, field, ids, fields, extra = []) {
-  const out = [];
-  const list = [...new Set(ids.map(Number))];
-  for (let i = 0; i < list.length; i += 500) {
-    out.push(...await at.query(CRED, entity, [{ op: "in", field, value: list.slice(i, i + 500) }, ...extra], fields));
-  }
-  return out;
-}
+const queryIn = (entity, field, ids, fields, extra) => at.queryIn(MOD, entity, field, ids, fields, extra);
 
 /** Keeps only fields this Autotask instance has (e.g. completedByResourceID), so one missing field can't fail the query. */
 let known = null;
 async function ticketFields() {
   if (known) return known;
   try {
-    const info = await at.fieldInfo(CRED, "Tickets");
+    const info = await at.fieldInfo(MOD, "Tickets");
     const have = new Set((info.fields || []).map(f => f.name));
     known = TICKET_FIELDS.filter(f => have.has(f));
   } catch { known = TICKET_FIELDS.filter(f => f !== "completedByResourceID"); }
@@ -67,9 +61,9 @@ async function techsAt(when, department) {
 async function holidaysFor(cache, wanted) {
   if (cache.holidays) return cache.holidays;
   try {
-    const sets = await at.query(CRED, "HolidaySets", null, ["id", "holidaySetName"]);
+    const sets = await at.query(MOD, "HolidaySets", null, ["id", "holidaySetName"]);
     const set = calc.pickHolidaySet(sets, wanted);
-    const days = set ? await at.query(CRED, "Holidays", [{ op: "eq", field: "holidaySetID", value: set.id }], ["id", "holidayDate", "holidayName"]) : [];
+    const days = set ? await at.query(MOD, "Holidays", [{ op: "eq", field: "holidaySetID", value: set.id }], ["id", "holidayDate", "holidayName"]) : [];
     cache.holidays = { set: set ? set.holidaySetName : null, dates: days.map(h => String(h.holidayDate).slice(0, 10)) };
   } catch (e) {
     cache.holidays = { set: null, dates: [], note: "Autotask holidays couldn't be read, so no public holidays were taken off." };
@@ -87,8 +81,8 @@ async function collectWeek(week, cache = {}, now = new Date()) {
 
   const fields = await ticketFields();
   const [created, completed, techs, hol] = await Promise.all([
-    at.query(CRED, "Tickets", [{ op: "gte", field: "createDate", value: start }, { op: "lt", field: "createDate", value: end }], fields),
-    at.query(CRED, "Tickets", [{ op: "gte", field: "completedDate", value: start }, { op: "lt", field: "completedDate", value: end }], fields),
+    at.query(MOD, "Tickets", [{ op: "gte", field: "createDate", value: start }, { op: "lt", field: "createDate", value: end }], fields),
+    at.query(MOD, "Tickets", [{ op: "gte", field: "completedDate", value: start }, { op: "lt", field: "completedDate", value: end }], fields),
     techsAt(asOf, s.techDepartment),
     holidaysFor(cache, s.holidaySet),
   ]);
@@ -108,6 +102,19 @@ async function collectWeek(week, cache = {}, now = new Date()) {
     "autotask.utilisation": calc.utilisation(weekEntries, techs, days, s.hoursPerDay),
   };
   for (const k of ["autotask.tickets_per_tech", "autotask.utilisation"]) out[k].detail = note(out[k].detail);
+
+  // Seats serviced (level at the end of the week, or today) and new seats won in the week.
+  const today = time.sydneyDate(now);
+  const lastDay = time.addDays(week, 6) < today ? time.addDays(week, 6) : today;
+  if (!cache.contractsFailed) try {
+    const data = await contracts.load(cache, cache.from || week, today);
+    out["autotask.seats_serviced"] = contracts.levelsOn(lastDay, data).seats;
+    out["autotask.new_seats"] = contracts.newSeatsBetween(week, lastDay, await contracts.loadWins(cache, cache.from || week, today));
+  } catch (e) {
+    if (e.code === "not-connected") throw e;
+    cache.contractsFailed = true;
+    cache.notes = [...(cache.notes || []), `contracts: ${e.message}`.slice(0, 300)];
+  }
   return out;
 }
 

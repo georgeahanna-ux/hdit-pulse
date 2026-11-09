@@ -114,3 +114,61 @@ test("collectWeek reads Autotask with the Service credential and works out all f
   assert.equal(out["autotask.fcr"].value, 100);
   assert.equal(out["autotask.utilisation"].value, 1.6);        // 1 ÷ (2 × 4 × 8)
 });
+
+/* ---------- seats, new seats and MRR (0.5.4) ---------- */
+const contracts = require("../src/collect/contracts");
+
+test("seats and MRR on a date: seat services only for seats, every recurring line for MRR, by billing period", () => {
+  const data = {
+    today: "2026-11-09", active: 1, seatIds: new Set([501, 502]), missing: [],
+    periodMonths: new Map([[1, 1], [3, 12]]),
+    contracts: [
+      { id: 100, status: 1, contractPeriodType: 1, startDate: "2026-01-01", endDate: "2027-12-31" },
+      { id: 101, status: 1, contractPeriodType: 3, startDate: "2026-01-01", endDate: "2027-12-31" },   // billed yearly
+      { id: 102, status: 2, contractPeriodType: 1, startDate: "2025-01-01", endDate: "2027-12-31" },   // inactive now
+    ],
+    lines: [
+      { id: 1, contractID: 100, serviceID: 501, unitPrice: 100 },
+      { id: 2, contractID: 100, serviceID: 900, unitPrice: 10 },     // not a seat service, still MRR
+      { id: 3, contractID: 101, serviceID: 502, unitPrice: 1200 },   // $1,200 a year per seat
+      { id: 4, contractID: 102, serviceID: 501, unitPrice: 100 },
+    ],
+    bundles: [{ id: 7, contractID: 100, unitPrice: 5 }],
+    lineUnits: [
+      { contractID: 100, contractServiceID: 1, startDate: "2026-10-01", endDate: "2026-10-31", units: 18 },
+      { contractID: 100, contractServiceID: 1, startDate: "2026-11-01", endDate: "2026-11-30", units: 20 },
+      { contractID: 100, contractServiceID: 2, startDate: "2026-11-01", endDate: "2026-11-30", units: 20 },
+      { contractID: 101, contractServiceID: 3, startDate: "2026-07-01", endDate: "2027-06-30", units: 10 },
+      { contractID: 102, contractServiceID: 4, startDate: "2026-11-01", endDate: "2026-11-30", units: 50 },
+      { contractID: 102, contractServiceID: 4, startDate: "2026-10-01", endDate: "2026-10-31", units: 50 },
+    ],
+    bundleUnits: [{ contractID: 100, contractServiceBundleID: 7, startDate: "2026-11-01", endDate: "2026-11-30", units: 20 }],
+  };
+  const now = contracts.levelsOn("2026-11-09", data);
+  assert.equal(now.seats.value, 30);                      // 20 + 10; contract 102 is inactive today
+  assert.equal(now.mrr.value, 2000 + 200 + 1000 + 100);   // 20×100 + 20×10 + 10×1200÷12 + bundle 20×5
+  const past = contracts.levelsOn("2026-10-15", data);
+  assert.equal(past.seats.value, 18 + 10 + 50);           // in the past, contracts in force then count whatever their status now
+  assert.match(now.seats.detail.text, /30 seats on 2 recurring contracts/);
+});
+
+test("new seats: seat-service quantity on won opportunities' primary quotes, by close date", () => {
+  const wins = { dateField: "closedDate", opps: [
+    { id: 1, title: "Acme", date: "2026-11-03", seats: 25 },
+    { id: 2, title: "Beta", date: "2026-11-05", seats: 0 },
+    { id: 3, title: "Gamma", date: "2026-11-12", seats: 40 },
+  ] };
+  const r = contracts.newSeatsBetween("2026-11-02", "2026-11-08", wins);
+  assert.equal(r.value, 25);
+  assert.match(r.detail.text, /25 seats on 1 of 2 opportunities won: Acme \(25\)/);
+  assert.equal(contracts.monthsFor("Quarterly"), 3);
+  assert.equal(contracts.monthsFor("One-Time"), null);
+});
+
+test("plan actuals on trial aren't counted until switched on", () => {
+  const metric = { id: 2, fy: 2027, code: "mrr", kind: "level", annual_target: 560000, opening_value: 480000 };
+  const rows = [{ month: "2026-07-01", auto_value: 490000, entered_value: null }];
+  assert.equal(L.planProgress({ ...metric, auto_enabled: false }, [], rows).actual, null);
+  assert.equal(L.planProgress({ ...metric, auto_enabled: true }, [], rows).actual, 490000);
+  assert.equal(L.planProgress({ ...metric, auto_enabled: false }, [], rows).months[0].auto, 490000);
+});

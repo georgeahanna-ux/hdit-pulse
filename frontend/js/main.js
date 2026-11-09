@@ -8,7 +8,7 @@ import { $, esc, icon, initials, toast } from "./ui.js";
 import { homePage, DIVISION_ICONS } from "./pages/home.js";
 import { scorecardPage } from "./pages/scorecard.js";
 import { rocksPage, issuesPage, todosPage, vtoPage } from "./pages/eos.js";
-import { planPage, chartPage, divisionPage, seatPage, canSeePlan } from "./pages/org.js";
+import { planPage, chartPage, divisionPage, seatPage, canSeePlan, DIVISION_APPS } from "./pages/org.js";
 import { connectionsPage } from "./pages/connections.js";
 import { peoplePage } from "./pages/people.js";
 
@@ -66,7 +66,10 @@ function sidebar(route) {
   const soon = v => `<span class="soon-tag">${esc(v)}</span>`;
   const mine = APPS.filter(canOpen);
   const divs = STRUCTURE ? STRUCTURE.divisions.filter(d => d.canSee).sort((x, y) => (y.isMine - x.isMine)) : [];
-  const currentDivision = route.page === "division" ? route.id : route.page === "seat" && STRUCTURE ? (STRUCTURE.divisions.find(d => d.seats.some(s => s.id === Number(route.id))) || {}).code : null;
+  // Apps sit under the division they belong to (9 Nov 2026); anyone who can open an app but not see its division gets it under "Your apps".
+  const appsOf = code => (DIVISION_APPS[code] || []).map(k => mine.find(x => x.k === k)).filter(Boolean);
+  const orphanApps = mine.filter(x => !divs.some(d => (DIVISION_APPS[d.code] || []).includes(x.k)));
+  const currentDivision = route.page === "app" ? (Object.entries(DIVISION_APPS).find(([, ks]) => ks.includes(route.id)) || [])[0] : route.page === "division" ? route.id : route.page === "seat" && STRUCTURE ? (STRUCTURE.divisions.find(d => d.seats.some(s => s.id === Number(route.id))) || {}).code : null;
   return `<nav class="side" aria-label="Pulse">
     ${link("#/", "momentum", "Home", route.page === "home")}
     <div class="side-label hd-eyebrow">Company</div>
@@ -80,8 +83,9 @@ function sidebar(route) {
     ${canSeePlan(ME) ? link("#/plan", "clock", "FY plan", route.page === "plan") : ""}
     ${divs.length ? `<div class="side-label hd-eyebrow">${a.leadership ? "Divisions" : "Your division"}</div>
       ${divs.map(d => link(`#/division/${d.code}`, DIVISION_ICONS[d.code] || "co-managed", d.name, route.page === "division" && route.id === d.code)
+        + appsOf(d.code).map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k, { cls: "sub app" })).join("")
         + (currentDivision === d.code ? d.seats.map(s => link(`#/seat/${s.id}`, "arrow-right", s.title, route.page === "seat" && Number(route.id) === s.id, { cls: "sub" })).join("") : "")).join("")}` : ""}
-    ${mine.length ? `<div class="side-label hd-eyebrow">Apps</div>${mine.map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k)).join("")}` : ""}
+    ${orphanApps.length ? `<div class="side-label hd-eyebrow">Your apps</div>${orphanApps.map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k)).join("")}` : ""}
     <div class="side-label hd-eyebrow">Platform</div>
     ${a.leadership || a.manageDirectory ? link("#/people", "it-support", "People and departments", route.page === "people") : ""}
     ${link("#/access", "compliance", "Your access", route.page === "access")}

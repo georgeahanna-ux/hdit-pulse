@@ -6,6 +6,7 @@
  *   PUT /plan/metrics/:id/quarters/:q { target }                             (leadership, Finance)
  *   PUT /plan/metrics/:id/months/:month { value, reason }                     (leadership, Finance)
  *       month = YYYY-MM. Changing a figure that's already there needs a reason.
+ *   POST /plan/metrics/:id/automatic { enabled, reason }                     (leadership, Finance) trial → automatic
  * Who sees it: Leadership, Finance & Accounts, and Finance detail.
  */
 const db = require("../lib/sql");
@@ -25,14 +26,15 @@ async function get(ctx) {
   const inList = visible.map((_, i) => "@m" + i).join(",");
   const [quarters, months] = await Promise.all([
     db.query(`SELECT metric_id, quarter, target FROM pulse.plan_quarter_target WHERE metric_id IN (${inList})`, ids),
-    db.query(`SELECT metric_id, month, auto_value, entered_value, entered_by, entered_at FROM pulse.plan_month_actual WHERE metric_id IN (${inList})`, ids),
+    db.query(`SELECT metric_id, month, auto_value, auto_detail, entered_value, entered_by, entered_at FROM pulse.plan_month_actual WHERE metric_id IN (${inList})`, ids),
   ]);
   return {
     fy, label: time.fyLabel(fy), range: time.fyRange(fy), current: time.fyOf(),
     canEditTargets: ctx.access.leadership, canEnter: canEnter(ctx.access),
     metrics: visible.map(m => ({
       ...L.planProgress(m, quarters.filter(q => q.metric_id === m.id), months.filter(x => x.metric_id === m.id)),
-      source: m.source,
+      source: m.source, collector: m.collector || null, automatic: !!m.auto_enabled, trial: !!m.collector && !m.auto_enabled,
+      autoChanged: m.auto_changed_at ? { by: m.auto_changed_by, at: m.auto_changed_at } : null,
     })),
   };
 }
@@ -101,10 +103,24 @@ async function putMonth(ctx) {
   return { ok: true };
 }
 
+/** Leadership or Finance switch a plan metric from trial to automatic (or back), with a reason. */
+async function setAutomatic(ctx) {
+  const m = await loadMetric(ctx);
+  if (!m.collector) throw C.fail(409, "This figure has no automatic source yet, so Finance enters it.");
+  const enabled = ctx.body.enabled === true;
+  const why = C.reason(ctx.body.reason);
+  if (!!m.auto_enabled === enabled) return { ok: true, automatic: enabled };
+  await db.query("UPDATE pulse.plan_metric SET auto_enabled = @enabled, auto_changed_by = @name, auto_changed_at = SYSUTCDATETIME() WHERE id = @id",
+    { id: m.id, enabled, name: ctx.person.name });
+  await C.record(ctx, "plan.automatic", { type: "plan_metric", id: `${m.code}@FY${m.fy}` }, { automatic: !!m.auto_enabled }, { automatic: enabled }, why);
+  return { ok: true, automatic: enabled };
+}
+
 const routes = [
   { method: "GET", path: "/plan", auth: "person", allow: canSee, fn: get },
   { method: "PUT", path: "/plan/metrics/:id", auth: "person", allow: a => a.leadership, fn: putMetric },
   { method: "PUT", path: "/plan/metrics/:id/quarters/:q", auth: "person", allow: canEnter, fn: putQuarter },
   { method: "PUT", path: "/plan/metrics/:id/months/:month", auth: "person", allow: canEnter, fn: putMonth },
+  { method: "POST", path: "/plan/metrics/:id/automatic", auth: "person", allow: canEnter, fn: setAutomatic },
 ];
 module.exports = { routes, _test: { canSee, canEnter } };

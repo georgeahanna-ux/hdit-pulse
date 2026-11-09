@@ -13,6 +13,7 @@
 const db = require("../lib/sql");
 const time = require("../lib/time");
 const autotask = require("./autotask");
+const contracts = require("./contracts");
 
 const SOURCES = { autotask: { collectWeek: autotask.collectWeek, cred: autotask.CRED } };
 const BACKFILL_WEEKS = 12;
@@ -70,7 +71,8 @@ async function runScorecard({ isConnected, now = new Date() } = {}) {
     if (!src) { notes.push(`${source}: no collector yet`); continue; }
     if (isConnected && !(await isConnected(src.cred))) { notes.push(`${source}: ${src.cred} not entered yet`); continue; }
     const weeks = await weeksToRun(list, now);
-    const cache = {};
+    const fyStart = time.fyRange(time.fyOf(now).fy).start;
+    const cache = { from: [weeks[0], time.addDays(fyStart, -1)].sort()[0], today: time.sydneyDate(now) };
     let saved = 0;
     for (const week of weeks) {
       const values = await src.collectWeek(week, cache, now);
@@ -82,8 +84,56 @@ async function runScorecard({ isConnected, now = new Date() } = {}) {
       }
     }
     notes.push(`${source}: ${list.length} measurables × ${weeks.length} weeks (${weeks[0]} to ${weeks[weeks.length - 1]}), ${saved} values`);
+    if (source === "autotask") notes.push(await runPlan(cache, now));
+    if (cache.notes) notes.push(...cache.notes);
   }
   return notes.join("; ");
 }
 
-module.exports = { runScorecard, weeksToRun, BACKFILL_WEEKS };
+/**
+ * FY plan month-end actuals (D19) for plan metrics with a collector: every month of the current
+ * FY up to this one. The current and previous month are always refreshed; earlier months only
+ * fill in once. Shown only once the metric is switched to automatic (trial first, as for measurables).
+ */
+async function runPlan(cache, now = new Date()) {
+  const { fy } = time.fyOf(now);
+  const metrics = await db.query("SELECT id, code, collector FROM pulse.plan_metric WHERE fy = @fy AND collector LIKE N'autotask.%'", { fy });
+  if (!metrics.length || cache.contractsFailed) return "plan: nothing to do";
+  const today = cache.today;
+  const thisMonth = today.slice(0, 7) + "-01";
+  const months = time.fyMonths(fy).filter(m => m <= thisMonth);
+  const have = await db.query(`SELECT metric_id, month FROM pulse.plan_month_actual WHERE auto_value IS NOT NULL AND metric_id IN (${metrics.map((_, i) => "@m" + i).join(",")})`,
+    Object.fromEntries(metrics.map((m, i) => ["m" + i, m.id])));
+  const filled = new Set(have.map(h => `${h.metric_id}|${new Date(h.month).toISOString().slice(0, 10)}`));
+  const data = await contracts.load(cache, cache.from, today);
+  const wins = metrics.some(m => m.collector === "autotask.new_seats") ? await contracts.loadWins(cache, cache.from, today) : null;
+  let saved = 0;
+  for (const month of months) {
+    const last = [time.addDays(time.addMonths(month, 1), -1), today].sort()[0];
+    const recent = month >= time.addMonths(thisMonth, -1);
+    const levels = levelsCache(cache, last, data);
+    for (const m of metrics) {
+      if (!recent && filled.has(`${m.id}|${month}`)) continue;
+      const r = m.collector === "autotask.mrr" ? levels.mrr : m.collector === "autotask.seats" ? levels.seats
+        : m.collector === "autotask.new_seats" && wins ? contracts.newSeatsBetween(month, last, wins) : null;
+      if (!r) continue;
+      await db.query(
+        `MERGE pulse.plan_month_actual AS t USING (SELECT @id AS metric_id, @month AS month) AS s
+           ON t.metric_id = s.metric_id AND t.month = s.month
+         WHEN MATCHED AND (ISNULL(t.auto_value, -999999) <> ISNULL(@value, -999999) OR ISNULL(t.auto_detail, N'') <> @detail)
+           THEN UPDATE SET auto_value = @value, auto_detail = @detail, auto_at = SYSUTCDATETIME()
+         WHEN NOT MATCHED THEN INSERT (metric_id, month, auto_value, auto_detail, auto_at) VALUES (@id, @month, @value, @detail, SYSUTCDATETIME());`,
+        { id: m.id, month, value: r.value, detail: JSON.stringify(r.detail).slice(0, 2000) });
+      saved++;
+    }
+  }
+  return `plan: ${metrics.length} metrics × ${months.length} months, ${saved} values`;
+}
+
+function levelsCache(cache, d, data) {
+  cache.levels ||= new Map();
+  if (!cache.levels.has(d)) cache.levels.set(d, contracts.levelsOn(d, data));
+  return cache.levels.get(d);
+}
+
+module.exports = { runScorecard, runPlan, weeksToRun, BACKFILL_WEEKS };
