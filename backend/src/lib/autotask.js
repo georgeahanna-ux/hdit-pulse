@@ -70,7 +70,7 @@ async function call(cred, method, path, body) {
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(60000),
     });
-    if (res.status === 429 || res.status === 503) { await new Promise(r => setTimeout(r, Math.min(30000, 2500 * 2 ** attempt))); continue;   // 2.5, 5, 10, 20, 30 s }
+    if (res.status === 429 || res.status === 503) { await new Promise(r => setTimeout(r, Math.min(30000, 2500 * 2 ** attempt))); continue; }   // waits 2.5, 5, 10, 20, 30 s
     if (res.status === 401 || res.status === 403) {
       if (res.status === 403 && method !== "GET" && !/\/query/.test(path)) throw fail(502, "Autotask's API user doesn't have permission for this. Check its security level in Autotask.", "forbidden");
       cache.delete(cred); throw fail(502, "Autotask refused Pulse's API credentials. Check them under Connections.", "rejected");
