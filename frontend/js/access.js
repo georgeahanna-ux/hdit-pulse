@@ -24,6 +24,9 @@ export function accessFor(roleList) {
     changeDepartments: platform || leadership,
     manageConnections: platform,
     manageDirectory: platform,
+    viewProjects: leadership || roles.has("Pulse.ProjectManager") || ownDivisions.includes("ManagedServices"),
+    editSchedules: leadership || roles.has("Pulse.ProjectManager"),
+    viewLeadTime: leadership || roles.has("Pulse.ProjectManager") || ownDivisions.includes("ManagedServices") || ownDivisions.includes("SalesMarketing"),
   };
 }
 
@@ -34,6 +37,7 @@ export const ROLES = [
   { v: "Pulse.Leadership", label: "Leadership", group: "Pulse - Leadership", grants: "Every division; override any measurable; change Autotask departments" },
   { v: "Pulse.FinanceDetail", label: "Finance detail", group: "Pulse - Finance Detail", grants: "Full P&L, wages and per-client profitability" },
   { v: "Pulse.Compliance", label: "Compliance", group: "Pulse - Compliance", grants: "Audit log and the quarterly access review" },
+  { v: "Pulse.ProjectManager", label: "Project Manager", group: "Pulse - Project Managers", grants: "Projects: reschedule tasks, log time on any task, resource planning" },
   { v: "Division.Finance", label: "Finance & Accounts", group: "Pulse - Division Finance", grants: "That division in full; override its measurables" },
   { v: "Division.People", label: "People (HR)", group: "Pulse - Division People", grants: "That division in full; override its measurables" },
   { v: "Division.SalesMarketing", label: "Sales & Marketing", group: "Pulse - Division Sales and Marketing", grants: "That division in full; override its measurables" },

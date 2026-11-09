@@ -8,6 +8,7 @@ import { $, esc, icon, initials, toast } from "./ui.js";
 import { homePage, DIVISION_ICONS } from "./pages/home.js";
 import { scorecardPage } from "./pages/scorecard.js";
 import { rocksPage, issuesPage, todosPage, vtoPage } from "./pages/eos.js";
+import { programmePage, projectPage } from "./pages/projects.js";
 import { planPage, chartPage, divisionPage, seatPage, canSeePlan, DIVISION_APPS } from "./pages/org.js";
 import { connectionsPage } from "./pages/connections.js";
 import { peoplePage } from "./pages/people.js";
@@ -84,8 +85,10 @@ function sidebar(route) {
     ${divs.length ? `<div class="side-label hd-eyebrow">${a.leadership ? "Divisions" : "Your division"}</div>
       ${divs.map(d => link(`#/division/${d.code}`, DIVISION_ICONS[d.code] || "co-managed", d.name, route.page === "division" && route.id === d.code)
         + appsOf(d.code).map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k, { cls: "sub app" })).join("")
+        + (d.code === "ManagedServices" && a.viewProjects ? link("#/projects", "strategise", "Projects", route.page === "projects", { cls: "sub app" }) : "")
         + (currentDivision === d.code ? d.seats.map(s => link(`#/seat/${s.id}`, "arrow-right", s.title, route.page === "seat" && Number(route.id) === s.id, { cls: "sub" })).join("") : "")).join("")}` : ""}
-    ${orphanApps.length ? `<div class="side-label hd-eyebrow">Your apps</div>${orphanApps.map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k)).join("")}` : ""}
+    ${orphanApps.length || (a.viewProjects && !divs.some(d => d.code === "ManagedServices")) ? `<div class="side-label hd-eyebrow">Your apps</div>${orphanApps.map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k)).join("")}
+      ${a.viewProjects && !divs.some(d => d.code === "ManagedServices") ? link("#/projects", "strategise", "Projects", route.page === "projects") : ""}` : ""}
     <div class="side-label hd-eyebrow">Platform</div>
     ${a.leadership || a.manageDirectory ? link("#/people", "it-support", "People and departments", route.page === "people") : ""}
     ${link("#/access", "compliance", "Your access", route.page === "access")}
@@ -133,6 +136,7 @@ async function pageFor(r) {
     case "seat": return seatPage(ME, STRUCTURE, r.id);
     case "connections": return connectionsPage(ME);
     case "people": return peoplePage(ME, r.id || "directory");
+    case "projects": return r.id ? projectPage(ME, r.id) : programmePage(ME);
   }
   return null;
 }

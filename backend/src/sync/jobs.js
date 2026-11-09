@@ -89,7 +89,10 @@ const collect = require("../collect");
 const isConnected = async cred => { const s = await vault.getSecret(cred).catch(() => null); return !!(s && s.value); };
 const syncScorecard = () => collect.runScorecard({ isConnected });
 
-const REQUESTABLE = { directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard };
+/* ---------------- Projects (D21) ---------------- */
+const syncProjects = () => require("../projects/sync").syncAll();
+
+const REQUESTABLE = { directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects };
 
 /** Picks up "Refresh now" requests made in Pulse (oldest first, one of each job at a time). */
 async function runRequests(context) {
@@ -104,4 +107,4 @@ async function runRequests(context) {
   }
 }
 
-module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, runRequests, CONNECTIONS };
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, runRequests, CONNECTIONS };

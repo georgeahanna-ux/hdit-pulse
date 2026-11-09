@@ -8,6 +8,7 @@
  *   Division.<Name>        that division in full; override that division's measurables.
  *   Pulse.FinanceDetail    full P&L detail, wages, per-client profitability.
  *   Pulse.Compliance       audit log and access review.
+ *   Pulse.ProjectManager   Projects: reschedule tasks, log time on any task, resource planning (D21).
  *   Pulse.User             sign in; company-wide items (V/TO, company Rocks, company Scorecard).
  *
  * The backend calls these on every request. The UI uses the same answers (from /api/me)
@@ -24,7 +25,7 @@ const DIVISIONS = Object.freeze([
 const DIVISION_CODES = DIVISIONS.map(d => d.code);
 
 /** Every role Pulse itself understands (the apps' own roles are passed through). */
-const PULSE_ROLES = ["Pulse.Admin", "Pulse.User", "Pulse.Leadership", "Pulse.FinanceDetail", "Pulse.Compliance",
+const PULSE_ROLES = ["Pulse.Admin", "Pulse.User", "Pulse.Leadership", "Pulse.FinanceDetail", "Pulse.Compliance", "Pulse.ProjectManager",
   ...DIVISION_CODES.filter(c => c !== "Leadership").map(c => `Division.${c}`)];
 
 function accessFor(roleList) {
@@ -34,7 +35,9 @@ function accessFor(roleList) {
   const ownDivisions = DIVISION_CODES.filter(c => roles.has(`Division.${c}`));
   const divisions = leadership ? DIVISION_CODES.slice() : ownDivisions;
   const signIn = platform || leadership || ownDivisions.length > 0 ||
-    ["Pulse.User", "Pulse.FinanceDetail", "Pulse.Compliance"].some(r => roles.has(r));
+    ["Pulse.User", "Pulse.FinanceDetail", "Pulse.Compliance", "Pulse.ProjectManager"].some(r => roles.has(r));
+  const projectManager = leadership || roles.has("Pulse.ProjectManager");
+  const viewProjects = projectManager || ownDivisions.includes("ManagedServices");
 
   return Object.freeze({
     roles: [...roles],
@@ -50,6 +53,10 @@ function accessFor(roleList) {
     changeDepartments: platform || leadership,
     manageConnections: platform,
     manageDirectory: platform,
+    // Projects (D21): Managed Services sees every project; Project Managers and Leadership also reschedule.
+    viewProjects,
+    editSchedules: projectManager,
+    viewLeadTime: viewProjects || ownDivisions.includes("SalesMarketing"),
   });
 }
 
@@ -78,6 +85,7 @@ function describe(a) {
     platform: a.platform, leadership: a.leadership, divisions: a.divisions, ownDivisions: a.ownDivisions,
     financeDetail: a.financeDetail, compliance: a.compliance, viewAudit: a.viewAudit,
     changeDepartments: a.changeDepartments, manageConnections: a.manageConnections, manageDirectory: a.manageDirectory,
+    viewProjects: a.viewProjects, editSchedules: a.editSchedules, viewLeadTime: a.viewLeadTime,
   };
 }
 

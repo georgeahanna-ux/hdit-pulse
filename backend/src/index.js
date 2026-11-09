@@ -36,6 +36,11 @@ if (component === "api") {
     schedule: "0 2/15 * * * *", runOnStartup: false,
     handler: (_t, context) => jobs.runIfConnected("departments", context, jobs.syncDepartments),
   });
+  // Projects from Autotask every 15 minutes, at :05, :20, :35 and :50 (D21).
+  app.timer("projects", {
+    schedule: "0 5/15 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.runIfConnected("projects", context, jobs.syncProjects),
+  });
   // Scorecard collectors hourly at :12 past (UTC), after the departments sync at :02.
   app.timer("scorecard", {
     schedule: "0 12 * * * *", runOnStartup: false,

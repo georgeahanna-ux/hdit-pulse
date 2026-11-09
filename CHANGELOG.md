@@ -1,12 +1,21 @@
 # Changelog
 
+## 0.6.0 — 9 November 2026
+Projects module, part 1 (D21): programme and project Gantt charts.
+- **Projects** (under Managed Services in the menu) for Leadership, Project Managers and Managed Services: every active Autotask project (not templates or baselines), grouped by client, on one Gantt chart. Tiles for open, late and at-risk projects and work remaining in days, hours and person-weeks. Search, filter by health, zoom by weeks, months or quarters, collapse clients, open a project's phases inline.
+- **Project Gantt:** phases with summary brackets, tasks with progress, milestones, dependency arrows, critical path, baseline bars, today line, weekends and public holidays shaded; who's assigned and hours worked against estimate; "My tasks only". Select a task for its dates, hours, float and what it waits for.
+- **Health:** done, late (past its end), at risk (an overdue task, or progress more than 15 points behind time elapsed), on track, not started.
+- Sync service copies projects, phases, tasks, predecessors, secondary resources, task hours, leave and holidays from Autotask every 15 minutes (projects module of the Autotask connection); "Refresh from Autotask" re-reads one project at once.
+- New role **Pulse.ProjectManager** (group *Pulse - Project Managers*); rescheduling arrives in 0.6.1.
+- Migration `0008_projects`. 6 new tests (92 in total).
+
 ## 0.5.4 — 9 November 2026
 One Autotask connection; apps under their division; seats, new seats and MRR on trial.
 - **One Autotask API user for all of Pulse** (decided 9 Nov 2026, replacing D7's per-area users). Stored in the existing Key Vault secret `autotask-service`, so no Key Vault change is needed. Least privilege now lives in Pulse: each module (people, scorecard, projects) may only read and write the Autotask entities listed in `lib/autotask.js` `POLICY`; anything else is refused before a request leaves Pulse. No module can delete. The Connections page shows a single **Autotask** card listing every permission the API user needs.
 - **Apps sit under their division** in the menu: Pipeline, Marketing ROI and Whitespace Matrix under Sales & Marketing. Anyone who can open an app without seeing its division finds it under "Your apps".
 - **Seats serviced** and **New seats signed** fill in on trial (seat = units of the three seat services named by George on recurring-service contracts; new seats = seat quantity on won opportunities' primary quotes, by close date).
 - **FY plan:** MRR (recurring contract services converted to a monthly amount), Seats and New seats month-end figures fill in on trial from Autotask; Leadership or Finance switch each to automatic with a reason. Entered figures always take priority.
-- Migration `0007_seats_mrr`. 4 new tests (87 in total).
+- Migration `0007_seats_mrr`. 3 new tests (86 in total).
 
 ## 0.5.3 — 3 November 2026
 Milestone M2, part 2: Autotask collectors in trial ("shadow") mode.

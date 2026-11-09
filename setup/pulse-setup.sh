@@ -97,6 +97,7 @@ Whitespace.Admin|Whitespace administrator|Whitespace Matrix: everything, plus th
 Pulse.Leadership|Leadership|Every division; override any measurable; change Autotask departments.|Pulse - Leadership
 Pulse.FinanceDetail|Finance detail|Full P&L, wages and per-client profitability.|Pulse - Finance Detail
 Pulse.Compliance|Compliance|Audit log and the quarterly access review.|Pulse - Compliance
+Pulse.ProjectManager|Project Manager|Projects: every project, reschedule tasks, log time on any task, resource planning.|Pulse - Project Managers
 Division.Finance|Finance & Accounts|Finance & Accounts division in full; override its measurables.|Pulse - Division Finance
 Division.People|People (HR)|People division in full; override its measurables.|Pulse - Division People
 Division.SalesMarketing|Sales & Marketing|Sales & Marketing division in full; override its measurables.|Pulse - Division Sales and Marketing

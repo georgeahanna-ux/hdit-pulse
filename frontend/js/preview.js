@@ -3,6 +3,7 @@
 import * as Auth from "./auth.js";
 import { accessFor, DIVISIONS } from "./access.js";
 import { weekInfo } from "./api.js";
+import { projectsApi } from "./preview-projects.js";
 
 const today = () => new Date();
 const iso = d => d.toISOString().slice(0, 10);
@@ -282,6 +283,8 @@ export function previewApi(path, method, body = {}) {
   if (p === "/todos" && method === "POST") { todos.push({ id: ++nextId, level: body.level || "individual", division: body.division || null, title: body.title, owner: { name: body.ownerName || me().name, email: body.ownerEmail || me().email }, dueDate: body.dueDate || addDays(iso(today()), 7), done: false }); return { id: nextId }; }
   if ((mm = /^\/todos\/(\d+)$/.exec(p))) { const t = todos.find(x => x.id === Number(mm[1])); if ("done" in body) t.done = !!body.done; if (body.deleted) todos.splice(todos.indexOf(t), 1); return { ok: true }; }
 
+  const pj = projectsApi(p, method, body, a, me());
+  if (pj) return pj;
   if (p === "/people" && method === "GET") {
     if (!(a.leadership || a.manageDirectory)) fail(403, "You don't have access to that.");
     return { lastSync: { departments: new Date(Date.now() - 9 * 60e3).toISOString(), directory: new Date(Date.now() - 10 * 3600e3).toISOString() },

@@ -48,6 +48,7 @@ Tested first on the **HD IT Testing Tenancy** (`0b1e12e5-f6cd-4ae7-a9ff-4562637a
 | Pulse - Leadership | `Pulse.Leadership` | Every division; override any measurable; change Autotask default departments |
 | Pulse - Finance Detail | `Pulse.FinanceDetail` | Full P&L detail, wages and per-client profitability |
 | Pulse - Compliance | `Pulse.Compliance` | Audit log and the quarterly access review |
+| Pulse - Project Managers | `Pulse.ProjectManager` | Projects: every project, reschedule tasks (drag in the Gantt), log time on any task, resource planning (added 9 Nov 2026) |
 | Pulse - Division Finance | `Division.Finance` | Finance & Accounts in full; override its measurables |
 | Pulse - Division People | `Division.People` | People (HR) in full; override its measurables |
 | Pulse - Division Sales and Marketing | `Division.SalesMarketing` | Sales & Marketing in full; override its measurables |

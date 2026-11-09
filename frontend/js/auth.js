@@ -7,6 +7,7 @@ export const PREVIEW_PERSONAS = [
   { k: "admin", label: "Platform Admin", name: "George Hanna", email: "george.hanna@hdit.com.au", roles: ["Pulse.Admin"] },
   { k: "leadership", label: "Leadership team member", name: "Sam Leader", email: "sam.leader@hdit.com.au", roles: ["Pulse.User", "Pulse.Leadership", "Pipeline.User", "MarketingROI.User", "Whitespace.User"] },
   { k: "service", label: "Managed Services staff", name: "Riley Tech", email: "riley.tech@hdit.com.au", roles: ["Pulse.User", "Division.ManagedServices"] },
+  { k: "pm", label: "Project Manager", name: "Priya Projects", email: "priya.projects@hdit.com.au", roles: ["Pulse.User", "Division.ManagedServices", "Pulse.ProjectManager"] },
   { k: "finance", label: "Finance, with finance detail", name: "Jordan Ledger", email: "jordan.ledger@hdit.com.au", roles: ["Pulse.User", "Division.Finance", "Pulse.FinanceDetail"] },
   { k: "sales", label: "Sales: Pipeline and Whitespace", name: "Taylor Reid", email: "taylor.reid@hdit.com.au", roles: ["Pulse.User", "Division.SalesMarketing", "Pipeline.User", "Whitespace.Editor", "MarketingROI.User"] },
   { k: "staff", label: "New starter: no division yet", name: "Morgan Ellis", email: "morgan.ellis@hdit.com.au", roles: ["Pulse.User"] },
