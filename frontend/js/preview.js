@@ -4,6 +4,7 @@ import * as Auth from "./auth.js";
 import { accessFor, DIVISIONS } from "./access.js";
 import { weekInfo } from "./api.js";
 import { projectsApi } from "./preview-projects.js";
+import { l10Api } from "./preview-l10.js";
 
 const today = () => new Date();
 const iso = d => d.toISOString().slice(0, 10);
@@ -277,7 +278,7 @@ export function previewApi(path, method, body = {}) {
     return { level, issues: issues.filter(i => i.level === level && (!q.division || i.division === q.division) && (q.status === "all" || i.status === (q.status || "open"))) };
   }
   if (p === "/issues" && method === "POST") { issues.push({ id: ++nextId, level: body.level, division: body.division || null, title: body.title, owner: body.ownerName ? { name: body.ownerName } : null, raisedBy: me().name, priority: null, status: "open" }); return { id: nextId }; }
-  if ((mm = /^\/issues\/(\d+)$/.exec(p))) { const i = issues.find(x => x.id === Number(mm[1])); Object.assign(i, body); if (body.status && body.status !== "open") i.priority = null; return { ok: true }; }
+  if ((mm = /^\/issues\/(\d+)$/.exec(p))) { const i = issues.find(x => x.id === Number(mm[1])); Object.assign(i, body); if (body.status && body.status !== "open") { i.priority = null; i.closedAt = new Date().toISOString(); } return { ok: true }; }
 
   if (p === "/todos" && method === "GET") {
     const view = q.view || "mine";
@@ -285,9 +286,11 @@ export function previewApi(path, method, body = {}) {
     const list = todos.filter(t => (view === "mine" ? isMe(t.owner.email) : view === "company" ? t.level === "company" : t.level === "division" && t.division === q.division));
     return { view, todos: list.map(t => ({ ...t, owner: { ...t.owner, isMe: isMe(t.owner.email) }, overdue: !t.done && t.dueDate < iso(today()) })) };
   }
-  if (p === "/todos" && method === "POST") { todos.push({ id: ++nextId, level: body.level || "individual", division: body.division || null, title: body.title, owner: { name: body.ownerName || me().name, email: body.ownerEmail || me().email }, dueDate: body.dueDate || addDays(iso(today()), 7), done: false }); return { id: nextId }; }
+  if (p === "/todos" && method === "POST") { todos.push({ id: ++nextId, level: body.level || "individual", division: body.division || null, title: body.title, owner: { name: body.ownerName || me().name, email: body.ownerEmail || me().email }, dueDate: body.dueDate || addDays(iso(today()), 7), done: false, issueId: body.issueId || null, createdAt: new Date().toISOString() }); return { id: nextId }; }
   if ((mm = /^\/todos\/(\d+)$/.exec(p))) { const t = todos.find(x => x.id === Number(mm[1])); if ("done" in body) t.done = !!body.done; if (body.deleted) todos.splice(todos.indexOf(t), 1); return { ok: true }; }
 
+  const l10 = l10Api(p, method, body, a, me(), { issues, todos, reviewWeek: addDays(weekOf(), -7), fail });
+  if (l10) return l10;
   const pj = projectsApi(p, method, body, a, me());
   if (pj) return pj;
   if (p === "/people" && method === "GET") {

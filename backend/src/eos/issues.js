@@ -17,6 +17,7 @@ function shape(ctx, i) {
     owner: i.owner_name ? { name: i.owner_name, email: i.owner_email, isMe: C.isMe(ctx, i.owner_email) } : null,
     raisedBy: i.raised_by_name, priority: i.priority, status: i.status, solution: i.solution,
     closedAt: i.closed_at, createdAt: i.created_at, measurableId: i.measurable_id,
+    source: i.source_kind ? { kind: i.source_kind, id: i.source_id } : null,
   };
 }
 

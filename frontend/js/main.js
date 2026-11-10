@@ -13,6 +13,7 @@ import { resourcesPage, leadTimePage } from "./pages/planning.js";
 import { planPage, chartPage, divisionPage, seatPage, canSeePlan, DIVISION_APPS } from "./pages/org.js";
 import { connectionsPage } from "./pages/connections.js";
 import { peoplePage } from "./pages/people.js";
+import { l10Page } from "./pages/l10.js";
 
 let ME = null, STRUCTURE = null;
 let compact = null;
@@ -79,7 +80,7 @@ function sidebar(route) {
     ${link("#/rocks", "strategise", "Rocks", route.page === "rocks")}
     ${a.leadership ? link("#/issues", "discover", "Issues", route.page === "issues") : ""}
     ${link("#/todos", "check", "To-dos", route.page === "todos")}
-    ${a.leadership ? link("#/l10", "calendar", "L10 meeting", route.page === "l10", { tag: soon("0.7.0") }) : ""}
+    ${a.leadership ? link("#/l10", "calendar", "L10 meeting", route.page === "l10") : ""}
     ${link("#/vto", "strategy", "V/TO", route.page === "vto")}
     ${link("#/chart", "co-managed", "Accountability Chart", route.page === "chart")}
     ${canSeePlan(ME) ? link("#/plan", "clock", "FY plan", route.page === "plan") : ""}
@@ -111,7 +112,6 @@ function parseRoute() {
 }
 
 const SOON = {
-  l10: ["L10 meeting", "Run Tuesday's Level 10 meeting in Pulse: segue, Scorecard, Rock review, headlines, To-dos, IDS and conclude.", "0.7.0"],
   people: ["People and departments", "Everyone in Pulse matched to their Autotask resource. See who's in each Autotask department and change default departments.", "0.6.0"],
 };
 
@@ -123,7 +123,6 @@ async function pageFor(r) {
     case "access": return { title: "Your access", html: V.access(ME) };
     case "audit": return { title: "Audit log", html: await V.audit(ME, r.q) };
     case "app": { const out = V.app(r.id); return out ? { title: (APPS.find(x => x.k === r.id) || {}).name, html: out.html, full: true } : null; }
-    case "l10": { const [t, d, v] = SOON[r.page]; return { title: t, html: `<div class="ph"><span class="hd-eyebrow">Coming in ${v}</span><h1>${esc(t)}</h1><p>${esc(d)}</p></div><div class="note info">${icon("calendar")}<span>Arriving in Pulse ${v}. It switches on in the test environment first.</span></div>` }; }
   }
   if (needServer) return serverNote(r.page);
   switch (r.page) {
@@ -131,6 +130,7 @@ async function pageFor(r) {
     case "rocks": return rocksPage(ME);
     case "issues": return issuesPage(ME);
     case "todos": return todosPage(ME);
+    case "l10": return l10Page(ME, r.id);
     case "vto": return vtoPage(ME);
     case "plan": return planPage(ME);
     case "chart": return chartPage(ME, STRUCTURE);

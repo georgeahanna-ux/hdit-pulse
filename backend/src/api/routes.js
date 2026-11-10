@@ -9,7 +9,8 @@
  *   GET  /audit               audit log (Platform Admins, Compliance)
  *   /connections              Connections page (src/api/connections.js): Platform Admins enter, replace and remove credentials
  *
- * M1 EOS routes come from src/eos/: structure (divisions, seats, /me/summary), scorecard, rocks, issues, todos, vto, plan.
+ * M1 EOS routes come from src/eos/: structure (divisions, seats, /me/summary), scorecard, rocks, issues, todos, vto, plan,
+ * and the L10 meeting and headlines (l10, 0.7.0).
  */
 const { VERSION } = require("../version");
 const access = require("../lib/access");
@@ -104,7 +105,7 @@ const routes = [
 ];
 
 // Release 1 EOS modules (M1)
-for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan"]) routes.push(...require(`../eos/${m}`).routes);
+for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan", "l10"]) routes.push(...require(`../eos/${m}`).routes);
 routes.push(...require("./connections").routes);
 routes.push(...require("./people").routes);
 routes.push(...require("../projects/resources").routes);   // before /projects/:id

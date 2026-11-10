@@ -230,6 +230,14 @@ Pipeline, Marketing ROI and Whitespace Matrix are only relevant to Sales & Marke
 - **Dependencies (9 Nov 2026):** Project Managers tick tasks and link them (chain, all after the first, last after all), with an optional gap; Pulse previews and can move tasks that would start too early; saved to Autotask as task predecessors. Removing a dependency is the only delete Pulse makes in Autotask (0.6.3).
 - **Built 9 Nov 2026:** 0.6.0 programme and project Gantt; 0.6.1 time entry, complete, drag to reschedule with preview, undo and baseline; 0.6.2 resource planner, lead time (also under Sales & Marketing) and what-if. Non-project share starts at 20%, set by Project Managers.
 
+### D22. The L10 meeting in Pulse (10 Nov 2026)
+- The leadership team runs Tuesday's L10 in Pulse: start or join, everyone follows the facilitator through the EOS agenda (segue 5, Scorecard 5, Rock review 5, headlines 5, To-do list 5, IDS 60, conclude 5), with clocks per section. Anyone in the team can take over facilitating.
+- Attendees are the leadership team from the Accountability Chart (Visionary, Integrator and the seats reporting to the Integrator), plus anyone who opens the meeting.
+- Off-target numbers, off-track Rocks, headlines and unfinished To-dos drop to the Issues List in one click, linked to their source. Numbers off target two weeks running are flagged as suggested Issues (D11).
+- IDS: top three numbering, To-dos linked to the Issue, solved with the decision. Conclude: new To-dos, cascading messages, ratings 1–10 (comment under 8).
+- Ending the meeting keeps a summary (attendance, ratings, time per section, To-do completion, Issues solved and added, headlines, Rocks off track, cascading messages, notes), printable as a PDF for the ISO record. Headlines can be added during the week.
+- **Built in 0.7.0 (10 Nov 2026).** Division L10s use the same model later (the API already takes a division as the team).
+
 ## Release plan
 **Release 1: Leadership and EOS core**
 - Entra SSO with Conditional Access (MFA + compliant device); People directory and identity matching (D10); Autotask departments view and two-way default-department changes (D16).

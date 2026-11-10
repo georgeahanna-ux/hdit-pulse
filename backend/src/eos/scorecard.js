@@ -260,4 +260,4 @@ const routes = [
   { method: "POST", path: "/scorecard/refresh", auth: "person", allow: a => a.leadership, fn: refreshScorecard },
 ];
 
-module.exports = { routes };
+module.exports = { routes, getScorecard };

@@ -102,13 +102,15 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M2 | Automatic Scorecard and people | Connections page credential entry (shipped early in 0.5.1); People directory and matching, Autotask departments view and two-way changes (0.5.2); collectors for Autotask (service measurables on trial in 0.5.3), seats and MRR, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
 | MP | Projects (D21) | Programme and project Gantt (0.6.0); time entry, complete, drag with dependencies (0.6.1); resource planner, lead time, what-if (0.6.2) | 0.6.0–0.6.2 |
 | M2b | Rest of M2 | Xero (0.6.4); SimpleSAT, MQLs from Marketing ROI's `/api/pulse/measures`, new MRR and weighted pipeline from Autotask, the apps on Pulse's Autotask user (0.6.5) | 0.6.4–0.6.5 |
-| M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues | 0.7.0 |
+| M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues. Built 10 Nov 2026: `meeting`, `meeting_attendee`, `headline` tables; the page polls the meeting state every 4 seconds (no websockets needed); summary kept when it ends | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken
+**10 November 2026 (0.7.0):** the L10 meeting runs in Pulse (D22).
+
 **10 November 2026:** the apps use Pulse's single Autotask API user (D9 amended); new MRR and weighted pipeline worked out by Pulse from Autotask as Pipeline shows them; MQLs from Marketing ROI; SimpleSAT CSAT and NPS. All on trial (0.6.5).
 
 **9 November 2026:** one Autotask API user with in-app module allow-lists (D7 amended); apps under their division (D20); Projects module next (D21): Project Managers and Leadership reschedule, preview then save to Autotask, lead time from open projects only, capacity 7.6 h/day less holidays, leave and non-project share.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 — 10 November 2026
+The L10 meeting, run in Pulse (M3; D1, D5, D11).
+- **L10 page** (Leadership): next meeting (Tuesday 9:30am Sydney) and the week it reviews, headlines for the next meeting, the agenda, and past meetings with rating, length, To-do completion and Issues solved.
+- **Live meeting:** one live meeting per team (unique index). Whoever starts it facilitates; anyone in the team can take over (audited). Everyone with it open follows the facilitator: the page reads the meeting's state every 4 seconds and can look at another section without moving the meeting. Clocks for the section and the meeting (server time), red when over. Attendees: the leadership team from the Accountability Chart (Visionary, Integrator and the seats reporting to the Integrator), plus anyone who opens it; online dots; the facilitator marks people here or away and adds guests.
+- **Sections:** segue; Scorecard (the company grid, plus the review week's off-target numbers with Drop to Issues, flagging those off target two weeks running: D11's suggested Issues); Rock review (company Rocks, off-track ones to Issues); headlines (add, drop to Issues); To-do list (the team's To-dos open at the last meeting's end or done since, completion rate of those due); IDS (top three numbering, Add a To-do linked to the Issue, Solved with the decision, Drop); conclude (new To-dos, Issues solved, cascading messages, ratings 1–10 with a comment under 8, average).
+- **Drop to Issues** records where an Issue came from (`issue.source_kind`, `source_id`: measurable, rock, headline, todo) and won't add a second open Issue for the same thing.
+- **End the meeting** stores a summary (attendance, ratings, average of those present, minutes per section, To-do completion, new To-dos, solved and new Issues, headlines, Rocks off track, cascading messages, notes) and marks the headlines as shared. Ratings can still be given for 12 hours afterwards. Summary page with print or save as PDF. Start and end are audited.
+- Scribe's notes save as you type and don't count as a meeting change, so they don't make everyone's screen redraw.
+- Migration `0014_l10` (meeting, meeting_attendee, headline). 10 new tests (128 in total).
+
 ## 0.6.5 — 10 November 2026
 Sales and customer feedback measurables, on trial (D4 items 1–3, 10–11), and one Autotask user for the apps.
 - **MQLs** from Marketing ROI (D9): the sync service calls Marketing ROI's `GET /api/pulse/measures` every hour with an app-only token for the HD IT Pulse app registration (its managed identity, role `Pulse.Collector`; no secret). Marketing ROI 0.7.0 records when each opportunity with a marketing event first reaches MQL or beyond; Pulse counts them by Sydney week. Leads already at MQL when Marketing ROI first saw them are dated by creation date and counted as estimated. Only ids and dates cross over. New app setting `APP_MROI_API`.
