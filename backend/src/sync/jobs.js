@@ -149,6 +149,12 @@ async function runRequests(context) {
       } catch (e) { await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (N'inspect', SYSUTCDATETIME(), SYSUTCDATETIME(), 0, @detail)", { detail: String(e.message).slice(0, 2000) }); }
       continue;
     }
+    if (job === "inspect:simplesat") {
+      try { const out = await require("../collect/simplesat").inspect();
+        for (let i = 0, n = Math.ceil(out.length / 1900); i < Math.min(n, 10); i++) await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (@job, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, @detail)", { job: `inspect ${i + 1}/${n}`, detail: out.slice(i * 1900, (i + 1) * 1900) });
+      } catch (e) { await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (N'inspect', SYSUTCDATETIME(), SYSUTCDATETIME(), 0, @detail)", { detail: String(e.message).slice(0, 2000) }); }
+      continue;
+    }
     if (!REQUESTABLE[job]) continue;
     const by = picked.filter(p => p.job === job).map(p => p.requested_by)[0];
     await run(job, context, async () => `Requested by ${by}. ` + await REQUESTABLE[job]()).catch(() => {});

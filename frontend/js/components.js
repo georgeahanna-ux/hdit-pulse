@@ -60,7 +60,7 @@ function trialLine(m, fmt) {
   const autos = (m.months || []).filter(x => x.auto !== null && x.auto !== undefined);
   if (!m.trial || !autos.length) return "";
   const value = m.kind === "cumulative" ? autos.reduce((s, x) => s + x.auto, 0) : autos[autos.length - 1].auto;
-  const src = m.source === "xero" ? "Xero" : "Autotask";
+  const src = { xero: "Xero", simplesat: "SimpleSAT", mroi: "Marketing ROI" }[m.source] || "Autotask";
   return `<div class="trial-line small"><span class="chip quiet">On trial</span> ${src} says <b>${fmt(value)}</b>${m.kind === "level" ? ` at ${esc(fmtMonth(autos[autos.length - 1].month))}` : " so far"}.
     <a href="#/plan">Check it and switch it on</a> to fill this bar.</div>`;
 }

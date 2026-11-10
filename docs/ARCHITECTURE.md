@@ -27,7 +27,7 @@ v0.3.0 is a static shell: MSAL sign-in, a nav built from app roles, and a token 
 ```
 
 ### Two Function Apps, not one
-- **`func-hdit-pulse-api`** faces users. It reads and writes Pulse data and can only *write* integration secrets (for the Connections page), never read them. It reads one integration secret: the single Autotask API user (Key Vault secret `autotask-service`, 9 Nov 2026), for default-department changes, project task edits and time entries. What each Pulse module may do with it is limited in code (`lib/autotask.js` `POLICY`).
+- **`func-hdit-pulse-api`** faces users. It reads and writes Pulse data and can only *write* integration secrets (for the Connections page), never read them. It reads one integration secret: the single Autotask API user (Key Vault secret `autotask-service`, 9 Nov 2026), for default-department changes, project task edits and time entries. What each Pulse module may do with it is limited in code (`lib/autotask.js` `POLICY`). Pipeline, Marketing ROI and Whitespace Matrix read the same secret (each app's identity has read access to that one secret, from 10 Nov 2026); what they do with it is limited by their own code.
 - **`func-hdit-pulse-sync`** has no user-facing routes. It runs the timers and is the only thing that can read the other integration credentials. It also renews the Xero refresh token, so it can write that one secret.
 
 This is D7's "each module reads only its own secrets": a flaw in the user-facing API can't reach Xero or Datto credentials. Each app has its own user-assigned managed identity, created and granted roles by `pulse-setup.sh` (the deploy identity can't grant roles, as with the existing apps).
@@ -61,11 +61,11 @@ New app roles on the existing registration, each assigned to a group, the same w
 
 | Measurables | Read by | How |
 |---|---|---|
-| MQLs (1) | Marketing ROI | `GET /api/pulse/measures`, app-only token with `Pulse.Collector` |
-| New MRR, weighted pipeline (2–3) | Pipeline | same |
+| MQLs (1) | Marketing ROI | `GET /api/pulse/measures`, app-only token with `Pulse.Collector`; Marketing ROI records when each lead first reaches MQL; on trial from 0.6.5 |
+| New MRR, weighted pipeline (2–3) | Autotask (scorecard module: won and stage 6–7 opportunities) | sync app, read-only, as Pipeline shows them (changed 10 Nov 2026); weighted pipeline is a current-week reading; on trial from 0.6.5 |
 | New seats, seats serviced (4–5) | Autotask (scorecard module: contracts, won opportunities' quotes) | sync app, read-only; seat = units of the three seat services; on trial from 0.5.4 |
 | SLA, tickets/tech/day, FCR, utilisation (6–9) | Autotask (scorecard module) | sync app, read-only; techs = default department Service Desk (D16); on trial from 0.5.3 |
-| CSAT, NPS (10–11) | SimpleSAT | API key, read-only |
+| CSAT, NPS (10–11) | SimpleSAT | API key, read-only (`POST /api/v1/answers/search`); on trial from 0.6.5 |
 | Cash, DSO, SGM, EBITDA % (12–15) | Live Xero, read-only (D17) | standard OAuth, granular `.read` scopes, SLI reporting codes |
 
 ### Integrations (D7, D10, D11, D16, D17)

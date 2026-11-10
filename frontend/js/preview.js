@@ -47,11 +47,16 @@ for (const m of measurables) for (let i = 1; i <= 13; i++) {
   cells.set(`${m.id}|${w}`, { value: m.unit === "count" || m.unit === "currency" ? Math.round(v) : Math.round(v * 10) / 10, source: "entered" });
 }
 
-// Trial collectors (0.5.3): Autotask works out 6–9 every hour; switched on per measurable by Leadership.
-const COLLECTORS = { 4: "autotask.new_seats", 5: "autotask.seats_serviced", 6: "autotask.sla_first_response", 7: "autotask.tickets_per_tech", 8: "autotask.fcr", 9: "autotask.utilisation" };
+// Trial collectors (0.5.3, 0.6.5): worked out every hour; switched on per measurable by Leadership.
+const COLLECTORS = { 1: "mroi.mqls", 2: "autotask.new_mrr", 3: "autotask.weighted_pipeline", 10: "simplesat.csat", 11: "simplesat.nps", 4: "autotask.new_seats", 5: "autotask.seats_serviced", 6: "autotask.sla_first_response", 7: "autotask.tickets_per_tech", 8: "autotask.fcr", 9: "autotask.utilisation" };
 const autoOn = new Set();
 const autoValue = (m, i) => { const v = m.base + (rand(m.id, i) - 0.5) * m.spread + (rand(m.id + 50, i) - 0.5) * m.spread * 0.3; return m.unit === "count" ? Math.round(v) : Math.round(v * 10) / 10; };
 const autoText = (m, v) => ({
+  1: n => `${Math.round(n)} opportunities reached MQL this week in Marketing ROI.`,
+  2: n => `$${Math.round(n).toLocaleString("en-AU")} a month on 2 opportunities won: Acme Dental ($${Math.round(n * 0.6).toLocaleString("en-AU")}), Parra Legal ($${(Math.round(n) - Math.round(n * 0.6)).toLocaleString("en-AU")}).`,
+  3: n => `$${Math.round(n).toLocaleString("en-AU")} weighted across 9 active opportunities (Stage 6: 6; Stage 7: 3). One-off revenue × probability.`,
+  10: n => `${Math.round(n * 0.48)} positive of 48 CSAT ratings = ${n}%.`,
+  11: n => `${Math.round(n * 0.4 + 32)} promoters and 4 detractors of 60 NPS ratings in the 90 days = +${Math.round(n)}.`,
   4: n => `${Math.round(n)} seats on 2 of 3 opportunities won: Acme Dental (${Math.round(n * 0.6)}), Parra Legal (${Math.round(n) - Math.round(n * 0.6)}).`,
   5: n => `${Math.round(n).toLocaleString("en-AU")} seats on 118 recurring contracts in force.`,
   6: n => `${Math.round(n * 1.8)} of 180 tickets had a first response in time. ${180 - Math.round(n * 1.8)} missed.`,
@@ -214,7 +219,7 @@ export function previewApi(path, method, body = {}) {
     return { weeks: weeks.map(w => weekInfo(w)), scope: division ? { division } : { company: true }, collectedAt: pvCollectedAt, canRefresh: !!a.leadership,
       measurables: list.map(m => {
         const can = a.leadership || a.ownDivisions.includes(m.division);
-        return { ...m, seatId: { SalesMarketing: 8, ManagedServices: 16, Finance: 4 }[m.division] || null, owner: { ...m.owner, isMe: isMe(m.owner.email) }, source: COLLECTORS[m.id] || m.id === 5 ? "autotask" : m.division === "Finance" ? "xero" : m.id === 1 ? "mroi" : m.id <= 3 ? "pipeline" : m.id <= 11 ? "simplesat" : "autotask", automatic: autoOn.has(m.id), collector: COLLECTORS[m.id] || null, trial: !!COLLECTORS[m.id] && !autoOn.has(m.id), canOverride: can, canEdit: a.leadership || isMe(m.owner.email),
+        return { ...m, seatId: { SalesMarketing: 8, ManagedServices: 16, Finance: 4 }[m.division] || null, owner: { ...m.owner, isMe: isMe(m.owner.email) }, source: COLLECTORS[m.id] ? COLLECTORS[m.id].split(".")[0] : m.division === "Finance" ? "xero" : "autotask", automatic: autoOn.has(m.id), collector: COLLECTORS[m.id] || null, trial: !!COLLECTORS[m.id] && !autoOn.has(m.id), canOverride: can, canEdit: a.leadership || isMe(m.owner.email),
           definition: "Preview: the plain-English definition, calculation and worked example appear here.",
           cells: weeks.map(w => {
             const c = cells.get(`${m.id}|${w}`), info = weekInfo(w);

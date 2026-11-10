@@ -68,7 +68,7 @@ SYNC_GRAPH_PERMISSIONS="User.Read.All GroupMember.Read.All Tasks.ReadWrite.All"
 # Integration credentials: secret name | who reads it | what it is. Values are entered later
 # (Connections page, or Key Vault) and are never printed. "sync+" = read and write (token renewal).
 SECRETS=$(cat <<'EOF'
-autotask-service|api,sync|Autotask API user (one for all of Pulse; Pulse limits each module)
+autotask-service|api,sync,apps|Autotask API user (one for all of Pulse and its apps; Pulse limits each module)
 simplesat|sync|SimpleSAT API key, read-only
 xero-app|sync|Xero app client id and secret (standard OAuth)
 xero-token|sync+|Xero refresh token, renewed every run
@@ -469,9 +469,15 @@ release1_step() {
         api)   grant "$apip"  ServicePrincipal "Key Vault Secrets User" "$sid" ;;
         sync)  grant "$syncp" ServicePrincipal "Key Vault Secrets User" "$sid" ;;
         sync+) grant "$syncp" ServicePrincipal "Key Vault Secrets Officer" "$sid" ;;
+        apps)  # Pipeline, Marketing ROI and Whitespace sign in to Autotask with Pulse's API user (read this one secret only)
+          local a ap
+          for a in pipeline mroi wspace; do
+            ap=$(az identity show -g "rg-hdit-$a-test-aue" -n "id-hdit-$a-func-test-aue" --query principalId -o tsv 2>/dev/null || true)
+            if [ -n "$ap" ]; then grant "$ap" ServicePrincipal "Key Vault Secrets User" "$sid"; else warn "id-hdit-$a-func-test-aue not found: $a keeps its own Autotask secrets"; fi
+          done ;;
       esac
     done
-    ok "Secret $name → readable by: ${readers//+/ (read and write)}"
+    ok "Secret $name → readable by: $(sed 's/+/ (read and write)/; s/apps/Pipeline, Marketing ROI and Whitespace/' <<<"$readers")"
   done <<<"$SECRETS"
 
   echo

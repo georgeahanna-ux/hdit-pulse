@@ -52,17 +52,17 @@ Starting list of 15 measurables; goals marked "set with owner" are refined by ea
 
 | # | Measurable | Owner | Goal | Source | Frequency |
 |---|---|---|---|---|---|
-| 1 | MQLs | Faben Miglani | ≥ 7 a week (30 a month) | Autotask (Marketing ROI) | Weekly |
+| 1 | MQLs | Faben Miglani | ≥ 7 a week (30 a month) | Marketing ROI (on trial from 0.6.5) | Weekly |
 | 2 | New MRR signed | Faben Miglani | Pace to $560K MRR | Autotask | Weekly |
-| 3 | Weighted pipeline (Stages 6–7) | Faben Miglani | Set with owner | Autotask (Pipeline) | Weekly |
+| 3 | Weighted pipeline (Stages 6–7) | Faben Miglani | Set with owner | Autotask, as Pipeline shows it (on trial from 0.6.5) | Weekly |
 | 4 | New seats signed | Faben Miglani | ≥ 12.5 a week (650 a year) | Autotask: seats on opportunities won that week (primary quote) | Weekly |
 | 5 | Seats serviced | Tony Parzakonis | ≥ 2,350 | Autotask contracts (seat services, below) | Weekly |
 | 6 | SLA first response met | Tony Parzakonis | ≥ 95% | Autotask | Weekly |
 | 7 | Tickets closed per tech per day | Tony Parzakonis | Set with owner (Evergreen benchmark 10) | Autotask (techs = default department Service Desk, D16) | Weekly |
 | 8 | First-contact resolution | Tony Parzakonis | Set with owner | Autotask | Weekly |
 | 9 | Billable utilisation | Tony Parzakonis | Set with owner | Autotask time entries (techs, D16) | Weekly |
-| 10 | CSAT | Tony Parzakonis | Set with owner | SimpleSAT | Weekly |
-| 11 | NPS (last 90 days) | Tony Parzakonis | ≥ +65 | SimpleSAT | Weekly |
+| 10 | CSAT | Tony Parzakonis | Set with owner | SimpleSAT (on trial from 0.6.5) | Weekly |
+| 11 | NPS (last 90 days) | Tony Parzakonis | ≥ +65 | SimpleSAT (on trial from 0.6.5) | Weekly |
 | 12 | Cash on hand | Mandy Moujalli | Set with owner | Xero | Weekly |
 | 13 | Debtor days (DSO) | Mandy Moujalli | ≤ 28 | Xero | Weekly |
 | 14 | Services gross margin (SGM) | Mandy Moujalli | ≥ 45% | Xero (SLI codes) | Monthly, shown weekly |
@@ -122,6 +122,7 @@ Pipeline, Marketing ROI and Whitespace Matrix keep their own backends, logic and
 - feed Pulse their numbers (weighted pipeline from Pipeline, MQLs from Marketing ROI, whitespace dollars from Whitespace) for the Scorecard;
 - open at the matching view when a Scorecard number is selected (e.g. Stage 6 deals).
 Merging backends is not planned.
+- **Amended 10 Nov 2026 (0.6.5):** the apps sign in to Autotask with Pulse's single API user (the `autotask-service` secret, read-only access to that one secret for each app's identity), following the 9 Nov decision to keep one Autotask API user; their own credentials are a fallback. New MRR and weighted pipeline are worked out by Pulse from Autotask opportunities the way Pipeline shows them, rather than read from Pipeline. MQLs come from Marketing ROI (`GET /api/pulse/measures`, app-only token with `Pulse.Collector`), which records when each lead first reaches MQL.
 
 ### D10. One identity per person, matched across systems by email (30 Oct 2026)
 - The person's **Entra object ID** is the master identity. Pulse keeps a People directory (Azure SQL) linking each person to their account in every integrated system: Autotask resource ID, Datto RMM, IT Glue, SimpleSAT, Kaseya Quote Manager, and others as they are added.

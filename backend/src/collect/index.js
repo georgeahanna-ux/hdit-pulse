@@ -16,19 +16,27 @@ const autotask = require("./autotask");
 const contracts = require("./contracts");
 
 const xero = require("./xero");
+const simplesat = require("./simplesat");
+const mroi = require("./mroi");
 const SOURCES = {
+  // Apps inside Pulse (D9): no credential, Pulse signs in with its managed identity (Pulse.Collector).
+  mroi: { collectWeek: mroi.collectWeek, cred: null },
+  simplesat: { collectWeek: simplesat.collectWeek, cred: simplesat.CRED },
   autotask: { collectWeek: autotask.collectWeek, cred: autotask.CRED },
   // Xero: one session per run (renews the token once and saves the new refresh token).
   xero: { collectWeek: xero.collectWeek, cred: "xero-token", open: async cache => { cache.xero = await require("../lib/xero").session(); } },
 };
 const BACKFILL_WEEKS = 12;
+// Readings of "now" that can't be worked out for past weeks: they never count towards a week being full.
+const SNAPSHOT = new Set(["autotask.weighted_pipeline"]);
 
 async function collectors() {
   return db.query("SELECT id, code, collector, auto_enabled FROM pulse.measurable WHERE is_active = 1 AND collector IS NOT NULL");
 }
 
 /** Which weeks to work out for these measurables. */
-async function weeksToRun(ms, now = new Date()) {
+async function weeksToRun(all, now = new Date()) {
+  const ms = all.filter(m => !SNAPSHOT.has(m.collector));
   const current = time.weekOf(now);
   const weeks = new Set([current]);
   const review = time.addDays(current, -7);
@@ -75,7 +83,7 @@ async function runScorecard({ isConnected, now = new Date() } = {}) {
   for (const [source, list] of Object.entries(bySource)) {
     const src = SOURCES[source];
     if (!src) { notes.push(`${source}: no collector yet`); continue; }
-    if (isConnected && !(await isConnected(src.cred))) { notes.push(`${source}: ${src.cred} not entered yet`); continue; }
+    if (src.cred && isConnected && !(await isConnected(src.cred))) { notes.push(`${source}: ${src.cred} not entered yet`); continue; }
     try {
     const weeks = await weeksToRun(list, now);
     const fyStart = time.fyRange(time.fyOf(now).fy).start;
@@ -180,4 +188,4 @@ function levelsCache(cache, d, data) {
   return cache.levels.get(d);
 }
 
-module.exports = { runScorecard, runPlan, weeksToRun, BACKFILL_WEEKS };
+module.exports = { runScorecard, runPlan, weeksToRun, BACKFILL_WEEKS, SNAPSHOT };

@@ -62,7 +62,7 @@ Roles are read from the token, so a change applies the next time the person sign
 
 ### Who the person is in Autotask
 
-Apps still write to Autotask as their own API user and stamp changes with the person's name. The backend finds the person's Autotask resource:
+Apps write to Autotask as Pulse's single API user (the `autotask-service` secret in Pulse's Key Vault, which each app's identity can read; from 10 Nov 2026, with the app's own credentials as a fallback) and stamp changes with the person's name. The backend finds the person's Autotask resource:
 
 1. a link they saved earlier, otherwise
 2. their Microsoft 365 email against the email on active Autotask resources.
@@ -147,4 +147,4 @@ Repeat with production names (`rg-hdit-pulse-prod-aue`, "HD IT Pulse") in HD IT'
 |---|---|
 | Static Web Apps built-in sign-in (`/.auth/login/aad`) | The pre-configured provider lets any Microsoft account in; locking it to one tenant needs the Standard plan per site, and it's cookie-based on each app's own address, which is what broke before. |
 | A separate app registration per app | More setup and more consent for little gain; one registration with per-app roles keeps access in one place. Revisit if an app needs to be exposed outside HD IT. |
-| Merging all backends into one | Each app keeps its own Autotask API user and Key Vault, which keeps permissions tight and lets apps ship independently. |
+| Merging all backends into one | Each app keeps its own backend and Key Vault so apps ship independently. (Since 10 Nov 2026 they share Pulse's one Autotask API user, at HD IT's request, so there is one credential to look after; each app's code limits what it does.) |

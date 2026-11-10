@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.5 — 10 November 2026
+Sales and customer feedback measurables, on trial (D4 items 1–3, 10–11), and one Autotask user for the apps.
+- **MQLs** from Marketing ROI (D9): the sync service calls Marketing ROI's `GET /api/pulse/measures` every hour with an app-only token for the HD IT Pulse app registration (its managed identity, role `Pulse.Collector`; no secret). Marketing ROI 0.7.0 records when each opportunity with a marketing event first reaches MQL or beyond; Pulse counts them by Sydney week. Leads already at MQL when Marketing ROI first saw them are dated by creation date and counted as estimated. Only ids and dates cross over. New app setting `APP_MROI_API`.
+- **New MRR signed**: monthly revenue on opportunities at "Stage 9: Closed Won" by close date. **Weighted pipeline**: active opportunities at stages 6 and 7, one-off revenue × probability (Pipeline's total, without board filters). Both from Autotask with the single API user (scorecard module, read-only), so Pipeline isn't needed for them. Autotask keeps no stage history, so weighted pipeline is a reading of the current week only; such "snapshot" collectors don't hold up the 12-week fill.
+- **CSAT and NPS** from SimpleSAT (API key from Connections, read-only, sent only in the `X-Simplesat-Token` header): `POST /api/v1/answers/search`, every page, once per run. CSAT = positive ÷ all primary CSAT ratings in the week (SimpleSAT's sentiment, so it matches its reports); NPS = % promoters less % detractors over the 90 days to the week's end. No customer names, emails or comments are kept. Diagnose can request `inspect:simplesat` (field names and ratings only) to confirm the answer format.
+- **One Autotask user for the apps:** Pipeline 1.14.0, Marketing ROI 0.7.0 and Whitespace Matrix 0.9.0 read Pulse's `autotask-service` secret (setting `AUTOTASK_SHARED_SECRET_URI`); `pulse-setup.sh release1` gives each app identity read access to that one secret. Their own Autotask secrets are a fallback. This also gets Pipeline working in test, which had no Autotask credentials.
+- Migration `0013_sales_and_feedback`. 9 new tests (118 in total).
+
 ## 0.6.4 — 9 November 2026
 Xero (D17): Connect to Xero and the finance measurables, on trial.
 - **Connect to Xero** on the Connections page (Platform Admins): Pulse's API issues a one-time state (10 minutes, single use), the browser goes via the sync service to Xero's sign-in, and Xero's reply comes back to the sync service, which saves the refresh token and organisation to Key Vault (`xero-token`) and returns to Connections. Read-only granular scopes only: profit and loss, balance sheet, bank summary, settings, plus offline_access. Audited (start and connect).

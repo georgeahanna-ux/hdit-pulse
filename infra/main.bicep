@@ -284,6 +284,7 @@ var commonSettings = [
   { name: 'ENTRA_CLIENT_ID', value: entraClientId }
   { name: 'PULSE_ORIGIN', value: pulseOrigin }
   { name: 'PULSE_SYNC_URL', value: 'https://${names.sync}.azurewebsites.net' }   // Xero sign-in and callback (D17)
+  { name: 'APP_MROI_API', value: 'https://func-hdit-mroi-${env}-aue.azurewebsites.net/api' }   // MQLs (D9), called with Pulse.Collector
   { name: 'WEBSITE_TIME_ZONE_NOTE', value: 'All schedules run in UTC; Sydney times are worked out in code.' }
 ]
 

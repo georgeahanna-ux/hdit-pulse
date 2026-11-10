@@ -7,6 +7,8 @@
  *   tickets_per_tech    tickets completed in the week by techs
  *   fcr                 the same tickets and their time entries
  *   utilisation         time entries worked in the week by techs
+ *   new_mrr             monthly revenue on opportunities won in the week (Stage 9: Closed Won)
+ *   weighted_pipeline   stages 6 and 7 today (current week only: Autotask keeps no stage history)
  *
  * Techs are resources whose default department was Service Desk at the end of the week
  * (pulse.at_resource history, kept by the departments sync, D16).
@@ -109,11 +111,22 @@ async function collectWeek(week, cache = {}, now = new Date()) {
   if (!cache.contractsFailed) try {
     const data = await contracts.load(cache, cache.from || week, today);
     out["autotask.seats_serviced"] = contracts.levelsOn(lastDay, data).seats;
-    out["autotask.new_seats"] = contracts.newSeatsBetween(week, lastDay, await contracts.loadWins(cache, cache.from || week, today));
+    const wins = await contracts.loadWins(cache, cache.from || week, today);
+    out["autotask.new_seats"] = contracts.newSeatsBetween(week, lastDay, wins);
+    out["autotask.new_mrr"] = contracts.newMrrBetween(week, lastDay, wins);
   } catch (e) {
     if (e.code === "not-connected") throw e;
     cache.contractsFailed = true;
     cache.notes = [...(cache.notes || []), `contracts: ${e.message}`.slice(0, 300)];
+  }
+  // Weighted pipeline is a reading of today's opportunities, so only the current week gets one.
+  if (week === time.weekOf(now) && !cache.pipelineFailed) try {
+    cache.pipeline ||= await contracts.weightedPipeline(cache);
+    if (cache.pipeline.value !== null) out["autotask.weighted_pipeline"] = cache.pipeline;
+  } catch (e) {
+    if (e.code === "not-connected") throw e;
+    cache.pipelineFailed = true;
+    cache.notes = [...(cache.notes || []), `pipeline: ${e.message}`.slice(0, 300)];
   }
   return out;
 }

@@ -146,7 +146,7 @@ async function loadWins(cache, from, today) {
   const wonFilter = wonStages.length ? { op: "in", field: "stage", value: wonStages } : { op: "in", field: "status", value: won };
   const opps = wonFilter.value.length && dateField ? await at.query(MOD, "Opportunities", [
     wonFilter, { op: "gte", field: dateField, value: from },
-  ], ["id", "title", "companyID", "status", "stage", dateField]) : [];
+  ], ["id", "title", "companyID", "status", "stage", "monthlyRevenue", dateField]) : [];
   const quotes = await at.queryIn(MOD, "Quotes", "opportunityID", opps.map(o => o.id), ["id", "opportunityID", "primaryQuote"]);
   const primary = new Map();
   for (const q of quotes) {
@@ -156,7 +156,7 @@ async function loadWins(cache, from, today) {
   const items = await at.queryIn(MOD, "QuoteItems", "quoteID", [...primary.values()].map(q => q.id), ["id", "quoteID", "serviceID", "productID", "name", "quantity"]);
   const seatsByQuote = new Map();
   for (const it of items) if (isSeatItem(it, data)) seatsByQuote.set(Number(it.quoteID), (seatsByQuote.get(Number(it.quoteID)) || 0) + (num(it.quantity) || 0));
-  cache.wins = { from, dateField, opps: opps.map(o => ({ id: o.id, title: o.title, date: day(o[dateField]), seats: primary.get(Number(o.id)) ? seatsByQuote.get(Number(primary.get(Number(o.id)).id)) || 0 : 0 })) };
+  cache.wins = { from, dateField, opps: opps.map(o => ({ id: o.id, title: o.title, date: day(o[dateField]), mrr: num(o.monthlyRevenue) || 0, seats: primary.get(Number(o.id)) ? seatsByQuote.get(Number(primary.get(Number(o.id)).id)) || 0 : 0 })) };
   return cache.wins;
 }
 
@@ -183,4 +183,42 @@ function newSeatsBetween(first, last, wins) {
   } };
 }
 
-module.exports = { load, loadWins, levelsOn, newSeatsBetween, isSeatItem, monthsFor, DEFAULT_SEAT_SERVICES };
+/** New MRR signed between two dates inclusive: the opportunities' monthly revenue (as Pipeline shows it). */
+function newMrrBetween(first, last, wins) {
+  const list = wins.opps.filter(o => o.date && o.date >= first && o.date <= last);
+  const total = list.reduce((s, o) => s + o.mrr, 0);
+  const top = list.filter(o => o.mrr).sort((a, b) => b.mrr - a.mrr);
+  return { value: Math.round(total * 100) / 100, detail: {
+    text: `${money(total)} a month on ${list.length} ${list.length === 1 ? "opportunity" : "opportunities"} won${top.length ? `: ${top.slice(0, 5).map(o => `${o.title} (${money(o.mrr)})`).join(", ")}${top.length > 5 ? ", …" : ""}` : ""}.`,
+    opportunities: list.length,
+  } };
+}
+
+/**
+ * Weighted pipeline now: active opportunities at stages 6 and 7, one-off revenue × probability,
+ * as Pipeline's "Weighted pipeline" total (without its board filters). Autotask keeps no stage
+ * history, so this is a reading taken during the week, never worked out for past weeks.
+ */
+async function weightedPipeline(cache) {
+  const stages = (await picklist("Opportunities", "stage", cache)).filter(s => /^\s*stage\s*[67]\b/i.test(s.label));
+  const statuses = await picklist("Opportunities", "status", cache);
+  const active = statuses.filter(s => /^active$/i.test(s.label.trim())).map(s => s.value);
+  if (!stages.length) return { value: null, detail: { text: "Autotask has no opportunity stages named Stage 6 or Stage 7." } };
+  const filter = [{ op: "in", field: "stage", value: stages.map(s => s.value) }, { op: "in", field: "status", value: active.length ? active : [1] }];
+  const opps = await at.query(MOD, "Opportunities", filter, ["id", "title", "stage", "probability", "onetimeRevenue", "amount"]);
+  return weighFrom(opps, stages);
+}
+function weighFrom(opps, stages) {
+  const label = new Map(stages.map(s => [s.value, s.label]));
+  const rows = opps.map(o => ({ title: o.title, stage: label.get(Number(o.stage)) || "", value: num(o.onetimeRevenue) ?? num(o.amount) ?? 0, p: num(o.probability) || 0 }))
+    .map(o => ({ ...o, weighted: o.value * o.p / 100 }));
+  const total = rows.reduce((s, o) => s + o.weighted, 0);
+  const by = n => rows.filter(o => new RegExp(`stage\\s*${n}\\b`, "i").test(o.stage));
+  const part = n => { const r = by(n); return `Stage ${n}: ${r.length} worth ${money(r.reduce((s, o) => s + o.weighted, 0))}`; };
+  return { value: Math.round(total * 100) / 100, detail: {
+    text: `${money(total)} weighted across ${rows.length} active opportunities (${part(6)}; ${part(7)}). One-off revenue × probability, read ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC.`,
+    opportunities: rows.length,
+  } };
+}
+
+module.exports = { newMrrBetween, weightedPipeline, weighFrom, load, loadWins, levelsOn, newSeatsBetween, isSeatItem, monthsFor, DEFAULT_SEAT_SERVICES };

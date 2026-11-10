@@ -19,8 +19,9 @@ const sql = require("mssql");
       .query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to inspect opportunity ${process.env.INSPECT_OPPORTUNITY}; run Diagnose again in 3 minutes.`);
   }
-  // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections).
-  if (/^(scorecard|projects|departments|directory|connections)$/.test(process.env.REFRESH_JOB || "")) {
+  // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections),
+  // or inspect:simplesat for a look at SimpleSAT answers (field names and ratings only).
+  if (/^(scorecard|projects|departments|directory|connections|inspect:simplesat)$/.test(process.env.REFRESH_JOB || "")) {
     await pool.request().input("job", sql.NVarChar, process.env.REFRESH_JOB).query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to run ${process.env.REFRESH_JOB} now (within two minutes).`);
   }
