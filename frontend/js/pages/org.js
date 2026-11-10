@@ -138,6 +138,13 @@ const goalText = m => (m.goal !== null && m.goal !== undefined ? `Goal ${m.goalT
 /** Apps that belong to each division (D9). Shown on the division page for people who can open them. */
 export const DIVISION_APPS = { SalesMarketing: ["pipeline", "mroi", "wspace"] };
 
+/** A measurable's value for a week; while it's on trial and nobody has typed one in, the automatic figure, marked. */
+function kpiValue(m, c) {
+  if (c && c.value != null) return `<b>${esc(fmtValue(c.value, m.unit))}</b>`;
+  if (c && m.trial && c.auto != null) return `<b class="trial-kpi">${esc(fmtValue(c.auto, m.unit))}</b><a class="chip quiet" href="#/scorecard" title="Automatic on trial: check it on the Scorecard and switch it on">On trial</a>`;
+  return `<b>${esc(fmtValue(null, m.unit))}</b>`;
+}
+
 export async function divisionPage(me, structure, code, tab = "overview") {
   const d = structure.divisions.find(x => x.code === code);
   if (!d) return null;
@@ -168,7 +175,7 @@ export async function divisionPage(me, structure, code, tab = "overview") {
           <div class="foot"><span>${appRole(a)}</span><span class="go">Open ${icon("arrow-right", "i-sm")}</span></div></a>`).join("")}</div></section>` : ""}
       ${mine.length && latestLocked ? `<section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">Company Scorecard</span><h2>This division's numbers</h2></div><span class="aside">Week of ${esc(fmtShort(latestLocked.start))}</span></div>
         <div class="kpis">${mine.map(m => { const c = m.cells.find(x => x.week === latestLocked.week); return `<div class="kpi ${c && c.onTarget === false ? "off" : ""}">
-          <span class="k">${esc(m.name)}</span><b>${esc(fmtValue(c ? c.value : null, m.unit))}</b><span class="dim small">${esc(goalText(m))}</span></div>`; }).join("")}</div></section>` : ""}
+          <span class="k">${esc(m.name)}</span>${kpiValue(m, c)}<span class="dim small">${esc(goalText(m))}</span></div>`; }).join("")}</div></section>` : ""}
       <section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">Accountability Chart</span><h2>Seats</h2></div></div>
         ${d.seats.length ? `<div class="seat-grid">${d.seats.map(s => `<a class="seat link ${s.isMine ? "mine" : ""}" href="#/seat/${s.id}"><b>${esc(s.title)}</b>
           <div class="holders">${uniqueHolders(s).length > 4 ? `<span class="holder">${uniqueHolders(s).length} people</span>${s.holders.some(h => h.isMe) ? `<span class="holder me">including you</span>` : ""}` : uniqueHolders(s).map(h => `<span class="holder ${h.isMe ? "me" : ""}">${esc(h.name)}</span>`).join("") || `<span class="dim small">Seat empty</span>`}</div>
@@ -235,7 +242,7 @@ export async function seatPage(me, structure, id) {
       </div>
       ${owned.length ? `<section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">Company Scorecard</span><h2>Measurables this seat owns</h2></div>${latest ? `<span class="aside">Week of ${esc(fmtShort(latest.start))}</span>` : ""}</div>
         <div class="kpis">${owned.map(m => { const c = latest && m.cells.find(x => x.week === latest.week); return `<div class="kpi ${c && c.onTarget === false ? "off" : ""}">
-          <span class="k">${esc(m.name)}</span><b>${esc(fmtValue(c ? c.value : null, m.unit))}</b><span class="dim small">${esc(goalText(m))}</span></div>`; }).join("")}</div></section>` : ""}
+          <span class="k">${esc(m.name)}</span>${kpiValue(m, c)}<span class="dim small">${esc(goalText(m))}</span></div>`; }).join("")}</div></section>` : ""}
       ${focus.length ? `<section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">Proposed</span><h2>Role scorecard</h2></div><span class="aside">To agree with the seat's owner · release 2</span></div>
         <p class="dim">The few numbers this seat would track week to week, from the Evergreen Golden Scorecard and SLI benchmarks. Once agreed, they fill in automatically here.</p>
         <div class="focus">${focus.map(f => `<span class="chip scheduled">${esc(f)}</span>`).join("")}</div></section>` : ""}
