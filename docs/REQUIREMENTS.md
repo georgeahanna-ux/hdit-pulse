@@ -53,7 +53,7 @@ Starting list of 15 measurables; goals marked "set with owner" are refined by ea
 | # | Measurable | Owner | Goal | Source | Frequency |
 |---|---|---|---|---|---|
 | 1 | MQLs | Faben Miglani | ≥ 7 a week (30 a month) | Marketing ROI (on trial from 0.6.5) | Weekly |
-| 2 | New MRR signed | Faben Miglani | Pace to $560K MRR | Autotask | Weekly |
+| 2 | New MRR signed | Faben Miglani | Pace to $560K MRR | Autotask: monthly revenue on opportunities won that week (on trial from 0.6.5) | Weekly |
 | 3 | Weighted pipeline (Stages 6–7) | Faben Miglani | Set with owner | Autotask, as Pipeline shows it (on trial from 0.6.5) | Weekly |
 | 4 | New seats signed | Faben Miglani | ≥ 12.5 a week (650 a year) | Autotask: seats on opportunities won that week (primary quote) | Weekly |
 | 5 | Seats serviced | Tony Parzakonis | ≥ 2,350 | Autotask contracts (seat services, below) | Weekly |

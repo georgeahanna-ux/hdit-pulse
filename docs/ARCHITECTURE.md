@@ -88,7 +88,7 @@ New app roles on the existing registration, each assigned to a group, the same w
 - Help centre: user guide, FAQ, metric glossary, what's new, versioned and exportable to PDF later.
 
 ### The three apps (D9)
-Brand V5 restyle; header hidden when framed by Pulse; `pulse:navigate` and `pulse:context` bridge messages; help moved into Pulse; the `/api/pulse/measures` route. Backends, Autotask users and Table Storage unchanged.
+Brand V5 restyle; header hidden when framed by Pulse; `pulse:navigate` and `pulse:context` bridge messages; help moved into Pulse; the `/api/pulse/measures` route (Marketing ROI from 0.7.0). Backends and Table Storage unchanged; from 10 Nov 2026 the apps sign in to Autotask with Pulse's single API user (`AUTOTASK_SHARED_SECRET_URI`), their own credentials kept as a fallback.
 
 ## 3. Environments and cost
 Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy on every push to `main`. Production deploys only from an approved GitHub release. Test estimate A$20–35/month; production within D14's ~A$90–140 with Defender. Confirm in the Azure pricing calculator before production.
@@ -101,7 +101,7 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M1 | EOS core | Accountability Chart and seats, V/TO, Rocks, Issues, To-dos, Scorecard with manual measurables, overrides, lock, history | 0.5.0 |
 | M2 | Automatic Scorecard and people | Connections page credential entry (shipped early in 0.5.1); People directory and matching, Autotask departments view and two-way changes (0.5.2); collectors for Autotask (service measurables on trial in 0.5.3), seats and MRR, SimpleSAT, Xero; `/api/pulse/measures` in the three apps; metric ⓘ panels | 0.6.0 |
 | MP | Projects (D21) | Programme and project Gantt (0.6.0); time entry, complete, drag with dependencies (0.6.1); resource planner, lead time, what-if (0.6.2) | 0.6.0–0.6.2 |
-| M2b | Rest of M2 | SimpleSAT, Xero, `/api/pulse/measures` in the three apps | 0.6.3 |
+| M2b | Rest of M2 | Xero (0.6.4); SimpleSAT, MQLs from Marketing ROI's `/api/pulse/measures`, new MRR and weighted pipeline from Autotask, the apps on Pulse's Autotask user (0.6.5) | 0.6.4–0.6.5 |
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |
@@ -109,6 +109,8 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken
+**10 November 2026:** the apps use Pulse's single Autotask API user (D9 amended); new MRR and weighted pipeline worked out by Pulse from Autotask as Pipeline shows them; MQLs from Marketing ROI; SimpleSAT CSAT and NPS. All on trial (0.6.5).
+
 **9 November 2026:** one Autotask API user with in-app module allow-lists (D7 amended); apps under their division (D20); Projects module next (D21): Project Managers and Leadership reschedule, preview then save to Autotask, lead time from open projects only, capacity 7.6 h/day less holidays, leave and non-project share.
 
 **31 October 2026:**

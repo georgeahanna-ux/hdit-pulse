@@ -118,7 +118,7 @@ Release 1 adds Pulse's own backend: Azure SQL, a Key Vault, and two Function App
    ```bash
    bash pulse-setup.sh release1
    ```
-   Creates `id-hdit-pulse-api-test-aue` and `id-hdit-pulse-sync-test-aue`, the Key Vault `kv-hdit-pulse-test` with one placeholder per integration credential, and secret-level access: each identity can read only the credentials it needs. The API identity can write credentials but never read them (custom role "Pulse Secret Writer (Test)"). Prints two client ids.
+   Creates `id-hdit-pulse-api-test-aue` and `id-hdit-pulse-sync-test-aue`, the Key Vault `kv-hdit-pulse-test` with one placeholder per integration credential, and secret-level access: each identity can read only the credentials it needs. The API identity can write credentials but never read them (custom role "Pulse Secret Writer (Test)"). From 10 Nov 2026 it also lets the Pipeline, Marketing ROI and Whitespace identities (`id-hdit-<app>-func-test-aue`) read the one Autotask secret, `autotask-service`, so every app uses Pulse's Autotask API user. Prints two client ids.
 
 6. **Entra ID**, as `ADMIN@HDITTESTINGTENANCY.onmicrosoft.com`:
    ```bash
