@@ -2,7 +2,7 @@
 
 ## 0.7.1 — 11 November 2026
 After the first L10 run (George, 11 Nov 2026).
-- **Top three numbering:** each of 1, 2 and 3 goes to one open Issue on a list at a time. The number is greyed out on the other Issues until it's cleared (IDS in the L10 and the Issues page), and the server refuses a second Issue with the same number (409), so two people numbering at once can't clash. 1 new test (129 in total).
+- **Top three numbering:** each of 1, 2 and 3 goes to one open Issue on a list at a time. The number is greyed out on the other Issues until it's cleared (IDS in the L10 and the Issues page), and the server refuses a second Issue with the same number (409), so two people numbering at once can't clash. An Issue's own number always stays clickable, so any clash from before can be cleared. 1 new test (129 in total).
 
 ## 0.7.0 — 10 November 2026
 The L10 meeting, run in Pulse (M3; D1, D5, D11).
