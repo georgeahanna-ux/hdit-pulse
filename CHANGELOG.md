@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 — 11 November 2026
+Two-way links (M4, D11).
+- **To-dos <-> Microsoft Planner:** company To-dos and the "Pulse – L10" plan sync both ways every 5 minutes (sync service, managed identity, Graph `Tasks.ReadWrite.All`, no secret). Three-way merge per field (title, due date, done, owner) against the values both sides last agreed on: a change on one side goes to the other; changed on both, Pulse wins. New To-dos become tasks (assigned through the People directory's Entra ids; unassigned if Planner won't take the person), tasks added in Planner become To-dos, deletions mirror, ETags on every write. Sync state in `todo_planner`, so To-do history only changes with content. Every change the sync makes is audited as "Planner sync". The plan is chosen on Connections → Microsoft Planner (Platform Admins, audited); Pulse lists the other plans in the same group for Rocks.
+- **Issue -> Autotask:** Create in Autotask on an Issue (Issues List, division lists, IDS) makes an internal ticket (HD IT's own company, chosen queue and priority, status New, due 5pm Sydney) or a project task (open project, optional phase and hours), with a note saying which Issue it came from. Required picklists Pulse isn't given take Autotask's default. New `issues` module in the Autotask allow-list: create Tickets and Tasks only; read Tickets, Tasks, Projects, Phases, Resources. Number and status read back every 5 minutes (`issue_link`); a completed ticket marks the Issue "ready to mark solved". Audited.
+- **Rock progress:** Link progress to an Autotask project (hours worked ÷ worked + remaining, as on the Gantt) or a Planner plan (tasks complete; in progress counts half), refreshed every 5 minutes (`rock_link`). Audited.
+- New "links" job every 5 minutes (also on request and from Diagnose); Diagnose shows link counts and errors.
+- Migration `0015_links`. 11 new tests (140 in total).
+
 ## 0.7.1 — 11 November 2026
 After the first L10 run (George, 11 Nov 2026).
 - **Top three numbering:** each of 1, 2 and 3 goes to one open Issue on a list at a time. The number is greyed out on the other Issues until it's cleared (IDS in the L10 and the Issues page), and the server refuses a second Issue with the same number (409), so two people numbering at once can't clash. An Issue's own number always stays clickable, so any clash from before can be cleared. 1 new test (129 in total).

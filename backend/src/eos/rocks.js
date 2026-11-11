@@ -34,6 +34,7 @@ function shape(ctx, r, milestones) {
     title: r.title, description: r.description, owner: { name: r.owner_name, email: r.owner_email, isMe: C.isMe(ctx, r.owner_email) },
     status: r.status, dueDate: r.due_date ? C.day(r.due_date) : null, archived: !!r.is_archived,
     milestones: ms, milestonesDone: ms.filter(m => m.done).length, canEdit: canEdit(ctx, r),
+    link: r._link || null,
   };
 }
 
@@ -50,6 +51,20 @@ async function list(ctx) {
     `SELECT id, rock_id, title, due_date, is_done FROM pulse.rock_milestone
       WHERE is_deleted = 0 AND rock_id IN (${rows.map((_, i) => "@r" + i).join(",")}) ORDER BY sort, id`,
     Object.fromEntries(rows.map((r, i) => ["r" + i, r.id]))) : [];
+  if (rows.length) {
+    // Progress from a linked Autotask project or Planner plan (D11, 0.8.0).
+    const links = await db.query(`SELECT * FROM pulse.rock_link WHERE rock_id IN (${rows.map((_, i) => "@r" + i).join(",")})`, Object.fromEntries(rows.map((r, i) => ["r" + i, r.id])));
+    if (links.length) {
+      const L = require("./links");
+      const base = await L.webUrl();
+      const by = new Map(links.map(l => [l.rock_id, l]));
+      for (const r of rows) {
+        const l = by.get(r.id);
+        if (l) r._link = { kind: l.kind, ref: l.ref, name: l.name, pct: l.pct === null ? null : Number(l.pct), detail: l.detail, checkedAt: l.checked_at, error: l.last_error,
+          url: l.kind === "autotask_project" ? L.autotaskUrl(base, "project", l.ref) : `https://planner.cloud.microsoft/webui/plan/${encodeURIComponent(l.ref)}/view/board` };
+      }
+    }
+  }
   return { fy, quarter, label: time.fyLabel(fy, quarter), range: time.fyRange(fy, quarter), rocks: rows.map(r => shape(ctx, r, ms)) };
 }
 

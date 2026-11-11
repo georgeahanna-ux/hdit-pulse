@@ -103,12 +103,14 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | MP | Projects (D21) | Programme and project Gantt (0.6.0); time entry, complete, drag with dependencies (0.6.1); resource planner, lead time, what-if (0.6.2) | 0.6.0–0.6.2 |
 | M2b | Rest of M2 | Xero (0.6.4); SimpleSAT, MQLs from Marketing ROI's `/api/pulse/measures`, new MRR and weighted pipeline from Autotask, the apps on Pulse's Autotask user (0.6.5) | 0.6.4–0.6.5 |
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues. Built 10 Nov 2026: `meeting`, `meeting_attendee`, `headline` tables; the page polls the meeting state every 4 seconds (no websockets needed); summary kept when it ends | 0.7.0 |
-| M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects | 0.8.0 |
+| M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects. Built 11 Nov 2026: "links" job every 5 minutes; per-field three-way merge for To-dos (Pulse wins a clash); `todo_planner`, `issue_link`, `rock_link`, `planner_plan` tables; Autotask `issues` module may only create tickets and project tasks | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken
+**11 November 2026 (0.8.0):** two-way links built (D11): Planner To-dos, Issue → Autotask, Rock progress.
+
 **10 November 2026 (0.7.0):** the L10 meeting runs in Pulse (D22).
 
 **10 November 2026:** the apps use Pulse's single Autotask API user (D9 amended); new MRR and weighted pipeline worked out by Pulse from Autotask as Pipeline shows them; MQLs from Marketing ROI; SimpleSAT CSAT and NPS. All on trial (0.6.5).

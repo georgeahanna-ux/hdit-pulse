@@ -105,7 +105,7 @@ const routes = [
 ];
 
 // Release 1 EOS modules (M1)
-for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan", "l10"]) routes.push(...require(`../eos/${m}`).routes);
+for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "plan", "l10", "links"]) routes.push(...require(`../eos/${m}`).routes);
 routes.push(...require("./connections").routes);
 routes.push(...require("./people").routes);
 routes.push(...require("../projects/resources").routes);   // before /projects/:id

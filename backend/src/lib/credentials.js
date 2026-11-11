@@ -22,8 +22,8 @@ const AUTOTASK_FIELDS = [
 const TYPES = {
   // One Autotask API user for all of Pulse (9 Nov 2026). Pulse limits what each module may do (lib/autotask.js POLICY).
   "autotask-service": { system: "Autotask", label: "Autotask", kind: "autotask", fields: AUTOTASK_FIELDS,
-    purpose: "Everything Pulse reads from or writes to Autotask: the Scorecard, the FY plan, People and departments, and Projects. Pulse limits each part to the records it needs.",
-    permissions: "Read: tickets, time entries, holiday sets, contracts and contract services, services, opportunities and quotes, projects, phases, tasks and their predecessors and secondary resources, companies, resources, roles, departments and time off. Write: resource role departments (add, edit), project tasks (edit), time entries (add)." },
+    purpose: "Everything Pulse reads from or writes to Autotask: the Scorecard, the FY plan, People and departments, Projects, and tickets or tasks made from Issues. Pipeline, Marketing ROI and Whitespace Matrix use it too. Pulse limits each part to the records it needs.",
+    permissions: "Read: tickets, time entries, holiday sets, contracts and contract services, services, opportunities and quotes, projects, phases, tasks and their predecessors and secondary resources, companies, resources, roles, departments and time off. Write: resource role departments (add, edit), project tasks (add, edit), tickets (add), time entries (add)." },
   "simplesat": { system: "SimpleSAT", label: "SimpleSAT", kind: "fields",
     fields: [{ key: "apiKey", label: "API key", secret: true, required: true }],
     purpose: "CSAT and NPS.", permissions: "Read-only API key." },

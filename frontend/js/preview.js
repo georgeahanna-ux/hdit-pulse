@@ -105,20 +105,26 @@ let fid = 0;
 const functions = Object.fromEntries(DIVISIONS.map(d => [d.code, (FUNCTIONS[d.code] || []).map(name => ({ id: ++fid, name }))]));
 
 let nextId = 100;
+// Two-way links (0.8.0)
+const previewPlanner = { planId: "xqQg5FS2LkCp935s-FIFm2QAFkHM", title: "Pulse – L10", group: "Leadership Team", checkedAt: new Date().toISOString(), linkedTodos: 2, errors: 0, lastRun: { at: new Date(Date.now() - 3 * 60e3).toISOString(), ok: true, detail: "Planner: 2 tasks" } };
+const PLANS = [{ id: "xqQg5FS2LkCp935s-FIFm2QAFkHM", title: "Pulse – L10", group: "Leadership Team" }, { id: "Ab12Cd34Ef56Gh78Ij90KlMnOp", title: "Pulse rollout", group: "Leadership Team" }];
+const AT_PROJECTS = [{ id: 5101, name: "Microsoft 365 tenant hardening", number: "P20261021.0003", client: "HD IT" }, { id: 5102, name: "Head office server refresh", number: "P20261028.0001", client: "Parra Legal" }];
 const rocks = [
   { id: 1, level: "company", division: null, title: "Reach 2,300 seats serviced", owner: { name: "Tony Parzakonis", email: "tony.parzakonis@hdit.com.au" }, status: "on_track", milestones: [{ id: 1, title: "Onboard three new clients", done: true }, { id: 2, title: "Close two renewals with seat growth", done: false }] },
-  { id: 2, level: "company", division: null, title: "Pulse release 1 live for the leadership team", owner: { name: "George Hanna", email: "george.hanna@hdit.com.au" }, status: "on_track", milestones: [] },
+  { id: 2, level: "company", division: null, title: "Pulse release 1 live for the leadership team", owner: { name: "George Hanna", email: "george.hanna@hdit.com.au" }, status: "on_track", milestones: [],
+    link: { kind: "planner_plan", ref: "Ab12Cd34Ef56Gh78Ij90KlMnOp", name: "Pulse rollout", pct: 72, detail: "13 of 19 tasks complete, 2 in progress.", url: "https://planner.cloud.microsoft/" } },
   { id: 3, level: "company", division: null, title: "Debtor days under 20 every week", owner: { name: "Mandy Moujalli", email: "mandy.moujalli@hdit.com.au" }, status: "off_track", milestones: [] },
   { id: 4, level: "division", division: "ManagedServices", title: "First-contact resolution to 70%", owner: { name: "Ragav Kannan", email: "ragav.kannan@hdit.com.au" }, status: "on_track", milestones: [] },
 ];
 const issues = [
   { id: 1, level: "company", division: null, title: "Technician utilisation below 70% three weeks running", owner: { name: "Tony Parzakonis" }, raisedBy: "Sam Leader", priority: 1, status: "open" },
-  { id: 2, level: "company", division: null, title: "Quarter targets for FY27 not yet set", owner: { name: "Mandy Moujalli" }, raisedBy: "George Hanna", priority: 2, status: "open" },
+  { id: 2, level: "company", division: null, title: "Quarter targets for FY27 not yet set", owner: { name: "Mandy Moujalli" }, raisedBy: "George Hanna", priority: 2, status: "open",
+    autotask: { kind: "ticket", id: 81202, number: "T20261110.0042", title: "Quarter targets for FY27 not yet set", status: "In Progress", complete: false, url: "https://ww29.autotask.net/", error: null } },
   { id: 3, level: "division", division: "ManagedServices", title: "After-hours escalations not reaching the on-call engineer", owner: null, raisedBy: "Riley Tech", priority: null, status: "open" },
 ];
 const todos = [
-  { id: 1, level: "company", title: "Send the FY27 quarter targets to Finance", owner: { name: "George Hanna", email: "george.hanna@hdit.com.au" }, dueDate: addDays(iso(today()), 3), done: false },
-  { id: 2, level: "company", title: "Review SLA breaches with the service team", owner: { name: "Tony Parzakonis", email: "tony.parzakonis@hdit.com.au" }, dueDate: addDays(iso(today()), -1), done: false },
+  { id: 1, level: "company", title: "Send the FY27 quarter targets to Finance", owner: { name: "George Hanna", email: "george.hanna@hdit.com.au" }, dueDate: addDays(iso(today()), 3), done: false, planner: { linked: true, error: null } },
+  { id: 2, level: "company", title: "Review SLA breaches with the service team", owner: { name: "Tony Parzakonis", email: "tony.parzakonis@hdit.com.au" }, dueDate: addDays(iso(today()), -1), done: false, planner: { linked: true, error: null } },
   { id: 3, level: "individual", title: "Book quarterly conversations", owner: { name: "Riley Tech", email: "riley.tech@hdit.com.au" }, dueDate: addDays(iso(today()), 5), done: false },
 ];
 const vto = [["core_values", "Core values"], ["core_focus", "Core focus"], ["ten_year_target", "10-year target"], ["marketing_strategy", "Marketing strategy"],
@@ -272,6 +278,27 @@ export function previewApi(path, method, body = {}) {
   }
   if ((mm = /^\/rocks\/(\d+)$/.exec(p))) { const r = rocks.find(x => x.id === Number(mm[1])); if (body.status) r.status = body.status; if (body.title) r.title = body.title; if (body.archived) rocks.splice(rocks.indexOf(r), 1); return { ok: true }; }
 
+  if (p === "/links/options") {
+    if (q.for === "rock") return { projects: AT_PROJECTS, plans: PLANS };
+    return { queues: [{ v: 29682833, t: "Internal" }, { v: 29683354, t: "Service Desk" }, { v: 29683355, t: "Projects" }], priorities: [{ v: 1, t: "High" }, { v: 2, t: "Medium" }, { v: 3, t: "Low" }, { v: 4, t: "Critical" }], defaultPriority: 2,
+      projects: AT_PROJECTS, phases: [{ id: 1, projectId: 5101, title: "Discovery" }, { id: 2, projectId: 5101, title: "Build" }], dueDate: addDays(iso(today()), 7) };
+  }
+  if ((mm = /^\/issues\/(\d+)\/autotask$/.exec(p))) {
+    const i = issues.find(x => x.id === Number(mm[1]));
+    const id = 81200 + i.id, number = body.kind === "ticket" ? `T${iso(today()).replace(/-/g, "")}.00${40 + i.id}` : `T${iso(today()).replace(/-/g, "")}.00${70 + i.id}`;
+    i.autotask = { kind: body.kind, id, number, title: body.title, status: "New", complete: false, url: "https://ww29.autotask.net/", error: null };
+    return { kind: body.kind, id, number, status: "New", url: i.autotask.url };
+  }
+  if ((mm = /^\/rocks\/(\d+)\/link$/.exec(p))) {
+    const r = rocks.find(x => x.id === Number(mm[1]));
+    if (method === "DELETE") { r.link = null; return { ok: true }; }
+    const proj = AT_PROJECTS.find(x => String(x.id) === String(body.ref)), plan = PLANS.find(x => x.id === body.ref);
+    r.link = body.kind === "autotask_project"
+      ? { kind: body.kind, ref: body.ref, name: `${proj.number} ${proj.name}`, pct: 64, detail: "9 of 15 tasks complete.", url: "https://ww29.autotask.net/" }
+      : { kind: body.kind, ref: body.ref, name: plan ? plan.title : "Planner plan", pct: 40, detail: "4 of 10 tasks complete, 2 in progress.", url: "https://planner.cloud.microsoft/" };
+    return { ok: true };
+  }
+  if (p === "/planner/plan") { previewPlanner.planId = body.link || null; previewPlanner.title = body.link ? "Pulse – L10" : null; return { planId: previewPlanner.planId }; }
   if (p === "/issues" && method === "GET") {
     const level = q.level || "company";
     if (level === "company" && !a.leadership) fail(403, "The company Issues List is for the leadership team.");
@@ -325,7 +352,7 @@ export function previewApi(path, method, body = {}) {
     Object.assign(person, body.none ? { link: null, none: true } : body.automatic ? { admin: false } : { link: body.resourceId, admin: true, none: false });
     return { ok: true };
   }
-  if (p === "/connections" && method === "GET") return { connections: previewConnections, xero: { organisation: null, redirectUri: "https://func-hdit-pulse-sync-test-aue.azurewebsites.net/api/xero/callback" } };
+  if (p === "/connections" && method === "GET") return { connections: previewConnections, planner: previewPlanner, xero: { organisation: null, redirectUri: "https://func-hdit-pulse-sync-test-aue.azurewebsites.net/api/xero/callback" } };
   if (p === "/xero/start") return { url: "#/connections?xero=connected" };
   if ((mm = /^\/connections\/([a-z-]+)$/.exec(p))) {
     const c = previewConnections.find(x => x.name === mm[1]);

@@ -29,7 +29,10 @@ async function list() {
                                  FROM pulse.connection_status`);
   const byName = new Map(rows.map(r => [r.name, r]));
   const [org] = await db.query("SELECT [value] FROM pulse.app_setting WHERE [key] = N'xero.tenant_name'");
+  let planner = null;
+  try { planner = await require("../eos/links").plannerStatus(); } catch { /* tables arrive with migration 0015 */ }
   return {
+    planner,
     xero: { organisation: org ? org.value : null, redirectUri: `${String(process.env.PULSE_SYNC_URL || "").replace(/\/+$/, "")}/api/xero/callback` },
     connections: Object.keys(creds.TYPES).map(name => {
       const r = byName.get(name) || {};

@@ -27,16 +27,54 @@ function rockRow(r) {
     <div class="rock-main">
       <div class="rock-title"><b>${esc(r.title)}</b>${r.level === "division" ? ` <span class="chip quiet">${esc(divisionName(r.division))}</span>` : ""}</div>
       <div class="dim small">${esc(r.owner.name)}${r.dueDate ? ` · ${esc(dueText(r.dueDate))}` : ""}${r.milestones.length ? ` · ${r.milestonesDone} of ${r.milestones.length} milestones` : ""}</div>
+      ${linkProgress(r)}
       ${r.milestones.length ? `<ul class="ms">${r.milestones.map(m => `<li><label><input type="checkbox" data-ms="${r.id}:${m.id}" ${m.done ? "checked" : ""} ${r.canEdit ? "" : "disabled"}> ${esc(m.title)}</label></li>`).join("")}</ul>` : ""}
     </div>
     <div class="rock-side">
       ${r.canEdit ? `<select class="status-sel" data-rock-status="${r.id}" aria-label="Status of ${esc(r.title)}">${ROCK_STATUSES.map(s => `<option value="${s.v}" ${s.v === r.status ? "selected" : ""}>${s.t}</option>`).join("")}</select>` : rockChip(r.status)}
       ${r.canEdit ? `<button class="link-btn small" type="button" data-rock-ms="${r.id}">Add milestone</button>` : ""}
+      ${r.canEdit ? `<button class="link-btn small" type="button" data-rock-link="${r.id}">${r.link ? "Change progress link" : "Link progress"}</button>` : ""}
     </div>
   </article>`;
 }
 
+/** Progress from a linked Autotask project or Planner plan (0.8.0). */
+function linkProgress(r) {
+  const l = r.link;
+  if (!l) return "";
+  const src = l.kind === "autotask_project" ? "Autotask project" : "Planner plan";
+  const pct = l.pct === null || l.pct === undefined ? null : Math.round(l.pct);
+  return `<div class="rock-link">
+      <div class="rl-h small"><span>${esc(src)}: <a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name || "linked")}</a></span><b>${pct === null ? "—" : pct + "%"}</b></div>
+      <div class="rl-bar"><i style="width:${pct || 0}%"></i></div>
+      <div class="dim small">${esc(l.error ? `Couldn't read it: ${l.error}` : l.detail || "")}</div></div>`;
+}
+
+let linkOptions = null;
+async function rockLinkDialog(r, refresh) {
+  const o = linkOptions || (linkOptions = await api("/links/options?for=rock"));
+  const projects = o.projects.map(p => ({ v: "autotask_project:" + p.id, t: `Autotask · ${p.client ? p.client + " · " : ""}${p.number ? p.number + " " : ""}${p.name}` }));
+  const plans = o.plans.map(p => ({ v: "planner_plan:" + p.id, t: `Planner · ${p.title}${p.group ? " (" + p.group + ")" : ""}` }));
+  const cur = r.link ? `${r.link.kind}:${r.link.ref}` : "";
+  dialog({
+    title: "Link progress", intro: `${esc(r.title)}<br>Pulse fills in the Rock's progress from an Autotask project (hours worked against remaining) or a Planner plan (tasks complete), every 5 minutes.`,
+    fields: [
+      { name: "pick", label: "Progress from", type: "select", value: cur, options: [{ v: "", t: "Choose…" }, ...projects, ...plans] },
+      { name: "planLink", label: "Or paste a Planner plan link", placeholder: "https://planner.cloud.microsoft/webui/plan/…", hint: "For a plan that isn't in the list: in Planner, select … beside the plan's name, then Copy link to plan." },
+      ...(r.link ? [{ name: "remove", label: "Remove the link", type: "checkbox" }] : []),
+    ],
+    onSubmit: async f => {
+      if (f.remove) { await api(`/rocks/${r.id}/link`, { method: "DELETE" }); toast("Link removed"); return refresh(); }
+      const [kind, ref] = f.planLink ? ["planner_plan", f.planLink] : (f.pick || "").split(/:(.+)/);
+      if (!kind) throw new Error("Choose a project or plan, or paste a plan link.");
+      await api(`/rocks/${r.id}/link`, { method: "PUT", body: { kind, ref } });
+      toast("Progress linked"); refresh();
+    },
+  });
+}
+
 function mountRocks(root, data, me, { level, division }, refresh) {
+  root.querySelectorAll("[data-rock-link]").forEach(b => { b.onclick = () => rockLinkDialog(data.rocks.find(x => x.id === Number(b.dataset.rockLink)), refresh).catch(e => toast(e.message)); });
   root.querySelectorAll("[data-rock-status]").forEach(s => { s.onchange = async () => { await api(`/rocks/${s.dataset.rockStatus}`, { method: "PATCH", body: { status: s.value } }); toast("Status updated"); refresh(); }; });
   root.querySelectorAll("[data-ms]").forEach(c => { c.onchange = async () => { const [r, m] = c.dataset.ms.split(":"); await api(`/rocks/${r}/milestones/${m}`, { method: "PATCH", body: { done: c.checked } }); refresh(); }; });
   root.querySelectorAll("[data-rock-ms]").forEach(b => { b.onclick = () => dialog({ title: "Add a milestone", fields: [{ name: "title", label: "Milestone", required: true }, { name: "dueDate", label: "Due", type: "date" }],
@@ -76,8 +114,10 @@ export async function issuesBlock(me, { level = "company", division = null } = {
   const html = `
     ${data.issues.length ? `<div class="issue-list">${data.issues.map(i => `<article class="issue">
       <div class="prio">${prioButtons(i, data.issues)}</div>
-      <div class="issue-main"><b>${esc(i.title)}</b><div class="dim small">${i.owner ? `Owner ${esc(i.owner.name)} · ` : ""}raised by ${esc(i.raisedBy || "")}</div></div>
-      <div class="issue-act"><button class="btn outline sm" type="button" data-solve="${i.id}">Solve</button><button class="link-btn small" type="button" data-drop="${i.id}">Drop</button></div>
+      <div class="issue-main"><b>${esc(i.title)}</b><div class="dim small">${i.owner ? `Owner ${esc(i.owner.name)} · ` : ""}raised by ${esc(i.raisedBy || "")}</div>${autotaskChip(i)}</div>
+      <div class="issue-act"><button class="btn outline sm" type="button" data-solve="${i.id}">Solve</button>
+        ${i.autotask ? "" : `<button class="link-btn small" type="button" data-at="${i.id}">Create in Autotask</button>`}
+        <button class="link-btn small" type="button" data-drop="${i.id}">Drop</button></div>
     </article>`).join("")}</div>` : empty("No open Issues. Add one when something needs to be identified, discussed and solved.")}
     <button class="btn outline" type="button" data-add-issue>${icon("discover", "i-sm")}Add an Issue</button>`;
   return {
@@ -87,6 +127,7 @@ export async function issuesBlock(me, { level = "company", division = null } = {
       root.querySelectorAll("[data-solve]").forEach(b => { b.onclick = () => dialog({ title: "Solve this Issue", intro: esc(data.issues.find(i => i.id === Number(b.dataset.solve)).title),
         fields: [{ name: "solution", label: "Solution", type: "textarea", rows: 3, required: true, hint: "What was decided. Add To-dos for the actions." }],
         submit: "Mark solved", onSubmit: async f => { await api(`/issues/${b.dataset.solve}`, { method: "PATCH", body: { status: "solved", solution: f.solution } }); toast("Solved"); refresh(); } }); });
+      root.querySelectorAll("[data-at]").forEach(b => { b.onclick = () => autotaskDialog(data.issues.find(i => i.id === Number(b.dataset.at)), refresh).catch(e => toast(e.message)); });
       root.querySelectorAll("[data-drop]").forEach(b => { b.onclick = () => dialog({ title: "Drop this Issue?", intro: "It moves off the list. It stays in the record.", submit: "Drop", danger: true,
         onSubmit: async () => { await api(`/issues/${b.dataset.drop}`, { method: "PATCH", body: { status: "dropped" } }); refresh(); } }); });
       root.querySelector("[data-add-issue]").onclick = () => dialog({
@@ -95,6 +136,56 @@ export async function issuesBlock(me, { level = "company", division = null } = {
       });
     },
   };
+}
+
+/** An Issue's Autotask ticket or task, with its status (0.8.0). */
+export function autotaskChip(i) {
+  const a = i.autotask;
+  if (!a) return "";
+  return `<div class="at-chip small"><span class="chip ${a.complete ? "ok" : "quiet"}">${a.kind === "ticket" ? "Ticket" : "Project task"}</span>
+    <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.number || `#${a.id}`)}</a>
+    <span class="dim">${esc(a.error || a.status || "")}${a.complete ? " · ready to mark solved" : ""}</span></div>`;
+}
+
+let atOptions = null;
+/** Create an Autotask ticket or project task from an Issue (D11). */
+export async function autotaskDialog(issue, refresh) {
+  const o = atOptions || (atOptions = await api("/links/options?for=issue"));
+  const d = dialog({
+    title: "Create in Autotask", intro: `${esc(issue.title)}<br>Pulse creates it with its API user, adds a note saying where it came from, and links it to this Issue. Its status shows here.`,
+    fields: [
+      { name: "kind", label: "Create a", type: "select", required: true, value: "ticket", options: [{ v: "ticket", t: "Ticket (internal)" }, { v: "task", t: "Project task" }] },
+      { name: "title", label: "Title", value: issue.title, required: true },
+      { name: "description", label: "Detail", type: "textarea", rows: 3, value: issue.description || "" },
+      { name: "queueId", label: "Queue (ticket)", type: "select", options: [{ v: "", t: "Choose…" }, ...o.queues] },
+      { name: "priority", label: "Priority (ticket)", type: "select", value: o.defaultPriority ?? "", options: o.priorities },
+      { name: "projectId", label: "Project (task)", type: "select", options: [{ v: "", t: "Choose…" }, ...o.projects.map(p => ({ v: p.id, t: `${p.client ? p.client + " · " : ""}${p.number ? p.number + " " : ""}${p.name}` }))] },
+      { name: "phaseId", label: "Phase (task)", type: "select", options: [{ v: "", t: "No phase" }] },
+      { name: "estimatedHours", label: "Estimated hours (task)", type: "number" },
+      { name: "dueDate", label: "Due", type: "date", value: o.dueDate },
+    ],
+    submit: "Create",
+    onSubmit: async f => {
+      if (f.kind === "ticket" && !f.queueId) throw new Error("Choose a queue for the ticket.");
+      if (f.kind === "task" && !f.projectId) throw new Error("Choose a project for the task.");
+      const r = await api(`/issues/${issue.id}/autotask`, { method: "POST", body: f });
+      toast(`${r.kind === "ticket" ? "Ticket" : "Task"} ${r.number || r.id} created in Autotask`);
+      refresh();
+    },
+  });
+  // Show the fields for the chosen kind; phases follow the project.
+  const form = d.querySelector("form");
+  const show = () => {
+    const task = form.kind.value === "task";
+    for (const n of ["queueId", "priority"]) form[n].closest(".fld").hidden = task;
+    for (const n of ["projectId", "phaseId", "estimatedHours"]) form[n].closest(".fld").hidden = !task;
+  };
+  form.kind.onchange = show;
+  form.projectId.onchange = () => {
+    const ph = o.phases.filter(p => p.projectId === Number(form.projectId.value));
+    form.phaseId.innerHTML = `<option value="">No phase</option>` + ph.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join("");
+  };
+  show();
 }
 
 export async function issuesPage(me) {
@@ -109,7 +200,7 @@ export async function todosBlock(me, { view = "mine", division = null } = {}) {
   const data = await api("/todos?" + qs);
   const open = data.todos.filter(t => !t.done), done = data.todos.filter(t => t.done);
   const row = t => `<li class="todo ${t.done ? "done" : ""}"><label><input type="checkbox" data-todo="${t.id}" ${t.done ? "checked" : ""}> <span>${esc(t.title)}</span></label>
-    <span class="dim small">${view !== "mine" ? esc(t.owner.name) + " · " : ""}${t.overdue ? `<span class="chip alert">Overdue</span> ` : ""}${esc(dueText(t.dueDate))}</span></li>`;
+    <span class="dim small">${view !== "mine" ? esc(t.owner.name) + " · " : ""}${t.overdue ? `<span class="chip alert">Overdue</span> ` : ""}${esc(dueText(t.dueDate))}${t.planner ? ` · <span class="${t.planner.error ? "err" : ""}" title="${esc(t.planner.error || "Kept in step with the Pulse – L10 plan in Planner")}">${t.planner.error ? "Planner: not synced" : "In Planner"}</span>` : ""}</span></li>`;
   const html = `${open.length ? `<ul class="todos">${open.map(row).join("")}</ul>` : empty(view === "mine" ? "Nothing on your list." : "No open To-dos.")}
     ${done.length ? `<details class="done-list"><summary>${done.length} done in the last two weeks</summary><ul class="todos">${done.map(row).join("")}</ul></details>` : ""}
     <button class="btn outline" type="button" data-add-todo>${icon("check", "i-sm")}Add a To-do</button>`;
@@ -131,7 +222,7 @@ export async function todosPage(me) {
   const company = me.access.leadership ? await todosBlock(me, { view: "company" }) : null;
   return {
     title: "To-dos",
-    html: `<div class="ph"><span class="hd-eyebrow">Company</span><h1>To-dos</h1><p>Seven-day commitments. From 0.8.0 they also appear in the "Pulse – L10" plan in Planner.</p></div>
+    html: `<div class="ph"><span class="hd-eyebrow">Company</span><h1>To-dos</h1><p>Seven-day commitments. The leadership team's To-dos are also in the "Pulse – L10" plan in Planner: tick one off in either place and it's done in both.</p></div>
       <section class="sec" data-block="mine"><div class="sec-h"><h2>Yours</h2></div>${mine.html}</section>
       ${company ? `<section class="sec" data-block="company"><div class="sec-h"><h2>Leadership team</h2></div>${company.html}</section>` : ""}`,
     mount: (root, refresh) => { mine.mount(root.querySelector('[data-block="mine"]'), refresh); if (company) company.mount(root.querySelector('[data-block="company"]'), refresh); },

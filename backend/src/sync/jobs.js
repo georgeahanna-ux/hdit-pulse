@@ -105,7 +105,9 @@ const syncScorecard = () => collect.runScorecard({ isConnected });
 /* ---------------- Projects (D21) ---------------- */
 const syncProjects = () => require("../projects/sync").syncAll();
 
-const REQUESTABLE = { connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects };
+// To-dos <-> Planner, Rock progress and Issue links (D11, 0.8.0).
+const syncLinks = () => require("../links").runLinks({ autotaskReady: () => isConnected("autotask-service").catch(() => false) });
+const REQUESTABLE = { connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
 
 /**
  * Read-only look at one Autotask opportunity and its quotes (job "inspect:opportunity:<id>",
@@ -161,4 +163,4 @@ async function runRequests(context) {
   }
 }
 
-module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, runRequests, CONNECTIONS };
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, runRequests, CONNECTIONS };

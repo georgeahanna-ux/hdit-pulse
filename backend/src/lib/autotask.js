@@ -48,6 +48,10 @@ const POLICY = {
       "ResourceRoleDepartments", "TimeEntries", "HolidaySets", "Holidays", "TimeOffRequests"],
     write: { Tasks: ["update"], TimeEntries: ["create"], TaskPredecessors: ["create", "delete"] },   // a dependency is a link; removing one deletes no work
   },
+  issues: {   // Issue -> Autotask ticket or project task (D11, 0.8.0), and their status read back
+    read: ["Tickets", "Tasks", "Projects", "Phases", "Resources"],
+    write: { Tickets: ["create"], Tasks: ["create"] },
+  },
 };
 
 function allowed(module, op, entity) {

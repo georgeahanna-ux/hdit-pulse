@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { esc, icon, toast, fmtShort, fmtDate, fmtDateTime } from "../ui.js";
 import { dialog, empty, dueText, fmtValue, prioButtons } from "../components.js";
 import { scorecardBlock, mountScorecard } from "./scorecard.js";
-import { rocksBlock } from "./eos.js";
+import { rocksBlock, autotaskChip, autotaskDialog } from "./eos.js";
 
 const POLL_MS = 4000;
 const KIND = { customer: "Customer", employee: "Employee", other: "Other" };
@@ -370,11 +370,12 @@ const SECTION = {
     const detail = sel ? `<div class="ids-card">
         <span class="hd-eyebrow">${sel.priority ? `Top ${sel.priority}` : "Not numbered"}</span><h3>${esc(sel.title)}</h3>
         ${sel.description ? `<p>${esc(sel.description)}</p>` : ""}
-        <p class="dim small">Raised by ${esc(sel.raisedBy || "")}${sel.owner ? ` · owner ${esc(sel.owner.name)}` : ""}</p>
+        <p class="dim small">Raised by ${esc(sel.raisedBy || "")}${sel.owner ? ` · owner ${esc(sel.owner.name)}` : ""}</p>${autotaskChip(sel)}
         <ol class="ids-steps"><li><b>Identify</b> the real issue: say it in one sentence.</li><li><b>Discuss</b> once: everyone says their piece, no repeating.</li><li><b>Solve</b>: decide, then turn it into To-dos.</li></ol>
         ${todosFor.length ? `<h4>To-dos from this Issue</h4><ul class="todos">${todosFor.map(t => `<li class="todo"><span>${esc(t.title)}</span><span class="dim small">${esc(t.owner)} · ${esc(dueText(t.dueDate))}</span></li>`).join("")}</ul>` : ""}
         <div class="ids-act"><button class="btn outline sm" type="button" data-ids-todo>${icon("check", "i-sm")}Add a To-do</button>
           <button class="btn sm" type="button" data-ids-solve>Solved</button>
+          ${sel.autotask ? "" : `<button class="link-btn small" type="button" data-ids-at>Create in Autotask</button>`}
           <button class="link-btn small" type="button" data-ids-drop>Drop it</button></div></div>` : "";
     return {
       html: `<div class="ids">${listHtml}${detail}</div><button class="btn outline" type="button" data-ids-add>${icon("discover", "i-sm")}Add an Issue</button>`,
@@ -400,6 +401,8 @@ const SECTION = {
             toast("To-do added"); refresh();
           },
         });
+        const atb = root.querySelector("[data-ids-at]");
+        if (atb) atb.onclick = () => autotaskDialog(sel, refresh).catch(e => toast(e.message));
         root.querySelector("[data-ids-solve]").onclick = () => dialog({ title: "Solved", intro: esc(sel.title),
           fields: [{ name: "solution", label: "What was decided", type: "textarea", rows: 3, required: true, hint: "The To-dos carry out the decision." }], submit: "Mark solved",
           onSubmit: async f => { await api(`/issues/${sel.id}`, { method: "PATCH", body: { status: "solved", solution: f.solution } }); sessionStorage.removeItem(`l10:${st.id}:issue`); toast("Solved"); refresh(); } });

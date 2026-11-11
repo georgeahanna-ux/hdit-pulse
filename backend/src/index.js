@@ -56,6 +56,11 @@ if (component === "api") {
     schedule: "0 40 15 * * *", runOnStartup: false,
     handler: (_t, context) => jobs.run("directory", context, jobs.syncDirectory),
   });
+  // To-dos <-> Planner, Rock progress and Issue links every 5 minutes, at :01, :06, :11 … (D11).
+  app.timer("links", {
+    schedule: "0 1/5 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.run("links", context, jobs.syncLinks),
+  });
   // Jobs asked for from Pulse ("Refresh now"), every two minutes.
   app.timer("requests", {
     schedule: "0 */2 * * * *", runOnStartup: false,

@@ -27,7 +27,27 @@ async function all(path) {
   return out;
 }
 
+/**
+ * A write (or a read that needs headers) for Planner: POST, PATCH or DELETE, with If-Match when an
+ * ETag is given. Returns { status, body, etag }. Rate limits (429) are waited out a few times.
+ */
+let fetchImpl = (...a) => fetch(...a);
+async function send(method, path, body, { etag = null } = {}) {
+  const url = G + path;
+  for (let attempt = 0; ; attempt++) {
+    const { token } = await cred().getToken("https://graph.microsoft.com/.default");
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json", prefer: "return=representation" };
+    if (etag) headers["if-match"] = etag;
+    const res = await fetchImpl(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(60000) });
+    if ((res.status === 429 || res.status === 503) && attempt < 4) { await new Promise(r => setTimeout(r, (Number(res.headers.get("retry-after")) || 2 ** attempt * 2) * 1000)); continue; }
+    const text = await res.text().catch(() => "");
+    let json = null; try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
+    if (!res.ok) { const e = new Error(`Microsoft Graph ${res.status}: ${((json && json.error && json.error.message) || text).slice(0, 300)}`); e.status = res.status; throw e; }
+    return { status: res.status, body: json, etag: (json && json["@odata.etag"]) || res.headers.get("etag") || null };
+  }
+}
+
 const USER_FIELDS = "id,displayName,givenName,surname,userPrincipalName,mail,otherMails,proxyAddresses,accountEnabled,userType,jobTitle,department,assignedLicenses";
 const users = () => all(`/users?$select=${USER_FIELDS}&$top=999`);
 
-module.exports = { get, all, users };
+module.exports = { get, all, users, send, _test: { setFetch(f) { fetchImpl = f; }, setCred(c) { credential = c; } } };

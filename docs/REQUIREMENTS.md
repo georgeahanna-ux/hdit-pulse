@@ -140,6 +140,7 @@ Merging backends is not planned.
 - **Scorecard:** a measurable off target two weeks running *suggests* an Issue for the next L10 (not created automatically).
 - **Rocks** can link to a Planner plan or Autotask project so progress shows automatically.
 - No broad write-back to source systems (tickets, contracts, Xero records stay edited in their own systems).
+- **Built in 0.8.0 (11 Nov 2026):** company To-dos sync both ways with the "Pulse – L10" plan every 5 minutes (title, due date, done, owner; changed in both places, Pulse wins; deletions mirror; tasks added in Planner become To-dos). Create in Autotask on an Issue makes an internal ticket or a project task, with its number and status read back. Rocks take progress from an Autotask project or a Planner plan. The suggested Issues arrived with the L10 in 0.7.0.
 
 ### D12. Teams first (30 Oct 2026)
 - Pulse as a Teams app: personal app in each person's sidebar, and a tab in the leadership channel so the L10 can run from it during the Teams meeting. Same Entra sign-in and device rules as the web.

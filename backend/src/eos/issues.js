@@ -18,7 +18,24 @@ function shape(ctx, i) {
     raisedBy: i.raised_by_name, priority: i.priority, status: i.status, solution: i.solution,
     closedAt: i.closed_at, createdAt: i.created_at, measurableId: i.measurable_id,
     source: i.source_kind ? { kind: i.source_kind, id: i.source_id } : null,
+    autotask: i._link || null,
   };
+}
+
+/** Each Issue's Autotask ticket or project task, if it has one (D11, 0.8.0). */
+async function attachLinks(rows) {
+  if (!rows.length) return;
+  const links = await db.query(`SELECT * FROM pulse.issue_link WHERE issue_id IN (${rows.map((_, n) => "@i" + n).join(",")})`,
+    Object.fromEntries(rows.map((r, n) => ["i" + n, r.id])));
+  if (!links.length) return;
+  const L = require("./links");
+  const base = await L.webUrl();
+  const by = new Map(links.map(l => [l.issue_id, l]));
+  for (const r of rows) {
+    const l = by.get(r.id);
+    if (l) r._link = { kind: l.kind, id: l.at_id, number: l.number, title: l.title, status: l.status_label, complete: !!l.is_complete,
+      url: L.autotaskUrl(base, l.kind, l.at_id), error: l.last_error, createdBy: l.created_by };
+  }
 }
 
 async function list(ctx) {
@@ -34,6 +51,7 @@ async function list(ctx) {
   const rows = await db.query(
     `SELECT TOP (500) * FROM pulse.issue WHERE ${where.join(" AND ")}
       ORDER BY CASE WHEN priority IS NULL THEN 9 ELSE priority END, created_at`, p);
+  await attachLinks(rows);
   return { level, division, status, issues: rows.map(i => shape(ctx, i)) };
 }
 

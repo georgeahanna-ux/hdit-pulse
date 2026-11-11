@@ -9,7 +9,7 @@ export async function connectionsPage(me) {
     return { title: "Connections", html: `<div class="denied"><span class="ic">${icon("compliance", "i-lg")}</span><h2>Connections are for Platform Admins</h2><p>Ask George or Bernadette if a connection needs changing.</p><a href="#/">Back to Home</a></div>` };
   }
   api("/audit/view", { method: "POST", body: { page: "connections" } }).catch(() => {});
-  const { connections: list, xero } = await api("/connections");
+  const { connections: list, xero, planner } = await api("/connections");
   const xeroApp = list.find(c => c.name === "xero-app");
   // Back from Xero: say how it went (the sync service adds ?xero=… to the address).
   const back = new URLSearchParams((location.hash.split("?")[1]) || "").get("xero");
@@ -52,8 +52,17 @@ export async function connectionsPage(me) {
             <button class="link-btn small" type="button" data-details="${c.name}">Owner and rotation</button>
             ${c.configured && c.kind !== "oauth" ? `<button class="link-btn small" type="button" data-remove="${c.name}">Remove</button>` : ""}
           </div>
-        </article>`).join("")}</div></section>`).join("")}`,
+        </article>`).join("")}</div></section>`).join("")}
+      ${planner ? plannerCard(planner) : ""}`,
     mount: (root, refresh) => {
+      const pl = root.querySelector("[data-planner]");
+      if (pl) pl.onclick = () => dialog({
+        title: "The Pulse – L10 plan",
+        intro: `The leadership team's To-dos are kept in step with this plan, both ways, every 5 minutes. Make the plan in the leadership team's Microsoft Teams or Microsoft 365 group (Planner → New plan → "Pulse – L10"), then copy its link: in Planner, select … beside the plan's name, then <b>Copy link to plan</b>. Everyone who owns To-dos needs to be in that group so they can be assigned.`,
+        fields: [{ name: "link", label: "Link to the plan", value: planner.planId || "", placeholder: "https://planner.cloud.microsoft/webui/plan/…", hint: "Leave empty to stop syncing." },
+          { name: "reason", label: "Reason", hint: "Kept in the audit log." }],
+        onSubmit: async f => { await api("/planner/plan", { method: "PUT", body: f }); toast(f.link ? "Saved: Pulse checks the plan within 2 minutes" : "Planner sync stopped"); refresh(); },
+      });
       const find = n => list.find(c => c.name === n);
       if (back && XERO_MSG[back]) { toast(XERO_MSG[back]); history.replaceState(null, "", "#/connections"); }
       const xb = root.querySelector("[data-xero]");
@@ -103,4 +112,24 @@ export async function connectionsPage(me) {
       });
     },
   };
+}
+
+/** Microsoft Planner: the plan company To-dos sync with (D11, 0.8.0). Not a credential: Pulse uses its own identity. */
+function plannerCard(p) {
+  const st = !p.planId ? `<span class="chip scheduled">Not set up</span>` : p.lastRun && !p.lastRun.ok ? `<span class="chip alert">Needs attention</span>` : p.title ? `<span class="chip ok">Syncing</span>` : `<span class="chip quiet">Checking</span>`;
+  return `<section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">System</span><h2>Microsoft Planner</h2></div></div>
+    <div class="conn-list"><article class="conn">
+      <div class="conn-main">
+        <div class="conn-h"><b>Pulse – L10 plan</b>${st}</div>
+        <p>The leadership team's To-dos and this Planner plan are kept in step both ways every 5 minutes: add, tick off, re-date or reassign a To-do in either place. Rocks can also take their progress from any plan in the same group.</p>
+        <p class="dim small"><b>Permissions:</b> none to enter. Pulse's sync service uses its own Microsoft identity, which has Tasks.ReadWrite.All (granted by the setup script).</p>
+        <div class="conn-meta small">
+          <span>${p.title ? `Plan: <b>${esc(p.title)}</b>${p.group ? ` in ${esc(p.group)}` : ""}` : p.planId ? "Plan saved; waiting for the first check" : "No plan chosen"}</span>
+          ${p.planId ? `<span>${p.linkedTodos} To-dos linked${p.errors ? `, ${p.errors} not syncing` : ""}</span>` : ""}
+          ${p.lastRun ? `<span>Last run ${esc(fmtDateTime(p.lastRun.at))}</span>` : ""}
+        </div>
+        ${p.lastRun && !p.lastRun.ok ? `<div class="err small">${esc(p.lastRun.detail || "")}</div>` : ""}
+      </div>
+      <div class="conn-act"><button class="btn sm" type="button" data-planner>${p.planId ? "Change plan" : "Choose the plan"}</button></div>
+    </article></div></section>`;
 }

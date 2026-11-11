@@ -685,3 +685,11 @@ td.over { color: var(--hd-alert); font-weight: 700; }
   .side, header.top, .ph-act { display: none !important; }
   .shell { display: block; }
 }
+
+/* ---------------- Two-way links (0.8.0) ---------------- */
+.rock-link { margin: 8px 0 4px; max-width: 520px; }
+.rl-h { display: flex; justify-content: space-between; gap: var(--hd-s3); }
+.rl-bar { height: 8px; border-radius: 99px; background: var(--hd-mist); overflow: hidden; margin: 5px 0 3px; }
+.rl-bar i { display: block; height: 100%; background: var(--hd-aqua); border-radius: 99px; }
+.at-chip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.fld[hidden] { display: none; }

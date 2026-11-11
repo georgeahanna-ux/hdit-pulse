@@ -19,9 +19,9 @@ const sql = require("mssql");
       .query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to inspect opportunity ${process.env.INSPECT_OPPORTUNITY}; run Diagnose again in 3 minutes.`);
   }
-  // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections),
+  // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections|links),
   // or inspect:simplesat for a look at SimpleSAT answers (field names and ratings only).
-  if (/^(scorecard|projects|departments|directory|connections|inspect:simplesat)$/.test(process.env.REFRESH_JOB || "")) {
+  if (/^(scorecard|projects|departments|directory|connections|links|inspect:simplesat)$/.test(process.env.REFRESH_JOB || "")) {
     await pool.request().input("job", sql.NVarChar, process.env.REFRESH_JOB).query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to run ${process.env.REFRESH_JOB} now (within two minutes).`);
   }
@@ -50,5 +50,13 @@ const sql = require("mssql");
     WHERE v.auto_value IS NOT NULL AND v.week = (SELECT MAX(week) FROM pulse.scorecard_value w WHERE w.measurable_id = v.measurable_id AND w.week < CAST(SYSUTCDATETIME() AS DATE) AND w.auto_value IS NOT NULL AND w.week <= DATEADD(day, -7, CAST(SYSUTCDATETIME() AS DATE)))`);
   await q("FY plan automatic months", `SELECT p.code, a.month, a.auto_value, LEFT(JSON_VALUE(a.auto_detail, '$.text'), 120) AS working
     FROM pulse.plan_month_actual a JOIN pulse.plan_metric p ON p.id = a.metric_id WHERE a.auto_value IS NOT NULL ORDER BY p.code, a.month`);
+  // Two-way links (0.8.0); the tables arrive with migration 0015.
+  await q("Links", `SELECT (SELECT [value] FROM pulse.app_setting WHERE [key] = N'planner.l10_plan_id') AS l10_plan,
+    (SELECT COUNT(*) FROM pulse.planner_plan) AS plans_known, (SELECT COUNT(*) FROM pulse.todo_planner) AS todos_in_planner,
+    (SELECT COUNT(*) FROM pulse.todo_planner WHERE last_error IS NOT NULL) AS todo_errors,
+    (SELECT COUNT(*) FROM pulse.issue_link) AS issues_in_autotask, (SELECT COUNT(*) FROM pulse.rock_link) AS rocks_linked`).catch(() => {});
+  await q("Link errors", `SELECT TOP 10 N'todo' AS kind, todo_id AS id, last_error FROM pulse.todo_planner WHERE last_error IS NOT NULL
+    UNION ALL SELECT TOP 10 N'issue', issue_id, last_error FROM pulse.issue_link WHERE last_error IS NOT NULL
+    UNION ALL SELECT TOP 10 N'rock', rock_id, last_error FROM pulse.rock_link WHERE last_error IS NOT NULL`).catch(() => {});
   await pool.close();
 })().catch(e => { console.error("Diagnose failed:", e.message); process.exit(1); });

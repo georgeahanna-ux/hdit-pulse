@@ -23,6 +23,7 @@ function shape(ctx, t) {
     owner: { name: t.owner_name, email: t.owner_email, isMe: C.isMe(ctx, t.owner_email) },
     dueDate: due, overdue: !t.is_done && due < today, done: !!t.is_done, doneAt: t.done_at,
     issueId: t.issue_id, createdBy: t.created_by_name, createdAt: t.created_at,
+    planner: t.task_id ? { linked: true, error: t.planner_error || null } : null,
   };
 }
 
@@ -45,7 +46,8 @@ async function list(ctx) {
   if (done === "0") where.push("is_done = 0");
   else if (done === "1") where.push("is_done = 1");
   else if (done === "recent") where.push("(is_done = 0 OR done_at >= DATEADD(day, -14, SYSUTCDATETIME()))");
-  const rows = await db.query(`SELECT TOP (500) * FROM pulse.todo WHERE ${where.join(" AND ")} ORDER BY is_done, due_date, id`, p);
+  const rows = await db.query(`SELECT TOP (500) t.*, l.task_id, l.last_error AS planner_error FROM pulse.todo t LEFT JOIN pulse.todo_planner l ON l.todo_id = t.id
+      WHERE ${where.map(w => w.replace(/\b(is_deleted|level|division_code|is_done|done_at|owner_email)\b/g, "t.$1")).join(" AND ")} ORDER BY t.is_done, t.due_date, t.id`, p);
   return { view, todos: rows.filter(t => canSee(ctx, t)).map(t => shape(ctx, t)) };
 }
 
