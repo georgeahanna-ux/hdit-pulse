@@ -105,6 +105,13 @@ let fid = 0;
 const functions = Object.fromEntries(DIVISIONS.map(d => [d.code, (FUNCTIONS[d.code] || []).map(name => ({ id: ++fid, name }))]));
 
 let nextId = 100;
+// Teams and email (0.9.0)
+const previewPrefs = { teamsReminders: true, weeklyEmail: true, recent: [
+  { kind: "l10", channel: "teams", text: "L10 at 9:30am. 4 numbers were off target last week, one of them yours (SLA first response met). 3 Issues are numbered for IDS.", at: new Date(Date.now() - 26 * 3600e3).toISOString(), error: null },
+  { kind: "email", channel: "email", text: "Weekly summary", at: new Date(Date.now() - 50 * 3600e3).toISOString(), error: null },
+  { kind: "overdue", channel: "teams", text: "Overdue To-do: \"Review SLA breaches with the service team\" was due 9 Nov. Tick it off, change the date, or drop it to the Issues List.", at: new Date(Date.now() - 52 * 3600e3).toISOString(), error: null }] };
+const previewNotify = { appId: "d46a6617-9686-4ea3-9801-785e42e3a1db", sender: "pulse@hdittestingtenancy.onmicrosoft.com", enabled: true, package: "teams/hdit-pulse-teams.zip",
+  lastRun: { at: new Date(Date.now() - 8 * 60e3).toISOString(), ok: true, detail: "0 sent, 0 failed" }, lastWeek: { sent: 14, failed: 0 } };
 // Two-way links (0.8.0)
 const previewPlanner = { planId: "xqQg5FS2LkCp935s-FIFm2QAFkHM", title: "Pulse – L10", group: "Leadership Team", checkedAt: new Date().toISOString(), linkedTodos: 2, errors: 0, lastRun: { at: new Date(Date.now() - 3 * 60e3).toISOString(), ok: true, detail: "Planner: 2 tasks" } };
 const PLANS = [{ id: "xqQg5FS2LkCp935s-FIFm2QAFkHM", title: "Pulse – L10", group: "Leadership Team" }, { id: "Ab12Cd34Ef56Gh78Ij90KlMnOp", title: "Pulse rollout", group: "Leadership Team" }];
@@ -352,7 +359,10 @@ export function previewApi(path, method, body = {}) {
     Object.assign(person, body.none ? { link: null, none: true } : body.automatic ? { admin: false } : { link: body.resourceId, admin: true, none: false });
     return { ok: true };
   }
-  if (p === "/connections" && method === "GET") return { connections: previewConnections, planner: previewPlanner, xero: { organisation: null, redirectUri: "https://func-hdit-pulse-sync-test-aue.azurewebsites.net/api/xero/callback" } };
+  if (p === "/me/preferences") { if (method === "PUT") Object.assign(previewPrefs, body); return previewPrefs; }
+  if (p === "/notify/test") return { ok: true };
+  if (p === "/notify/settings") { Object.assign(previewNotify, "sender" in body ? { sender: body.sender || null } : {}, "enabled" in body ? { enabled: !!body.enabled } : {}); return { ok: true }; }
+  if (p === "/connections" && method === "GET") return { connections: previewConnections, planner: previewPlanner, notify: previewNotify, xero: { organisation: null, redirectUri: "https://func-hdit-pulse-sync-test-aue.azurewebsites.net/api/xero/callback" } };
   if (p === "/xero/start") return { url: "#/connections?xero=connected" };
   if ((mm = /^\/connections\/([a-z-]+)$/.exec(p))) {
     const c = previewConnections.find(x => x.name === mm[1]);

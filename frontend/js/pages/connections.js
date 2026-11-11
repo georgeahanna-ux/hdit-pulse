@@ -9,7 +9,7 @@ export async function connectionsPage(me) {
     return { title: "Connections", html: `<div class="denied"><span class="ic">${icon("compliance", "i-lg")}</span><h2>Connections are for Platform Admins</h2><p>Ask George or Bernadette if a connection needs changing.</p><a href="#/">Back to Home</a></div>` };
   }
   api("/audit/view", { method: "POST", body: { page: "connections" } }).catch(() => {});
-  const { connections: list, xero, planner } = await api("/connections");
+  const { connections: list, xero, planner, notify } = await api("/connections");
   const xeroApp = list.find(c => c.name === "xero-app");
   // Back from Xero: say how it went (the sync service adds ?xero=… to the address).
   const back = new URLSearchParams((location.hash.split("?")[1]) || "").get("xero");
@@ -53,8 +53,25 @@ export async function connectionsPage(me) {
             ${c.configured && c.kind !== "oauth" ? `<button class="link-btn small" type="button" data-remove="${c.name}">Remove</button>` : ""}
           </div>
         </article>`).join("")}</div></section>`).join("")}
-      ${planner ? plannerCard(planner) : ""}`,
+      ${planner ? plannerCard(planner) : ""}
+      ${notify ? notifyCard(notify) : ""}`,
     mount: (root, refresh) => {
+      const ns = root.querySelector("[data-sender]");
+      if (ns) ns.onclick = () => dialog({
+        title: "Weekly email sender",
+        intro: "The shared mailbox the Monday summary comes from. Run <code>pulse-mail.ps1</code> first: it creates the mailbox and lets Pulse send from it and no other.",
+        fields: [{ name: "sender", label: "Mailbox", type: "email", value: notify.sender || "", placeholder: "pulse@hdit.com.au", hint: "Leave empty to stop the weekly email." }, { name: "reason", label: "Reason", hint: "Kept in the audit log." }],
+        onSubmit: async f => { await api("/notify/settings", { method: "PUT", body: f }); toast("Saved"); refresh(); },
+      });
+      const np = root.querySelector("[data-pause]");
+      if (np) np.onclick = () => dialog({
+        title: notify.enabled ? "Pause all reminders?" : "Turn reminders back on?", danger: notify.enabled,
+        intro: notify.enabled ? "Nobody gets Teams reminders or the weekly email until you turn them back on." : "Reminders start again at the next run (every 15 minutes).",
+        fields: [{ name: "reason", label: "Reason", required: true }], submit: notify.enabled ? "Pause" : "Turn on",
+        onSubmit: async f => { await api("/notify/settings", { method: "PUT", body: { enabled: !notify.enabled, reason: f.reason } }); refresh(); },
+      });
+      const nt = root.querySelector("[data-notify-test]");
+      if (nt) nt.onclick = async () => { try { await api("/notify/test", { method: "POST", body: {} }); toast("On its way: check Teams and your email within a few minutes"); } catch (e) { toast(e.message); } };
       const pl = root.querySelector("[data-planner]");
       if (pl) pl.onclick = () => dialog({
         title: "The Pulse – L10 plan",
@@ -131,5 +148,41 @@ function plannerCard(p) {
         ${p.lastRun && !p.lastRun.ok ? `<div class="err small">${esc(p.lastRun.detail || "")}</div>` : ""}
       </div>
       <div class="conn-act"><button class="btn sm" type="button" data-planner>${p.planId ? "Change plan" : "Choose the plan"}</button></div>
+    </article></div></section>`;
+}
+
+/** Microsoft Teams and the weekly email (D12, 0.9.0). */
+function notifyCard(n) {
+  const st = !n.enabled ? `<span class="chip alert">Paused</span>` : n.lastRun && !n.lastRun.ok ? `<span class="chip alert">Needs attention</span>` : `<span class="chip ok">On</span>`;
+  return `<section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">System</span><h2>Microsoft Teams and email</h2></div></div>
+    <div class="conn-list"><article class="conn">
+      <div class="conn-main">
+        <div class="conn-h"><b>Pulse in Teams</b></div>
+        <p>Pulse as a Teams app: a personal app for everyone, and a tab for a channel, chat or meeting (the L10 can run from the leadership team's channel or its Teams meeting). People are signed in by Teams.</p>
+        <ol class="small steps">
+          <li><a href="${esc(n.package)}" download>Download the Teams app</a> (built for this environment).</li>
+          <li>In the Teams admin centre: Teams apps → Manage apps → Upload new app, and choose the file.</li>
+          <li>Teams apps → Setup policies: add Pulse to Installed apps (and pin it) for the people who use Pulse, so reminders reach them.</li>
+          <li>To run the L10 from the channel: in the leadership team's General channel, select + (Add a tab), choose Pulse, then L10 meeting.</li>
+        </ol>
+      </div>
+    </article>
+    <article class="conn">
+      <div class="conn-main">
+        <div class="conn-h"><b>Reminders and the weekly email</b>${st}</div>
+        <p>Reminders go to each person's Teams Activity feed; the Monday summary goes by email. Each person can switch either off under Notifications.</p>
+        <p class="dim small"><b>Permissions:</b> none to enter. Pulse's sync service uses its own identity: Microsoft Graph TeamsActivity.Send (setup script), and Exchange's "Application Mail.Send" limited to the one mailbox below (pulse-mail.ps1).</p>
+        <div class="conn-meta small">
+          <span>Sender: ${n.sender ? `<b>${esc(n.sender)}</b>` : "not set (no weekly email)"}</span>
+          <span>Last 7 days: ${n.lastWeek.sent} sent${n.lastWeek.failed ? `, ${n.lastWeek.failed} not delivered` : ""}</span>
+          ${n.lastRun ? `<span>Last run ${esc(fmtDateTime(n.lastRun.at))}</span>` : ""}
+        </div>
+        ${n.lastRun && !n.lastRun.ok ? `<div class="err small">${esc(n.lastRun.detail || "")}</div>` : ""}
+      </div>
+      <div class="conn-act">
+        <button class="btn sm" type="button" data-sender>${n.sender ? "Change sender" : "Set the sender"}</button>
+        <button class="link-btn small" type="button" data-notify-test>Send me a test</button>
+        <button class="link-btn small" type="button" data-pause>${n.enabled ? "Pause all reminders" : "Turn reminders on"}</button>
+      </div>
     </article></div></section>`;
 }

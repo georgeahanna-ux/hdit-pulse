@@ -79,7 +79,9 @@ New app roles on the existing registration, each assigned to a group, the same w
 
 ### Teams (D12)
 - One Teams app package: personal app plus a configurable tab for the leadership channel, with Teams SSO (extra Application ID URI and Teams pre-authorised as a client: a setup-script step).
-- **Bot:** Azure Bot (free channel tier) running as a user-assigned managed identity. Messaging endpoint on the API app; scheduled nudges sent by the sync app.
+- ~~**Bot:** Azure Bot (free channel tier) running as a user-assigned managed identity.~~ **Changed 11 Nov 2026:** reminders go to the Teams Activity feed (Graph `sendActivityNotification`, application permission `TeamsActivity.Send` on the sync identity), sent by the sync app's "nudges" job every 15 minutes, each once (`nudge_log`). No bot resource or Bot Framework.
+- **Email:** the Monday summary from one shared mailbox; Exchange Online RBAC for Applications gives the sync identity "Application Mail.Send" on that mailbox only (`setup/pulse-mail.ps1`).
+- **Framing:** Pulse's CSP `frame-ancestors` allows only Teams and Microsoft 365 hosts; inside Teams the front end uses `getAuthToken()` (same v2 token as MSAL gives).
 - Tested in the HD IT Testing Tenancy (Business Premium) with a test leadership team, then the real leadership channel in production.
 
 ### Front end
@@ -104,11 +106,13 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M2b | Rest of M2 | Xero (0.6.4); SimpleSAT, MQLs from Marketing ROI's `/api/pulse/measures`, new MRR and weighted pipeline from Autotask, the apps on Pulse's Autotask user (0.6.5) | 0.6.4–0.6.5 |
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues. Built 10 Nov 2026: `meeting`, `meeting_attendee`, `headline` tables; the page polls the meeting state every 4 seconds (no websockets needed); summary kept when it ends | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects. Built 11 Nov 2026: "links" job every 5 minutes; per-field three-way merge for To-dos (Pulse wins a clash); `todo_planner`, `issue_link`, `rock_link`, `planner_plan` tables; Autotask `issues` module may only create tickets and project tasks | 0.8.0 |
-| M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email | 0.9.0 |
+| M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email. Built 11 Nov 2026 with Activity feed reminders instead of a bot | 0.9.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken
+**11 November 2026 (0.9.0):** Pulse in Teams; reminders in the Teams Activity feed rather than a bot chat; the Monday email from a new shared mailbox (D12 amended).
+
 **11 November 2026 (0.8.0):** two-way links built (D11): Planner To-dos, Issue → Autotask, Rock progress.
 
 **10 November 2026 (0.7.0):** the L10 meeting runs in Pulse (D22).

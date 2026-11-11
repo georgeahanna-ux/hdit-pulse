@@ -80,6 +80,10 @@ In production these emails match, so nobody is asked. In the test tenancy they w
 
 The checks live in `backend/src/lib/pulse-auth.js`, identical in every app, with tests in `backend/test/pulse-auth.test.js`. Each app's site only lets Pulse frame it (`frame-ancestors <Pulse address>`), and only accepts token messages from that exact address. Pulse only answers token requests from the iframe it created, at the app's configured address.
 
+### Inside Microsoft Teams (0.9.0)
+
+Pulse is also a Teams app. Inside Teams, Teams signs the person in (single sign-on) and hands Pulse the same kind of token MSAL gets in the browser: audience the HD IT Pulse client id, scope `access_as_user`, the person's roles. Nothing else changes: the API and the apps inside Pulse check it as before, and Conditional Access still applies (Teams asks Entra for the token). For this, the app registration has a second identifier, `api://<Pulse host>/<client id>`, and Teams and Microsoft 365 (desktop, web and mobile, and Outlook) are pre-approved to request `access_as_user`; `release1-entra` sets both. Pulse may be framed only by Teams and Microsoft 365 (`frame-ancestors`). Reminders reach people through the Teams Activity feed (the sync identity's `TeamsActivity.Send`), and the Monday email comes from one shared mailbox the sync identity alone may send from (Exchange RBAC for Applications, `setup/pulse-mail.ps1`).
+
 While `LEGACY_PASSWORD_LOGIN` is `on`, an app's own address still works with the team password. Turn it `off` per app once everyone uses Pulse; the app's own address then just offers a link into Pulse.
 
 ## Setting it up (HD IT Testing Tenancy)

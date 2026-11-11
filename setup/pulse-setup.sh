@@ -35,7 +35,13 @@
 #      Refreshes the app registration (adds the release 1 roles and their groups), creates
 #      the "Pulse - SQL Admins (Test)" group (you and the GitHub deploy identity), lets the
 #      sync app read the three apps' numbers (Pulse.Collector) and Microsoft Graph
-#      (users, group members, Planner). Prints the SQL admin group id.
+#      (users, group members, Planner, Teams Activity feed), and sets up single sign-on for
+#      Pulse in Microsoft Teams (0.9.0). Prints the SQL admin group id.
+#
+#   5) Email (0.9.0), in Cloud Shell's PowerShell, as your usual Azure account, then signing in to
+#      Exchange as ADMIN@HDITTESTINGTENANCY.onmicrosoft.com when asked:
+#        ./pulse-mail.ps1
+#      Creates the pulse@ shared mailbox and lets Pulse send from that one mailbox only.
 #
 # Every step is safe to run again: they find what already exists and only fill gaps.
 # Nothing here prints or stores a secret. The app registration has no client secret.
@@ -63,7 +69,7 @@ KV="kv-hdit-pulse-test"
 SQL_ADMIN_GROUP="Pulse - SQL Admins (Test)"
 SECRET_WRITER_ROLE="Pulse Secret Writer (Test)"
 # Graph application permissions for the sync app (no secrets: it signs in as a managed identity)
-SYNC_GRAPH_PERMISSIONS="User.Read.All GroupMember.Read.All Tasks.ReadWrite.All"
+SYNC_GRAPH_PERMISSIONS="User.Read.All GroupMember.Read.All Tasks.ReadWrite.All TeamsActivity.Send"   # TeamsActivity.Send: reminders in the Teams Activity feed (0.9.0)
 
 # Integration credentials: secret name | who reads it | what it is. Values are entered later
 # (Connections page, or Key Vault) and are never printed. "sync+" = read and write (token renewal).
@@ -274,8 +280,10 @@ entra_step() {
   app_id=$(graph --method GET --uri "$G/applications/$app_obj?\$select=appId" --query appId -o tsv)
 
   # Its own API: api://<client id>, and permission to call it.
-  graph --method PATCH --uri "$G/applications/$app_obj" --headers "Content-Type=application/json" --body "$(jq -n --arg app "$app_id" --arg sid "$scope_id" --arg graph "$GRAPH_APP_ID" --arg userread "$GRAPH_USER_READ" '{
-    identifierUris: [ ("api://" + $app) ],
+  # Keep any other identifier, such as Teams single sign-on's api://<pulse host>/<client id> (0.9.0).
+  local uris; uris=$(graph --method GET --uri "$G/applications/$app_obj?\$select=identifierUris" --query identifierUris -o json)
+  graph --method PATCH --uri "$G/applications/$app_obj" --headers "Content-Type=application/json" --body "$(jq -n --arg app "$app_id" --arg sid "$scope_id" --arg graph "$GRAPH_APP_ID" --arg userread "$GRAPH_USER_READ" --argjson uris "${uris:-[]}" '{
+    identifierUris: ([ ("api://" + $app) ] + $uris | unique),
     requiredResourceAccess: [
       { resourceAppId: $graph, resourceAccess: [ { id: $userread, type: "Scope" } ] },
       { resourceAppId: $app,   resourceAccess: [ { id: $sid, type: "Scope" } ] } ] }')" -o none
@@ -553,6 +561,29 @@ release1_entra_step() {
     [ -n "$rid" ] || die "Microsoft Graph has no permission called $perm."
     assign_app_role "$sync_sp" "$graph_sp" "$rid" "Sync identity: Microsoft Graph $perm"
   done
+
+  # ---- Pulse in Microsoft Teams: single sign-on (0.9.0) ----
+  # Teams asks Entra for a Pulse token for the signed-in person. That needs an identifier with Pulse's
+  # address (api://<host>/<client id>) and Teams and Microsoft 365 pre-approved to ask for access_as_user.
+  local app_obj2 cur host scope teams_body
+  app_obj2=$(graph --method GET --uri "$G/applications" --url-parameters "\$filter=appId eq '$app_id'" --query 'value[0].id' -o tsv)
+  cur=$(graph --method GET --uri "$G/applications/$app_obj2?\$select=identifierUris,api,spa" -o json)
+  host=$(jq -r '[.spa.redirectUris[] | select(test("^https://[^/]+/?$"))][0] // empty' <<<"$cur" | sed -E 's#^https://##; s#/$##')
+  scope=$(jq -r '.api.oauth2PermissionScopes[] | select(.value=="access_as_user") | .id' <<<"$cur")
+  if [ -z "$host" ] || [ -z "$scope" ]; then
+    warn "Couldn't find Pulse's address or scope on the app registration; skipped Teams single sign-on. Run 'entra' first."
+  else
+    # Teams desktop and mobile, Teams web, Microsoft 365 web and desktop, Microsoft 365 mobile, Outlook desktop and web, Outlook mobile.
+    teams_body=$(jq --arg host "$host" --arg app "$app_id" --arg scope "$scope" '{
+      identifierUris: ((.identifierUris + [ ("api://" + $host + "/" + $app) ]) | unique),
+      api: (.api | .preAuthorizedApplications = ([
+        "1fec8e78-bce4-4aaf-ab1b-5451cc387264", "5e3ce6c0-2b1f-4285-8d4b-75ee78787346",
+        "4765445b-32c6-49b0-83e6-1d93765276ca", "0ec893e0-5785-4de6-99da-4ed124e5296c", "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        "bc59ab01-8403-45c6-8796-ac3ef710b3e3", "27922004-5251-4030-b22d-91ecd9a37ea4" ]
+        | map({ appId: ., delegatedPermissionIds: [ $scope ] }))) }' <<<"$cur")
+    graph --method PATCH --uri "$G/applications/$app_obj2" --headers "Content-Type=application/json" --body "$teams_body" -o none
+    ok "Teams single sign-on: api://$host/$app_id, with Teams and Microsoft 365 pre-approved"
+  fi
 
   echo
   echo "Done. Paste this line back to Claude:"

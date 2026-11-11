@@ -107,7 +107,9 @@ const syncProjects = () => require("../projects/sync").syncAll();
 
 // To-dos <-> Planner, Rock progress and Issue links (D11, 0.8.0).
 const syncLinks = () => require("../links").runLinks({ autotaskReady: () => isConnected("autotask-service").catch(() => false) });
-const REQUESTABLE = { connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
+// Teams reminders and the weekly email (D12, 0.9.0).
+const syncNudges = () => require("../notify").runNudges();
+const REQUESTABLE = { nudges: syncNudges, connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
 
 /**
  * Read-only look at one Autotask opportunity and its quotes (job "inspect:opportunity:<id>",
@@ -151,6 +153,11 @@ async function runRequests(context) {
       } catch (e) { await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (N'inspect', SYSUTCDATETIME(), SYSUTCDATETIME(), 0, @detail)", { detail: String(e.message).slice(0, 2000) }); }
       continue;
     }
+    const test = /^notify-test:([0-9a-f-]{36})$/i.exec(job);
+    if (test) {
+      await run("notify-test", context, () => require("../notify").sendTest(test[1])).catch(() => {});
+      continue;
+    }
     if (job === "inspect:simplesat") {
       try { const out = await require("../collect/simplesat").inspect();
         for (let i = 0, n = Math.ceil(out.length / 1900); i < Math.min(n, 10); i++) await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (@job, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, @detail)", { job: `inspect ${i + 1}/${n}`, detail: out.slice(i * 1900, (i + 1) * 1900) });
@@ -163,4 +170,4 @@ async function runRequests(context) {
   }
 }
 
-module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, runRequests, CONNECTIONS };
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, syncNudges, runRequests, CONNECTIONS };

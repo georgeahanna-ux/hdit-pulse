@@ -14,6 +14,7 @@ import { planPage, chartPage, divisionPage, seatPage, canSeePlan, DIVISION_APPS 
 import { connectionsPage } from "./pages/connections.js";
 import { peoplePage } from "./pages/people.js";
 import { l10Page } from "./pages/l10.js";
+import { notificationsPage } from "./pages/notifications.js";
 
 let ME = null, STRUCTURE = null;
 let compact = null;
@@ -56,8 +57,10 @@ function topbar() {
       <div class="menu" id="user-menu" hidden>
         <div class="who"><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div>
         <a href="#/access">${icon("compliance")}Your access</a>
+        <a href="#/notifications">${icon("email")}Notifications</a>
+        ${Auth.inTeams() ? `<a href="${esc(location.origin + "/" + location.hash)}" target="_blank" rel="noopener">${icon("external")}Open in your browser</a>` : ""}
         ${CONFIG.PREVIEW ? `<label for="preview-as">Preview as</label><select id="preview-as">${Auth.PREVIEW_PERSONAS.map(p => `<option value="${p.k}" ${p.name === u.name ? "selected" : ""}>${esc(p.label)}</option>`).join("")}</select>` : ""}
-        <button id="btn-signout" type="button">${icon("arrow-up-right")}Sign out</button>
+        ${Auth.inTeams() ? "" : `<button id="btn-signout" type="button">${icon("arrow-up-right")}Sign out</button>`}
       </div></div>
   </header>`;
 }
@@ -111,6 +114,9 @@ function parseRoute() {
   return { page: parts[0] || "home", id: parts[1], sub: parts[2], q };
 }
 
+// Teams tab and reminder pages → Pulse routes (0.9.0).
+const TEAMS_PAGES = { home: "", l10: "l10", scorecard: "scorecard", rocks: "rocks", issues: "issues", todos: "todos", notifications: "notifications" };
+
 const SOON = {
   people: ["People and departments", "Everyone in Pulse matched to their Autotask resource. See who's in each Autotask department and change default departments.", "0.6.0"],
 };
@@ -131,6 +137,7 @@ async function pageFor(r) {
     case "issues": return issuesPage(ME);
     case "todos": return todosPage(ME);
     case "l10": return l10Page(ME, r.id);
+    case "notifications": return notificationsPage(ME);
     case "vto": return vtoPage(ME);
     case "plan": return planPage(ME);
     case "chart": return chartPage(ME, STRUCTURE);
@@ -175,7 +182,7 @@ function closeMenus() { ["#help-menu", "#user-menu"].forEach(m => { const el = $
 function wire() {
   const tog = (b, m) => { $(b).onclick = e => { e.stopPropagation(); const open = $(m).hidden; closeMenus(); $(m).hidden = !open; $(b).setAttribute("aria-expanded", String(open)); }; };
   tog("#btn-help", "#help-menu"); tog("#btn-user", "#user-menu");
-  $("#btn-signout").onclick = () => Auth.signOut();
+  if ($("#btn-signout")) $("#btn-signout").onclick = () => Auth.signOut();
   $("#btn-collapse").onclick = () => {
     const now = !document.querySelector(".shell").classList.contains("compact");
     compact = now; try { localStorage.setItem("hdit-pulse:compact", JSON.stringify(now)); } catch { /* ignore */ }
@@ -210,6 +217,12 @@ window.addEventListener("hashchange", () => { closeMenus(); render(); window.scr
   try {
     if (!(await Auth.init())) return renderSignIn();
     [ME, STRUCTURE] = await Promise.all([loadMe(), loadStructure()]);
+    // Opened from Teams (a tab or a reminder's link): go to the page it asked for.
+    if (Auth.inTeams()) {
+      document.documentElement.classList.add("in-teams");
+      const page = await Auth.teamsPage();
+      if (page && TEAMS_PAGES[page] !== undefined && (!location.hash || location.hash === "#/")) history.replaceState(null, "", "#/" + TEAMS_PAGES[page]);
+    }
     await render();
   } catch (e) {
     renderSignIn(e.message);

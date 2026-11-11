@@ -693,3 +693,19 @@ td.over { color: var(--hd-alert); font-weight: 700; }
 .rl-bar i { display: block; height: 100%; background: var(--hd-aqua); border-radius: 99px; }
 .at-chip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .fld[hidden] { display: none; }
+
+/* ---------------- Teams and notifications (0.9.0) ---------------- */
+.prefs { display: grid; gap: var(--hd-s3); margin-bottom: var(--hd-s5); max-width: 760px; }
+.pref { display: flex; gap: var(--hd-s3); align-items: flex-start; background: var(--hd-cloud); border-radius: var(--hd-r-card); padding: var(--hd-s4); cursor: pointer; }
+.pref input { margin-top: 4px; width: 18px; height: 18px; }
+.pref > span { display: grid; gap: 4px; }
+/* Inside Teams: Teams already shows the app's name and a tab bar, so Pulse's top bar slims down. */
+.in-teams .topbar .brand-name, .in-teams .topbar .env-chip { display: none; }
+.tc { background: var(--hd-white); }
+.tc-main { max-width: 640px; margin: 0 auto; padding: 28px 24px; font-family: var(--hd-font-body); color: var(--hd-deep); }
+.tc-main h1 { font: 800 24px/1.2 var(--hd-font-display); margin: 8px 0; }
+.tc-list { display: grid; gap: 8px; margin-top: 16px; }
+.tc-list label { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--hd-r-card); background: var(--hd-cloud); cursor: pointer; }
+.tc-list label > span { display: grid; gap: 2px; }
+.tc-list input { margin-top: 4px; }
+.steps { padding-left: 20px; margin: 8px 0 0; } .steps li { margin: 4px 0; }

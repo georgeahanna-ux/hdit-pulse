@@ -447,4 +447,4 @@ const routes = [
   { method: "PATCH", path: "/headlines/:id", auth: "person", fn: changeHeadline },
 ];
 
-module.exports = { routes, SECTIONS, _test: { nextMeeting, todoReview, suggestions, sectionMinutes, average, fyQuarter } };
+module.exports = { routes, SECTIONS, expectedPeople, nextMeeting, _test: { nextMeeting, todoReview, suggestions, sectionMinutes, average, fyQuarter } };

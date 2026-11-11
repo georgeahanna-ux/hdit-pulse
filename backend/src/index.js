@@ -61,6 +61,11 @@ if (component === "api") {
     schedule: "0 1/5 * * * *", runOnStartup: false,
     handler: (_t, context) => jobs.run("links", context, jobs.syncLinks),
   });
+  // Teams reminders and the weekly email, every 15 minutes at :03, :18, :33 and :48 (D12).
+  app.timer("nudges", {
+    schedule: "0 3/15 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.run("nudges", context, jobs.syncNudges),
+  });
   // Jobs asked for from Pulse ("Refresh now"), every two minutes.
   app.timer("requests", {
     schedule: "0 */2 * * * *", runOnStartup: false,

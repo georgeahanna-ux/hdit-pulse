@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add HD IT Pulse to Teams</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zalando+Sans+Expanded:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="brand/tokens.css">
+<link rel="stylesheet" href="css/pulse.css">
+<script src="vendor/teams-js-2.59.0.min.js" defer></script>
+<script src="js/teams-config.js" defer></script>
+</head>
+<body class="tc">
+<main class="tc-main">
+  <span class="hd-eyebrow">HD IT Pulse</span>
+  <h1>Which page should this tab show?</h1>
+  <p class="dim">Everyone sees it signed in as themselves, with only what they're allowed to see.</p>
+  <form id="pick" class="tc-list">
+    <label><input type="radio" name="page" value="l10" checked><span><b>L10 meeting</b><span class="dim">Start or join the leadership team's L10 from the channel or the meeting.</span></span></label>
+    <label><input type="radio" name="page" value="scorecard"><span><b>Scorecard</b><span class="dim">The company's weekly numbers.</span></span></label>
+    <label><input type="radio" name="page" value="rocks"><span><b>Rocks</b><span class="dim">This quarter's priorities.</span></span></label>
+    <label><input type="radio" name="page" value="issues"><span><b>Issues</b><span class="dim">The leadership team's Issues List.</span></span></label>
+    <label><input type="radio" name="page" value="todos"><span><b>To-dos</b><span class="dim">Seven-day commitments.</span></span></label>
+    <label><input type="radio" name="page" value="home"><span><b>Pulse home</b><span class="dim">Each person's own Pulse.</span></span></label>
+  </form>
+  <p id="tc-err" class="err" hidden></p>
+</main>
+</body>
+</html>

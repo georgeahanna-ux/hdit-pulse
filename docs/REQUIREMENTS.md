@@ -152,6 +152,8 @@ Merging backends is not planned.
   - Rocks marked off track: weekly nudge to the owner.
 - Email: a weekly one-page summary only, which each person can switch off.
 - L10 tab: General channel of the leadership team (see Confirmed before build, item 1).
+- **Changed 11 Nov 2026: reminders go to each person's Teams Activity feed, not a bot chat.** Each one opens the right page of Pulse in Teams; no Azure Bot to run. Email sender: a new shared mailbox (pulse@), which Pulse alone may send from (Exchange RBAC for Applications).
+- **Built in 0.9.0 (11 Nov 2026):** Teams personal app (Pulse, L10, To-dos) with Teams single sign-on, and a tab for channels, chats and meetings (the L10 can run in the meeting's side panel). Reminders: Monday 8am numbers to enter, Monday 9am off-track Rocks, Tuesday 9am L10 (leadership team), new To-dos after each L10, each overdue To-do once. Monday 7am email. Each person switches either off under Notifications.
 
 ### D13. Documentation: in Pulse only for now, ready to file to SharePoint later (30 Oct 2026)
 - Every number has an ⓘ explanation: what it is and why it matters, the exact calculation with a worked example, source and update frequency, goal and SLI/Evergreen benchmark, and owner. Metric definitions are versioned, so past weeks show the definition in force at the time.

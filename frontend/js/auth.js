@@ -14,6 +14,41 @@ export const PREVIEW_PERSONAS = [
 ];
 
 let pca = null, account = null, user = null, roles = [];
+// Inside Microsoft Teams (0.9.0): Teams signs the person in (single sign-on) and hands Pulse a token.
+let teams = null, teamsToken = null;
+export const inTeams = () => !!teams;
+
+/** Pulse is in Teams when it's framed and was opened with ?teams=1 (the Teams app's tab addresses). */
+async function startTeams() {
+  const flagged = /[?&]teams=1\b/.test(location.search) || sessionStorage.getItem("hdit-pulse:teams") === "1";
+  if (!flagged || window.parent === window || !window.microsoftTeams) return false;
+  try {
+    await Promise.race([window.microsoftTeams.app.initialize(), new Promise((_, no) => setTimeout(() => no(new Error("Teams didn't answer")), 6000))]);
+  } catch { return false; }
+  try { sessionStorage.setItem("hdit-pulse:teams", "1"); } catch { /* ignore */ }
+  teams = window.microsoftTeams;
+  return true;
+}
+
+/** Where Teams asked Pulse to open: a deep link's subEntityId, or the tab's own page. */
+export async function teamsPage() {
+  if (!teams) return null;
+  try { const c = await teams.app.getContext(); return (c.page && (c.page.subPageId || c.page.id)) || null; } catch { return null; }
+}
+
+async function fromTeams() {
+  const exp = teamsToken ? (decode(teamsToken).exp || 0) * 1000 : 0;
+  if (teamsToken && exp - Date.now() > 5 * 60e3) return teamsToken;
+  try { teamsToken = await teams.authentication.getAuthToken(); }
+  catch (e) {
+    const m = String((e && e.message) || e);
+    throw new Error(/resourceDisabled|consent|invalid_grant/i.test(m)
+      ? "Pulse can't sign you in inside Teams yet: an administrator needs to finish its Teams set-up. You can still open Pulse in your browser."
+      : `Teams couldn't sign you in to Pulse (${m.slice(0, 120)}). Reload the tab, or open Pulse in your browser.`);
+  }
+  fromToken(teamsToken);
+  return teamsToken;
+}
 
 const decode = t => {
   try { return JSON.parse(decodeURIComponent(escape(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))))); }
@@ -43,6 +78,7 @@ function friendly(e) {
 /** Returns true when someone is signed in. Throws a friendly error for sign-in failures. */
 export async function init() {
   if (CONFIG.PREVIEW) { preview(); return true; }
+  if (await startTeams()) { await fromTeams(); return true; }
   if (!window.msal) throw new Error("The sign-in library didn't load. Reload the page.");
   pca = await window.msal.PublicClientApplication.createPublicClientApplication({
     auth: {
@@ -64,6 +100,7 @@ export async function init() {
 /** An access token for Pulse's API scope. Signs in again (redirect) when Microsoft asks for it. */
 export async function token(force = false) {
   if (CONFIG.PREVIEW) throw new Error("Preview: there's no real sign-in here.");
+  if (teams) return fromTeams(force);
   try {
     const r = await pca.acquireTokenSilent({ scopes: [CONFIG.API_SCOPE], account, forceRefresh: !!force });
     fromToken(r.accessToken);
@@ -78,7 +115,7 @@ export async function token(force = false) {
 }
 
 export const signIn = () => pca.loginRedirect({ scopes: [CONFIG.API_SCOPE], prompt: "select_account" });
-export const signOut = () => (CONFIG.PREVIEW ? location.reload() : pca.logoutRedirect({ account }));
+export const signOut = () => (CONFIG.PREVIEW ? location.reload() : teams ? null : pca.logoutRedirect({ account }));
 export const currentUser = () => user;
 export const currentRoles = () => roles;
 export function setPreview(k) {

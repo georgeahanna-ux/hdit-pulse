@@ -153,7 +153,13 @@ jobs:
       - name: Front end - build for this environment
         run: |
           if [ "$BACKEND" = "true" ]; then export PULSE_API_URL="https://${API_HOST}/api"; fi
+          export PULSE_HOST="$SWA_HOST"
           node scripts/build.mjs
+          # The Teams app package (0.9.0): manifest and icons, downloadable from Connections.
+          if [ -f dist/teams/manifest.json ]; then
+            (cd dist/teams && zip -q -j hdit-pulse-teams.zip manifest.json color.png outline.png && rm manifest.json)
+            echo "Teams app package: dist/teams/hdit-pulse-teams.zip"
+          fi
 
       - name: Front end - get deployment token
         run: |
