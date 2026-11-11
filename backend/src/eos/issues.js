@@ -3,7 +3,7 @@
  * Issues (IDS). The company Issues List belongs to the leadership team; division lists to each division.
  *   GET   /issues?level=company|division&division=Code&status=open|solved|dropped|all
  *   POST  /issues      { level, division, title, description, ownerName, ownerEmail, measurableId }
- *   PATCH /issues/:id  any of title, description, ownerName, ownerEmail, priority (1–3 or null), status, solution
+ *   PATCH /issues/:id  any of title, description, ownerName, ownerEmail, priority (1–3 or null; each number once per list), status, solution
  */
 const db = require("../lib/sql");
 const C = require("./common");
@@ -67,6 +67,13 @@ async function update(ctx) {
   if ("priority" in b) {
     if (b.priority !== null && ![1, 2, 3].includes(Number(b.priority))) throw C.fail(400, "Priority is 1, 2, 3 or none.");
     f.priority = b.priority === null ? null : Number(b.priority);
+    // Each of 1, 2 and 3 goes to one open Issue at a time on a list (11 Nov 2026).
+    if (f.priority !== null && i.status === "open") {
+      const [taken] = await db.query(
+        `SELECT TOP 1 id, title FROM pulse.issue WHERE status = N'open' AND priority = @p AND id <> @id AND level = @level
+            AND ${i.division_code ? "division_code = @d" : "division_code IS NULL"}`, { p: f.priority, id, level: i.level, d: i.division_code });
+      if (taken) throw C.fail(409, `"${taken.title}" is already number ${f.priority}. Clear it there first.`);
+    }
   }
   if ("solution" in b) f.solution = C.text(b.solution, 4000);
   if ("status" in b) {

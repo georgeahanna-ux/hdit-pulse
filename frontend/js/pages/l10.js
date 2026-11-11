@@ -3,7 +3,7 @@
 // server for the meeting's state every few seconds.
 import { api } from "../api.js";
 import { esc, icon, toast, fmtShort, fmtDate, fmtDateTime } from "../ui.js";
-import { dialog, empty, dueText, fmtValue } from "../components.js";
+import { dialog, empty, dueText, fmtValue, prioButtons } from "../components.js";
 import { scorecardBlock, mountScorecard } from "./scorecard.js";
 import { rocksBlock } from "./eos.js";
 
@@ -364,7 +364,7 @@ const SECTION = {
     const todosFor = sel ? st.newTodos.filter(t => t.issueId === sel.id) : [];
     const people = st.attendees.filter(a => a.present || a.expected);
     const listHtml = sorted.length ? `<ol class="ids-list">${sorted.map(i => `<li class="${i.id === pick ? "sel" : ""}">
-        <span class="prio">${[1, 2, 3].map(n => `<button type="button" class="prio-btn ${i.priority === n ? "on" : ""}" data-prio="${i.id}:${n}" aria-pressed="${i.priority === n}" title="Top ${n}">${n}</button>`).join("")}</span>
+        <span class="prio">${prioButtons(i, issues)}</span>
         <button type="button" class="ids-pick" data-pick="${i.id}">${esc(i.title)}${i.source ? ` <span class="chip quiet">${esc({ measurable: "Scorecard", rock: "Rock", headline: "Headline", todo: "To-do" }[i.source.kind] || "")}</span>` : ""}</button></li>`).join("")}</ol>`
       : empty("The Issues List is clear.");
     const detail = sel ? `<div class="ids-card">
@@ -382,7 +382,8 @@ const SECTION = {
         root.querySelectorAll("[data-pick]").forEach(b => { b.onclick = () => { sessionStorage.setItem(`l10:${st.id}:issue`, b.dataset.pick); refresh(); }; });
         root.querySelectorAll("[data-prio]").forEach(b => { b.onclick = async () => {
           const [id, n] = b.dataset.prio.split(":"); const i = issues.find(x => x.id === Number(id));
-          await api(`/issues/${id}`, { method: "PATCH", body: { priority: i.priority === Number(n) ? null : Number(n) } }); refresh();
+          try { await api(`/issues/${id}`, { method: "PATCH", body: { priority: i.priority === Number(n) ? null : Number(n) } }); } catch (e) { toast(e.message); }
+          refresh();
         }; });
         const add = root.querySelector("[data-ids-add]");
         add.onclick = () => dialog({ title: "Add an Issue", fields: [{ name: "title", label: "Issue", required: true }, { name: "description", label: "Detail", type: "textarea", rows: 3 }],

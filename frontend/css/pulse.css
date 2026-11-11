@@ -333,6 +333,7 @@ ul.ms label { display: flex; gap: 8px; align-items: center; }
 .prio { display: flex; gap: 4px; }
 .prio-btn { width: 30px; height: 30px; border-radius: var(--hd-r-chip); border: 1.5px solid var(--hd-deep-20); background: var(--hd-white); cursor: pointer; font-weight: 700; color: var(--muted); }
 .prio-btn.on { background: var(--hd-deep); border-color: var(--hd-deep); color: var(--hd-lemon); }
+.prio-btn:disabled { background: var(--hd-cloud); border-color: var(--line); color: var(--hd-deep-20); cursor: not-allowed; }
 ul.todos { list-style: none; padding: 0; margin: 0 0 var(--hd-s4); border: 1px solid var(--line); border-radius: var(--hd-r-card); }
 li.todo { display: flex; justify-content: space-between; gap: var(--hd-s4); padding: 12px 16px; border-bottom: 1px solid var(--line); align-items: center; }
 li.todo:last-child { border-bottom: 0; }

@@ -145,3 +145,12 @@ export const tabs = list => `<nav class="tabs" aria-label="Sections">${list.map(
 export const empty = (text, action = "") => `<div class="empty">${esc(text)}${action ? `<div style="margin-top:12px">${action}</div>` : ""}</div>`;
 
 export const dueText = d => (d ? `Due ${fmtShort(d)}` : "");
+
+/** 1, 2 and 3 each go to one Issue at a time: a number taken by another Issue is greyed out until it's cleared there. */
+export function prioButtons(i, issues) {
+  return [1, 2, 3].map(n => {
+    const holder = issues.find(x => x.id !== i.id && x.priority === n);
+    const on = i.priority === n;
+    return `<button type="button" class="prio-btn ${on ? "on" : ""}" data-prio="${i.id}:${n}" aria-pressed="${on}" ${holder ? `disabled title="Number ${n} is on &quot;${esc(holder.title)}&quot;. Clear it there first."` : `title="${on ? `Clear number ${n}` : `Make this number ${n}`}"`}>${n}</button>`;
+  }).join("");
+}

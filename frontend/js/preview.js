@@ -278,7 +278,8 @@ export function previewApi(path, method, body = {}) {
     return { level, issues: issues.filter(i => i.level === level && (!q.division || i.division === q.division) && (q.status === "all" || i.status === (q.status || "open"))) };
   }
   if (p === "/issues" && method === "POST") { issues.push({ id: ++nextId, level: body.level, division: body.division || null, title: body.title, owner: body.ownerName ? { name: body.ownerName } : null, raisedBy: me().name, priority: null, status: "open" }); return { id: nextId }; }
-  if ((mm = /^\/issues\/(\d+)$/.exec(p))) { const i = issues.find(x => x.id === Number(mm[1])); Object.assign(i, body); if (body.status && body.status !== "open") { i.priority = null; i.closedAt = new Date().toISOString(); } return { ok: true }; }
+  if ((mm = /^\/issues\/(\d+)$/.exec(p))) { const i = issues.find(x => x.id === Number(mm[1]));
+    if (body.priority) { const t = issues.find(x => x.id !== i.id && x.status === "open" && x.level === i.level && x.division === i.division && x.priority === body.priority); if (t) fail(409, `"${t.title}" is already number ${body.priority}. Clear it there first.`); } Object.assign(i, body); if (body.status && body.status !== "open") { i.priority = null; i.closedAt = new Date().toISOString(); } return { ok: true }; }
 
   if (p === "/todos" && method === "GET") {
     const view = q.view || "mine";

@@ -108,6 +108,8 @@ db._test.use({
       return [];
     }
     if (/^\s*(INSERT|UPDATE)/.test(text)) { writes.push({ text, p }); return /OUTPUT inserted\.id/.test(text) ? [{ id: 500 }] : []; }
+    if (/FROM pulse\.issue WHERE id = @id/.test(text)) return [{ id: p.id, level: "company", division_code: null, status: "open", priority: null, title: "Issue " + p.id }];
+    if (/FROM pulse\.issue WHERE status = N'open' AND priority = @p/.test(text)) return p.p === 1 ? [{ id: 7, title: "Utilisation below 70%" }] : [];
     if (/FROM pulse\.meeting WHERE id = @id/.test(text)) return meetings.filter(m => m.id === p.id);
     if (/FROM pulse\.meeting WHERE .*status = N'live'/.test(text)) return meetings.filter(m => m.status === "live" && m.level === p.level);
     if (/FROM pulse\.meeting WHERE .*status = N'ended'/.test(text)) return meetings.filter(m => m.status === "ended");
@@ -193,4 +195,13 @@ test("dropping to the Issues List keeps where it came from", async () => {
   const ins = writes.find(w => /INSERT INTO pulse\.issue/.test(w.text));
   assert.deepEqual([ins.p.kind, ins.p.sourceId, ins.p.measurableId], ["measurable", 6, 6]);
   assert.equal((await call("POST", `l10/${id}/drop`, "leader", { kind: "spaceship", id: 1, title: "x" })).status, 400);
+});
+
+test("each of 1, 2 and 3 goes to one open Issue at a time on a list", async () => {
+  reset();
+  const taken = await call("PATCH", "issues/5", "leader", { priority: 1 });
+  assert.equal(taken.status, 409);
+  assert.match(taken.jsonBody.error, /"Utilisation below 70%" is already number 1/);
+  assert.equal((await call("PATCH", "issues/5", "leader", { priority: 2 })).status, 200);
+  assert.equal((await call("PATCH", "issues/5", "leader", { priority: null })).status, 200, "clearing is always allowed");
 });

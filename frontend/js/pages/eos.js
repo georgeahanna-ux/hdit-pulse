@@ -1,7 +1,7 @@
 // Rocks, Issues, To-dos and the V/TO. Each list renders as a block that division pages reuse.
 import { api } from "../api.js";
 import { esc, icon, fmtShort, toast } from "../ui.js";
-import { rockChip, ROCK_STATUSES, dialog, empty, dueText } from "../components.js";
+import { rockChip, ROCK_STATUSES, dialog, empty, dueText, prioButtons } from "../components.js";
 import { DIVISIONS } from "../access.js";
 
 export const divisionName = c => (DIVISIONS.find(d => d.code === c) || { name: c || "" }).name;
@@ -75,7 +75,7 @@ export async function issuesBlock(me, { level = "company", division = null } = {
   const data = await api("/issues?" + qs);
   const html = `
     ${data.issues.length ? `<div class="issue-list">${data.issues.map(i => `<article class="issue">
-      <div class="prio">${[1, 2, 3].map(n => `<button type="button" class="prio-btn ${i.priority === n ? "on" : ""}" data-prio="${i.id}:${n}" aria-pressed="${i.priority === n}" title="Top ${n}">${n}</button>`).join("")}</div>
+      <div class="prio">${prioButtons(i, data.issues)}</div>
       <div class="issue-main"><b>${esc(i.title)}</b><div class="dim small">${i.owner ? `Owner ${esc(i.owner.name)} · ` : ""}raised by ${esc(i.raisedBy || "")}</div></div>
       <div class="issue-act"><button class="btn outline sm" type="button" data-solve="${i.id}">Solve</button><button class="link-btn small" type="button" data-drop="${i.id}">Drop</button></div>
     </article>`).join("")}</div>` : empty("No open Issues. Add one when something needs to be identified, discussed and solved.")}
@@ -83,7 +83,7 @@ export async function issuesBlock(me, { level = "company", division = null } = {
   return {
     html, data,
     mount: (root, refresh) => {
-      root.querySelectorAll("[data-prio]").forEach(b => { b.onclick = async () => { const [id, n] = b.dataset.prio.split(":"); const i = data.issues.find(x => x.id === Number(id)); await api(`/issues/${id}`, { method: "PATCH", body: { priority: i.priority === Number(n) ? null : Number(n) } }); refresh(); }; });
+      root.querySelectorAll("[data-prio]").forEach(b => { b.onclick = async () => { const [id, n] = b.dataset.prio.split(":"); const i = data.issues.find(x => x.id === Number(id)); try { await api(`/issues/${id}`, { method: "PATCH", body: { priority: i.priority === Number(n) ? null : Number(n) } }); } catch (e) { toast(e.message); } refresh(); }; });
       root.querySelectorAll("[data-solve]").forEach(b => { b.onclick = () => dialog({ title: "Solve this Issue", intro: esc(data.issues.find(i => i.id === Number(b.dataset.solve)).title),
         fields: [{ name: "solution", label: "Solution", type: "textarea", rows: 3, required: true, hint: "What was decided. Add To-dos for the actions." }],
         submit: "Mark solved", onSubmit: async f => { await api(`/issues/${b.dataset.solve}`, { method: "PATCH", body: { status: "solved", solution: f.solution } }); toast("Solved"); refresh(); } }); });
