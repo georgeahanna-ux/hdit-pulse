@@ -22,6 +22,20 @@ param(
 $ErrorActionPreference = "Stop"
 function Ok($m) { Write-Host "  OK  $m" -ForegroundColor Green }
 
+# Run in a clean PowerShell session. Cloud Shell's profile loads other modules (Az, Microsoft Graph)
+# that bring their own copy of Microsoft.OData.Core, and Exchange Online's module then can't load its own.
+if (-not $env:PULSE_MAIL_CLEAN) {
+  $env:PULSE_MAIL_CLEAN = "1"
+  $pass = foreach ($k in $PSBoundParameters.Keys) { "-$k"; [string]$PSBoundParameters[$k] }
+  pwsh -NoProfile -File $PSCommandPath @pass
+  $code = $LASTEXITCODE
+  Remove-Item Env:PULSE_MAIL_CLEAN -ErrorAction SilentlyContinue
+  exit $code
+}
+
+# True if the lookup finds something. Exchange reports "not found" as an error, so any error counts as no.
+function Found([scriptblock]$lookup) { try { [bool](& $lookup) } catch { $false } }
+
 # The sync service's identity (its application id and its service principal's object id).
 $id = az identity show -g $ResourceGroup -n $SyncIdentity --query "{appId:clientId, objectId:principalId}" -o json | ConvertFrom-Json
 if (-not $id.appId) { throw "Couldn't find $SyncIdentity in $ResourceGroup. Run 'bash pulse-setup.sh release1' first." }
@@ -35,24 +49,23 @@ Connect-ExchangeOnline -Device -ShowBanner:$false
 if (-not $Mailbox) { $Mailbox = "pulse@" + ((Get-AcceptedDomain | Where-Object Default).DomainName) }
 
 # 1. The shared mailbox.
-if (-not (Get-EXOMailbox -Identity $Mailbox -ErrorAction SilentlyContinue)) {
+if (-not (Found { Get-Recipient -Identity $Mailbox })) {
   New-Mailbox -Shared -Name "HD IT Pulse" -DisplayName "HD IT Pulse" -Alias ($Mailbox.Split("@")[0]) -PrimarySmtpAddress $Mailbox | Out-Null
   Ok "Created shared mailbox $Mailbox"
 } else { Ok "Shared mailbox $Mailbox" }
 
 # 2. Pulse may send from that mailbox only.
-if (-not (Get-ServicePrincipal -Identity $id.appId -ErrorAction SilentlyContinue)) {
+if (-not (Found { Get-ServicePrincipal -Identity $id.appId })) {
   New-ServicePrincipal -AppId $id.appId -ObjectId $id.objectId -DisplayName "HD IT Pulse sync (Test)" | Out-Null
 }
 Ok "Exchange knows Pulse's sync service"
-if (-not (Get-ManagementScope -Identity $ScopeName -ErrorAction SilentlyContinue)) {
+if (-not (Found { Get-ManagementScope -Identity $ScopeName })) {
   New-ManagementScope -Name $ScopeName -RecipientRestrictionFilter "PrimarySmtpAddress -eq '$Mailbox'" | Out-Null
 } else {
   Set-ManagementScope -Identity $ScopeName -RecipientRestrictionFilter "PrimarySmtpAddress -eq '$Mailbox'"
 }
 Ok "Scope '$ScopeName': only $Mailbox"
-$existing = Get-ManagementRoleAssignment -RoleAssignee $id.appId -Role "Application Mail.Send" -ErrorAction SilentlyContinue
-if (-not $existing) {
+if (-not (Found { Get-ManagementRoleAssignment -RoleAssignee $id.appId -Role "Application Mail.Send" })) {
   New-ManagementRoleAssignment -App $id.appId -Role "Application Mail.Send" -CustomResourceScope $ScopeName | Out-Null
 }
 Ok "Pulse can send as $Mailbox (and no other mailbox)"
