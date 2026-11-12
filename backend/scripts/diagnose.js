@@ -58,6 +58,14 @@ const sql = require("mssql");
   await q("Link errors", `SELECT TOP 10 N'todo' AS kind, todo_id AS id, last_error FROM pulse.todo_planner WHERE last_error IS NOT NULL
     UNION ALL SELECT TOP 10 N'issue', issue_id, last_error FROM pulse.issue_link WHERE last_error IS NOT NULL
     UNION ALL SELECT TOP 10 N'rock', rock_id, last_error FROM pulse.rock_link WHERE last_error IS NOT NULL`).catch(() => {});
+  // Client health (0.10.0): counts only, no client names or comments.
+  await q("Client health", `SELECT risk_level, COUNT(*) AS clients, AVG(risk_score) AS avg_score, SUM(CASE WHEN ranked = 1 THEN 1 ELSE 0 END) AS ranked,
+    SUM(CASE WHEN owner_email IS NULL THEN 1 ELSE 0 END) AS no_account_manager FROM pulse.client WHERE is_current = 1 GROUP BY risk_level`).catch(() => {});
+  await q("Early Warning reasons", `SELECT JSON_VALUE(r.value, '$.key') AS reason, COUNT(*) AS clients, SUM(CAST(JSON_VALUE(r.value, '$.points') AS INT)) AS points
+    FROM pulse.client c CROSS APPLY OPENJSON(c.reasons_json) r WHERE c.is_current = 1 GROUP BY JSON_VALUE(r.value, '$.key') ORDER BY clients DESC`).catch(() => {});
+  await q("Client feedback matching", `SELECT ISNULL(matched_by, N'not matched') AS matched_by, metric, COUNT(*) AS ratings,
+    SUM(CASE WHEN company_id IN (SELECT company_id FROM pulse.client WHERE is_current = 1) THEN 1 ELSE 0 END) AS to_a_client
+    FROM pulse.client_feedback GROUP BY matched_by, metric ORDER BY ratings DESC`).catch(() => {});
   await q("Reminders sent (last 20)", "SELECT TOP 20 kind, ref, channel, LEFT(text, 100) AS text, sent_at, LEFT(error, 160) AS error FROM pulse.nudge_log ORDER BY id DESC").catch(() => {});
   await pool.close();
 })().catch(e => { console.error("Diagnose failed:", e.message); process.exit(1); });

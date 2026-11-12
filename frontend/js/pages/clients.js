@@ -120,7 +120,7 @@ export async function clientsPage(me, id, q = {}) {
       f.onsubmit = e => { e.preventDefault(); go(); };
       let t = null; f.find.oninput = () => { clearTimeout(t); t = setTimeout(go, 500); };
       root.querySelector("#cl-refresh").onclick = async () => {
-        try { await api("/clients/refresh", { method: "POST", body: {} }); toast("Asked for: the scores update within a few minutes"); } catch (e) { toast(e.message); }
+        try { await api("/clients/refresh", { method: "POST", body: {} }); toast("Asked for: the scores update within about 15 minutes"); } catch (e) { toast(e.message); }
       };
       root.querySelectorAll("tr.click").forEach(tr => { tr.onclick = e => { if (!e.target.closest("a")) location.hash = tr.dataset.href; }; });
     },

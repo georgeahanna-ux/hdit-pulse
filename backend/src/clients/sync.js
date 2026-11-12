@@ -118,6 +118,7 @@ async function loadTickets(clientIds, now) {
 /** Saves ratings 500 at a time (one MERGE per batch, from JSON), and drops those older than 400 days. */
 async function saveFeedback(rows) {
   await db.query("DELETE FROM pulse.client_feedback WHERE answered_at < DATEADD(day, -@keep, SYSUTCDATETIME())", { keep: KEEP_DAYS });
+  await db.query("UPDATE pulse.client_feedback SET company_id = NULL, matched_by = NULL WHERE company_id = 0");   // HD IT's own company (from 0.10.0's first run)
   for (let i = 0; i < rows.length; i += 500) {
     const json = JSON.stringify(rows.slice(i, i + 500).map(r => ({
       k: r.key, rid: r.responseId, cid: r.companyId, by: r.matchedBy, m: r.metric, rt: r.rating, s: r.sentiment, c: r.comment, tp: r.topics,

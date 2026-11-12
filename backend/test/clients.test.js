@@ -116,6 +116,7 @@ test("matching a rating to a client: ticket first, then contact, then company na
   assert.deepEqual(M.matchCompany({ ticket: { number: "T20260101.0001" }, contactRef: 30123 }, maps), { companyId: 9, by: "contact" });
   assert.deepEqual(M.matchCompany({ companyText: "ACME Pty. Limited" }, maps), { companyId: 10, by: "name" });
   assert.equal(M.matchCompany({ companyText: "Someone Else" }, maps), null);
+  assert.equal(M.matchCompany({ ticket: { number: "T20261104.0001" } }, { ...maps, ticketCompany: new Map([["T20261104.0001", 0]]) }), null, "HD IT itself (company 0) is not a client");
   assert.equal(M.ticketRef("1234567.12345678"), null, "not an Autotask ticket number or id");
   assert.deepEqual(M.ticketRef("t20261103.0042"), { number: "T20261103.0042" });
 });

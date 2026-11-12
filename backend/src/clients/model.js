@@ -184,11 +184,12 @@ function rowsFromResponse(r) {
  * contact's company, then the company name SimpleSAT holds. Returns { companyId, by } or null.
  */
 function matchCompany(row, { ticketCompany, contactCompany, byName }) {
+  // Company 0 is HD IT itself in Autotask (internal tickets): not a client.
   if (row.ticket) {
     const id = row.ticket.number ? ticketCompany.get(row.ticket.number) : ticketCompany.get(`id:${row.ticket.id}`);
     if (id) return { companyId: id, by: "ticket" };
   }
-  if (row.contactRef && contactCompany.has(row.contactRef)) return { companyId: contactCompany.get(row.contactRef), by: "contact" };
+  if (row.contactRef && contactCompany.get(row.contactRef)) return { companyId: contactCompany.get(row.contactRef), by: "contact" };
   const n = normName(row.companyText);
   if (n && byName.has(n)) return { companyId: byName.get(n), by: "name" };
   return null;
