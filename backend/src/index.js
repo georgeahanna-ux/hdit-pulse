@@ -71,6 +71,11 @@ if (component === "api") {
     schedule: "0 40 18 * * *", runOnStartup: false,
     handler: (_t, context) => jobs.run("clients", context, jobs.syncClients),
   });
+  // Ticket sentiment with Azure OpenAI, hourly at :25 (up to 400 tickets a run) (D23, 0.11.0).
+  app.timer("sentiment", {
+    schedule: "0 25 * * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.run("sentiment", context, jobs.syncSentiment),
+  });
   // Jobs asked for from Pulse ("Refresh now"), every two minutes.
   app.timer("requests", {
     schedule: "0 */2 * * * *", runOnStartup: false,

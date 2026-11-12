@@ -21,7 +21,7 @@ const sql = require("mssql");
   }
   // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections|links|nudges),
   // or inspect:simplesat for a look at SimpleSAT answers (field names and ratings only).
-  if (/^(scorecard|projects|departments|directory|connections|links|nudges|clients|inspect:simplesat(-responses)?)$/.test(process.env.REFRESH_JOB || "")) {
+  if (/^(scorecard|projects|departments|directory|connections|links|nudges|clients|sentiment|inspect:simplesat(-responses)?)$/.test(process.env.REFRESH_JOB || "")) {
     await pool.request().input("job", sql.NVarChar, process.env.REFRESH_JOB).query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to run ${process.env.REFRESH_JOB} now (within two minutes).`);
   }
@@ -66,6 +66,8 @@ const sql = require("mssql");
   await q("Client feedback matching", `SELECT ISNULL(matched_by, N'not matched') AS matched_by, metric, COUNT(*) AS ratings,
     SUM(CASE WHEN company_id IN (SELECT company_id FROM pulse.client WHERE is_current = 1) THEN 1 ELSE 0 END) AS to_a_client
     FROM pulse.client_feedback GROUP BY matched_by, metric ORDER BY ratings DESC`).catch(() => {});
+  await q("Ticket sentiment (Azure OpenAI)", `SELECT sentiment, COUNT(*) AS tickets, SUM(CASE WHEN frustration >= 2 THEN 1 ELSE 0 END) AS frustrated,
+    SUM(CAST(churn AS INT)) AS churn_talk, MAX(analysed_at) AS last_read, MAX(model) AS model FROM pulse.ticket_sentiment GROUP BY sentiment`).catch(() => {});
   await q("Reminders sent (last 20)", "SELECT TOP 20 kind, ref, channel, LEFT(text, 100) AS text, sent_at, LEFT(error, 160) AS error FROM pulse.nudge_log ORDER BY id DESC").catch(() => {});
   await pool.close();
 })().catch(e => { console.error("Diagnose failed:", e.message); process.exit(1); });

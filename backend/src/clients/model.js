@@ -17,6 +17,9 @@
  *     Each SLA missed in 30 days                              +5   (up to 15)
  *     Each Critical ticket in 30 days                         +5   (up to 10)
  *     Tickets open more than 14 days: 3–5 +5, 6+ +10
+ *   How they sound in their tickets (Azure OpenAI, 0.11.0: client-visible ticket text only)
+ *     A ticket in 90 days talks about leaving, cancelling or changing provider   +30
+ *     Each ticket in 30 days where the client sounded frustrated (2 or 3 of 3)   +6  (up to 18)
  *   Contract
  *     Recurring contract ends within 30 days +20, within 90 days +15
  *
@@ -89,7 +92,7 @@ function ticketFigures(tickets, now = new Date()) {
 }
 
 /** The Early Warning score and its reasons. c: { feedback, tickets (figures), contractEnd } */
-function earlyWarning({ feedback = [], tickets = {}, contractEnd = null }, now = new Date()) {
+function earlyWarning({ feedback = [], tickets = {}, contractEnd = null, moods = [] }, now = new Date()) {
   const reasons = [];
   const add = (key, points, text, kind) => { if (points > 0) reasons.push({ key, points, text, kind }); };
 
@@ -121,6 +124,12 @@ function earlyWarning({ feedback = [], tickets = {}, contractEnd = null }, now =
   if (tickets.slaMissed30) add("sla-missed", Math.min(15, tickets.slaMissed30 * 5), `${tickets.slaMissed30} SLA${tickets.slaMissed30 === 1 ? "" : "s"} missed in 30 days`, "tickets");
   if (tickets.critical30) add("critical", Math.min(10, tickets.critical30 * 5), `${tickets.critical30} Critical ticket${tickets.critical30 === 1 ? "" : "s"} in 30 days`, "tickets");
   if ((tickets.agedOpen || 0) >= 3) add("aged-open", tickets.agedOpen >= 6 ? 10 : 5, `${tickets.agedOpen} tickets open more than 14 days`, "tickets");
+
+  // Ticket sentiment
+  const churn = moods.filter(m => m.churn && ago(now, m.createDate) <= 90).sort((a, b) => new Date(b.createDate) - new Date(a.createDate));
+  if (churn.length) add("churn-talk", 30, `Ticket ${churn[0].ticketNumber || ""} on ${shortDate(churn[0].createDate)} talks about leaving or changing provider${churn.length > 1 ? ` (and ${churn.length - 1} more)` : ""}`.replace("Ticket  on", "A ticket on"), "sentiment");
+  const cross = moods.filter(m => (m.frustration || 0) >= 2 && ago(now, m.createDate) <= 30);
+  if (cross.length) add("frustrated", Math.min(18, cross.length * 6), `${cross.length} ticket${cross.length === 1 ? "" : "s"} in 30 days where the client sounded frustrated`, "sentiment");
 
   // Contract
   if (contractEnd) {

@@ -49,7 +49,7 @@ const POLICY = {
     write: { Tasks: ["update"], TimeEntries: ["create"], TaskPredecessors: ["create", "delete"] },   // a dependency is a link; removing one deletes no work
   },
   clients: {   // Client health and the Early Warning (0.10.0, D23), read-only. Contracts come through the scorecard's contract reader.
-    read: ["Companies", "Tickets", "Contacts", "Resources"],
+    read: ["Companies", "Tickets", "TicketNotes", "Contacts", "Resources"],   // TicketNotes: ticket sentiment, 0.11.0
     write: {},
   },
   issues: {   // Issue -> Autotask ticket or project task (D11, 0.8.0), and their status read back

@@ -6,7 +6,7 @@ import { money, empty, dialog } from "../components.js";
 
 const LEVEL = { risk: ["alert", "At risk"], watch: ["scheduled", "Watch"], healthy: ["ok", "Healthy"] };
 const levelChip = l => { const [c, t] = LEVEL[l] || ["quiet", l]; return `<span class="chip ${c}">${t}</span>`; };
-const KIND_ICON = { feedback: "star", tickets: "service-desk", contract: "calendar" };
+const KIND_ICON = { feedback: "star", tickets: "service-desk", contract: "calendar", sentiment: "ai" };
 
 function meter(score, level) {
   return `<span class="risk-meter ${esc(level)}" role="img" aria-label="Early Warning score ${score} of 100"><span style="width:${Math.max(3, Math.min(100, score))}%"></span></span>`;
@@ -103,12 +103,16 @@ export async function clientsPage(me, id, q = {}) {
             <li>Each SLA missed in 30 days: <b>+5</b> (up to 15); each Critical ticket: <b>+5</b> (up to 10)</li>
             <li>Tickets open more than 14 days: 3–5 <b>+5</b>, 6 or more <b>+10</b></li>
             <li class="dim">Only tickets the client raised count: Autotask alerts and monitoring tickets are left out.</li>
-            <li>Recurring contract ends within 30 days <b>+20</b>, within 90 days <b>+15</b></li></ul></div>
+            <li>Recurring contract ends within 30 days <b>+20</b>, within 90 days <b>+15</b></li></ul>
+            <h3>How they sound in their tickets (Azure OpenAI)</h3><ul>
+            <li>A ticket in 90 days talks about leaving, cancelling or changing provider: <b>+30</b></li>
+            <li>Each ticket in 30 days where the client sounded frustrated: <b>+6</b> (up to 18)</li></ul></div>
         </div>
         <p><span class="chip ok">Healthy</span> 0–24 · <span class="chip scheduled">Watch</span> 25–49 · <span class="chip alert">At risk</span> 50 and over. Account Managers get a Teams alert when one of their clients moves into At risk.</p>
-        <p class="dim small">Feedback is matched to the client through the Autotask ticket it was about. The words of the tickets themselves aren't analysed yet: the sentiment comes from what clients write in SimpleSAT.</p>
+        <p class="dim small">Feedback is matched to the client through the Autotask ticket it was about.</p>
+        ${sentimentNote(d.sentiment)}
       </details></section>`,
-    mount(root) {
+    mount(root, refresh) {
       const f = root.querySelector("#cl-filters");
       const go = () => {
         const p = new URLSearchParams();
@@ -123,9 +127,25 @@ export async function clientsPage(me, id, q = {}) {
       root.querySelector("#cl-refresh").onclick = async () => {
         try { await api("/clients/refresh", { method: "POST", body: {} }); toast("Asked for: the scores update within about 15 minutes"); } catch (e) { toast(e.message); }
       };
+      const sw = root.querySelector("#cl-sentiment");
+      if (sw) sw.onclick = () => dialog({
+        title: d.sentiment.enabled ? "Switch off ticket sentiment" : "Switch on ticket sentiment",
+        intro: d.sentiment.enabled ? "Pulse stops sending ticket text to Azure OpenAI. Results already worked out stay until they age out (120 days)." : "Pulse starts reading client-visible ticket text with Azure OpenAI in Australia East again.",
+        fields: [{ name: "reason", label: "Reason (kept in the audit log)", type: "textarea", required: true, rows: 2 }],
+        submit: d.sentiment.enabled ? "Switch off" : "Switch on", danger: d.sentiment.enabled,
+        onSubmit: async v => { await api("/clients/sentiment", { method: "PUT", body: { enabled: !d.sentiment.enabled, reason: v.reason } }); toast("Saved"); refresh(); },
+      });
       root.querySelectorAll("tr.click").forEach(tr => { tr.onclick = e => { if (!e.target.closest("a")) location.hash = tr.dataset.href; }; });
     },
   };
+}
+
+function sentimentNote(st) {
+  if (!st) return "";
+  const state = !st.enabled ? `<span class="chip quiet">Switched off</span>` : st.analysed30 ? `<span class="chip ok">On</span>` : `<span class="chip scheduled">Not running yet</span>`;
+  return `<div class="note info small">${icon("ai")}<span><b>Ticket sentiment</b> ${state}
+    Azure OpenAI${st.model ? ` (${esc(st.model)})` : ""} in Australia East reads the text the client can see on tickets they raised: the title, the description and notes that aren't internal, with email addresses and phone numbers taken out. Only its verdict is kept, never the ticket text. ${st.analysed30 ? `${st.analysed30} tickets from the last 30 days read.` : ""}
+    ${st.canSwitch ? `<button class="btn outline sm" type="button" id="cl-sentiment">${st.enabled ? "Switch off" : "Switch on"}</button>` : ""}</span></div>`;
 }
 
 /* ---------------- one client ---------------- */
@@ -193,6 +213,17 @@ async function clientPage(me, id) {
             ${f.comment ? `<blockquote>${esc(f.comment)}</blockquote>` : ""}
             <div class="dim small">${f.contactName ? esc(f.contactName) : "Contact not named"}${f.teamMember ? ` · handled by ${esc(f.teamMember)}` : ""}${f.topics ? ` · topics: ${esc(f.topics)}` : ""}</div>
           </li>`).join("")}</ul>` : empty("No CSAT or NPS ratings from this client in the last year.")}
+      </section>
+
+      <section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">Azure OpenAI</span><h2>How they sound in their tickets</h2></div>
+          <span class="aside">${c.ticketMoods.analysed ? `${c.ticketMoods.analysed} tickets in 90 days read: ${c.ticketMoods.negative} negative, ${c.ticketMoods.positive} positive` : "Last 90 days"}</span></div>
+        ${c.ticketMoods.list.length ? `<ul class="fb-list">${c.ticketMoods.list.map(m => `<li class="${m.churn || m.frustration >= 2 ? "neg" : ""}">
+            <div class="fb-h">${m.churn ? `<span class="chip alert">Talks about leaving</span>` : ""}${m.frustration >= 2 ? `<span class="chip alert">Frustrated${m.frustration === 3 ? ", strongly" : ""}</span>` : ""}
+              ${m.sentiment === "negative" && !m.churn && m.frustration < 2 ? `<span class="chip scheduled">Negative</span>` : ""}
+              <a class="small" href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.ticketNumber || "Ticket")}</a> <span class="dim small">${esc(fmtShort(m.at))}${m.title ? ` · ${esc(m.title)}` : ""}</span></div>
+            ${m.reason ? `<div>${esc(m.reason)}</div>` : ""}</li>`).join("")}</ul>`
+          : empty(c.ticketMoods.analysed ? "Nothing negative in their tickets in the last 90 days." : "No tickets read yet for this client.")}
+        <p class="dim small">Read by Azure OpenAI from the text the client can see on their tickets. It can be wrong: open the ticket before acting on it.</p>
       </section>
 
       <section class="sec"><div class="sec-h"><div><span class="hd-eyebrow">Follow-up</span><h2>Notes</h2></div></div>

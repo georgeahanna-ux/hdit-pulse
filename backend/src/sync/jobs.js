@@ -114,7 +114,11 @@ async function syncClients() {
   if (!(await isConnected("autotask-service"))) return "Autotask not connected yet.";
   return require("../clients/sync").syncClients();
 }
-const REQUESTABLE = { clients: syncClients, nudges: syncNudges, connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
+async function syncSentiment() {
+  if (!(await isConnected("autotask-service"))) return "Autotask not connected yet.";
+  return require("../clients/sentiment").runSentiment();
+}
+const REQUESTABLE = { sentiment: syncSentiment, clients: syncClients, nudges: syncNudges, connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
 
 /**
  * Read-only look at one Autotask opportunity and its quotes (job "inspect:opportunity:<id>",
@@ -175,4 +179,4 @@ async function runRequests(context) {
   }
 }
 
-module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, syncNudges, syncClients, runRequests, CONNECTIONS };
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, syncNudges, syncClients, syncSentiment, runRequests, CONNECTIONS };

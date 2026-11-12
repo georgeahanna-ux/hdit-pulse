@@ -251,7 +251,13 @@ Asked for by George: an Account Manager page that uses SimpleSAT CSAT and NPS fo
 - **Happiness** for the leaderboards: CSAT and NPS in the last year on 0–100, recent ratings weighted more (half-life 120 days), ranked with 3+ ratings; each client on one board.
 - **Feedback is matched** by the Autotask ticket SimpleSAT holds, then the contact, then the company name. Kept 400 days; no email addresses.
 - **Actions:** follow-up notes; Raise an Issue (Sales & Marketing list, or the company list for Leadership); a Teams alert to the Account Manager when a client moves into At risk (once a week per client).
-- **Ticket sentiment: not in this release.** Reading the text of tickets and notes would mean sending client ticket content to a language service (Azure AI Language in Australia East): a new processor to assess for ISO 27001 and the privacy policy, plus cost. For now the sentiment comes from what clients write in SimpleSAT (SimpleSAT's own sentiment and topics on each answer), which is about their tickets. Ticket-text sentiment is a candidate for release 2 alongside D15.
+- ~~**Ticket sentiment: not in this release.**~~ **Changed 12 Nov 2026 (George): ticket sentiment with Azure OpenAI.**
+  - **Where:** Pulse's own Azure OpenAI resource, a Regional Standard deployment in Australia East, so the text is processed in Australia ("Australia only": no Global or Data Zone deployment, even though newer models are offered there). The only model offered that way in Australia East is gpt-4.1-mini, which Microsoft retires on Azure on 14 April 2027; before then, either a newer Regional Standard model arrives in Australia East or the choice is made again.
+  - **What is sent:** client-visible text only, of tickets the client raised: title, description and notes that aren't internal. Email addresses, phone numbers and quoted email history are removed first. Keys are off; only the sync service's identity can call it.
+  - **What is kept:** per ticket, sentiment, frustration (0–3), talk of leaving and a one-line reason; not the text. 120 days.
+  - **In the score:** talk of leaving in 90 days +30; frustrated tickets in 30 days +6 each (up to 18). Platform Admins can switch it off (audited).
+  - **ISO 27001 note:** Azure OpenAI is a Microsoft service in HD IT's tenancy; Microsoft doesn't use the data to train models. Its abuse monitoring may keep prompts for up to 30 days; HD IT can apply to Microsoft for modified abuse monitoring if that matters for client data. Record it in the supplier and data-flow register.
+  - **Built in 0.11.0 (12 Nov 2026).**
 - **Built in 0.10.0 (12 Nov 2026).**
 
 ## Release plan

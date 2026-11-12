@@ -7,6 +7,7 @@
  *   POST /clients/:id/notes  { note }     an Account Manager's follow-up note
  *   POST /clients/:id/issue  { title, description, level }   raise an Issue (Sales & Marketing list by default)
  *   POST /clients/refresh                 ask the sync service to work it out again now
+ *   PUT  /clients/sentiment  { enabled, reason }   Platform Admins: switch ticket sentiment (Azure OpenAI) on or off
  *
  * MRR is left out unless the person can see it (Leadership, Sales & Marketing).
  */
@@ -36,9 +37,19 @@ function shape(ctx, r, extra = {}) {
   };
 }
 
-async function lastRun() {
-  const [r] = await db.query("SELECT TOP 1 started_at, finished_at, ok, detail FROM pulse.sync_run WHERE job IN (N'clients') ORDER BY id DESC");
+async function lastRun(job = "clients") {
+  const [r] = await db.query("SELECT TOP 1 started_at, finished_at, ok, detail FROM pulse.sync_run WHERE job = @job ORDER BY id DESC", { job });
   return r ? { at: iso(r.finished_at || r.started_at), ok: r.ok === null ? null : !!r.ok, detail: r.detail } : null;
+}
+
+/** Ticket sentiment status for the page (no ticket content). */
+async function sentimentStatus(ctx) {
+  const [s] = await db.query("SELECT [value] FROM pulse.app_setting WHERE [key] = N'sentiment.enabled'").catch(() => []);
+  const [c] = await db.query(`SELECT COUNT(*) AS n, MAX(model) AS model, MAX(analysed_at) AS last FROM pulse.ticket_sentiment
+    WHERE created_at >= DATEADD(day, -30, SYSUTCDATETIME())`).catch(() => [{}]);
+  const run = await lastRun("sentiment");
+  return { enabled: !s || s.value !== "0", analysed30: (c && c.n) || 0, model: c && c.model, lastRun: run && ctx.access.platform ? run : run ? { at: run.at, ok: run.ok } : null,
+    canSwitch: !!ctx.access.platform };
 }
 
 async function list(ctx) {
@@ -79,7 +90,7 @@ async function list(ctx) {
   const boards = require("./model").leaderboards(clients, 10);
   return {
     owner: want, owners: [...owners.values()].sort((a, b) => b.isMe - a.isMe || a.name.localeCompare(b.name)),
-    canSeeMrr: !!ctx.access.clientMrr, lastRun: await lastRun(),
+    canSeeMrr: !!ctx.access.clientMrr, lastRun: await lastRun(), sentiment: await sentimentStatus(ctx),
     summary: {
       clients: clients.length, risk: at("risk").length, watch: at("watch").length, healthy: at("healthy").length,
       mrrAtRisk: ctx.access.clientMrr ? Math.round(at("risk").reduce((s, c) => s + (c.mrr || 0), 0)) : undefined,
@@ -96,17 +107,28 @@ async function detail(ctx) {
   const id = C.int(ctx.params.id, "Client");
   const [r] = await db.query("SELECT * FROM pulse.client WHERE company_id = @id", { id });
   if (!r) throw C.fail(404, "That client isn't in Pulse (only clients with a recurring contract are).");
-  const [feedback, history, notes, issues] = await Promise.all([
+  const [feedback, history, notes, issues, moods] = await Promise.all([
     db.query(`SELECT TOP 100 * FROM pulse.client_feedback WHERE company_id = @id AND answered_at >= DATEADD(day, -365, SYSUTCDATETIME()) ORDER BY answered_at DESC`, { id }),
     db.query("SELECT TOP 13 week, risk_score, happiness FROM pulse.client_week WHERE company_id = @id ORDER BY week DESC", { id }),
     db.query("SELECT TOP 50 id, note, author_name, created_at FROM pulse.client_note WHERE company_id = @id ORDER BY created_at DESC", { id }),
     db.query("SELECT id, title, status, level, division_code FROM pulse.issue WHERE source_kind = N'client' AND source_id = @id ORDER BY id DESC", { id }),
+    db.query(`SELECT ticket_id, ticket_number, title, created_at, sentiment, frustration, churn, reason FROM pulse.ticket_sentiment
+      WHERE company_id = @id AND created_at >= DATEADD(day, -90, SYSUTCDATETIME()) ORDER BY created_at DESC`, { id }).catch(() => []),
   ]);
+  const base = await webUrl();
   // Who looked at a client's feedback (it holds the client contacts' names and comments).
   await C.record(ctx, "client.view", { type: "client", id });
   return {
     ...shape(ctx, r),
-    autotaskUrl: autotaskUrl(await webUrl(), "company", id),
+    autotaskUrl: autotaskUrl(base, "company", id),
+    ticketMoods: {
+      analysed: moods.length,
+      negative: moods.filter(m => m.sentiment === "negative").length,
+      positive: moods.filter(m => m.sentiment === "positive").length,
+      list: moods.filter(m => m.sentiment === "negative" || m.frustration >= 2 || m.churn).slice(0, 30).map(m => ({
+        ticketNumber: m.ticket_number, title: m.title, at: iso(m.created_at), sentiment: m.sentiment, frustration: m.frustration, churn: !!m.churn, reason: m.reason,
+        url: autotaskUrl(base, "ticket", m.ticket_id) })),
+    },
     computedAt: iso(r.computed_at),
     history: history.reverse().map(h => ({ week: day(h.week), score: h.risk_score, happiness: num(h.happiness) })),
     feedback: feedback.map(f => ({ at: iso(f.answered_at), metric: f.metric, rating: f.rating, sentiment: f.sentiment, comment: f.comment, topics: f.topics,
@@ -159,7 +181,20 @@ async function refresh(ctx) {
   return { ok: true };
 }
 
+async function setSentiment(ctx) {
+  if (!ctx.access.platform) throw C.fail(403, "Only Platform Admins switch ticket sentiment on or off.");
+  const enabled = !!ctx.body.enabled;
+  const why = C.reason(ctx.body.reason);
+  const [before] = await db.query("SELECT [value] FROM pulse.app_setting WHERE [key] = N'sentiment.enabled'");
+  await db.query(`MERGE pulse.app_setting AS t USING (SELECT N'sentiment.enabled' AS [key]) AS s ON t.[key] = s.[key]
+    WHEN MATCHED THEN UPDATE SET [value] = @v, updated_by = @by WHEN NOT MATCHED THEN INSERT ([key], [value], updated_by) VALUES (s.[key], @v, @by);`,
+    { v: enabled ? "1" : "0", by: ctx.person.name });
+  await C.record(ctx, "setting.change", { type: "setting", id: "sentiment.enabled" }, { value: before ? before.value : null }, { value: enabled ? "1" : "0" }, why);
+  return { enabled };
+}
+
 const routes = [
+  { method: "PUT", path: "/clients/sentiment", auth: "person", fn: setSentiment },
   { method: "GET", path: "/clients", auth: "person", fn: list },
   { method: "POST", path: "/clients/refresh", auth: "person", fn: refresh },
   { method: "GET", path: "/clients/:id", auth: "person", fn: detail },

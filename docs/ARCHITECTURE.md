@@ -81,6 +81,7 @@ New app roles on the existing registration, each assigned to a group, the same w
 - Sync app job "clients", nightly at 18:40 UTC and on request: recurring contracts in force (the Scorecard's read-only contract reader, `contracts.byCompany`) → clients with MRR, seats and soonest contract end; company owner → Account Manager; SimpleSAT `POST /responses/search` for 400 days → one row per CSAT or NPS rating (`client_feedback`), matched to the client by Autotask ticket number, contact id, then company name; Autotask tickets created in 90 days or still open, without alerts and monitoring tickets (ticket type or source) → ticket signals. The first run reads SimpleSAT in full; later runs read from 14 days before the newest rating held. Writes are batched (`OPENJSON` MERGE).
 - Score and reasons from `clients/model.js` (pure, tested) into `client`; a weekly snapshot in `client_week` for the trend; follow-ups in `client_note`; Issues raised from a client carry `source_kind` "client".
 - Autotask module `clients`: read Companies, Tickets, Contacts, Resources; no writes.
+- Ticket sentiment (0.11.0): sync job "sentiment" hourly reads client-visible ticket text (no internal notes; contact details removed) with Pulse's Azure OpenAI (`infra/openai.bicep`: Regional Standard gpt-4.1-mini, Australia East, keys off, sync identity "Cognitive Services OpenAI User") and keeps only the verdict in `ticket_sentiment`; the clients job adds it to the score.
 - Alerts: the clients job calls `notify.clientAlerts` for clients that just moved into At risk (Activity feed, `nudge_log` kind "client-risk").
 
 ### Teams (D12)
@@ -114,10 +115,13 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects. Built 11 Nov 2026: "links" job every 5 minutes; per-field three-way merge for To-dos (Pulse wins a clash); `todo_planner`, `issue_link`, `rock_link`, `planner_plan` tables; Autotask `issues` module may only create tickets and project tasks | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email. Built 11 Nov 2026 with Activity feed reminders instead of a bot | 0.9.0 |
 | D23 | Client health | Early Warning score with reasons, happiness leaderboards, client page with feedback, trend, notes and Raise an Issue; Teams alert on At risk. Built 12 Nov 2026: "clients" job nightly; `client`, `client_feedback`, `client_week`, `client_note` tables | 0.10.0 |
+| D23b | Ticket sentiment | Azure OpenAI (Regional Standard, Australia East); hourly "sentiment" job; `ticket_sentiment` table | 0.11.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken
+**12 November 2026 (0.11.0):** ticket sentiment with Azure OpenAI after all (D23 amended): Australia only (Regional Standard), client-visible ticket text only, verdicts kept but not text.
+
 **12 November 2026 (0.10.0):** Client health and the Early Warning (D23): a points-based score with named reasons (not a model nobody can explain), happiness leaderboards, Teams alert on At risk. Ticket-text sentiment left for release 2 (it would send client ticket content to a language service).
 
 **11 November 2026 (0.9.0):** Pulse in Teams; reminders in the Teams Activity feed rather than a bot chat; the Monday email from a new shared mailbox (D12 amended).

@@ -91,39 +91,57 @@ async function loadFeedback(clients, now) {
 }
 
 /**
- * Tickets the client raised: Autotask alerts and monitoring tickets (RMM, backup and the like)
- * are left out, because a burst of alerts says nothing about how the client feels.
+ * How to tell the tickets a client raised from Autotask alerts and monitoring tickets (RMM, backup
+ * and the like), by ticket type or source; a burst of alerts says nothing about how the client feels.
+ * Also which priorities are Critical and which status is Complete. Shared with clients/sentiment.js.
  */
-async function loadTickets(clientIds, now) {
-  const since = new Date(now.getTime() - 90 * DAY).toISOString();
+async function ticketKinds() {
   const [priorities, statuses, types, sources] = await Promise.all([at.picklist(MOD, "Tickets", "priority"), at.picklist(MOD, "Tickets", "status"),
     at.picklist(MOD, "Tickets", "ticketType").catch(() => []), at.picklist(MOD, "Tickets", "source").catch(() => [])]);
   const critical = new Set(priorities.filter(p => /critical|urgent|p1\b/i.test(p.label)).map(p => Number(p.value)));
   const complete = (statuses.find(s => /^complete/i.test(s.label)) || { value: 5 }).value;
   const alertTypes = new Set(types.filter(t => /alert/i.test(t.label)).map(t => Number(t.value)));
   const alertSources = new Set(sources.filter(t => /monitor|alert|rmm|backup|insight|datto|automat|system/i.test(t.label)).map(t => Number(t.value)));
-  const fields = await at.known(MOD, "Tickets", ["id", "companyID", "createDate", "completedDate", "priority", "status", "serviceLevelAgreementHasBeenMet", "ticketType", "source"]);
+  return {
+    critical, complete,
+    isAlert: t => alertTypes.has(Number(t.ticketType)) || alertSources.has(Number(t.source)),
+    alertLabels: [...types.filter(t => alertTypes.has(Number(t.value))), ...sources.filter(t => alertSources.has(Number(t.value)))].map(t => t.label),
+  };
+}
+
+/** Client tickets created since a date, plus every ticket still open (both: alerts left out). */
+async function clientTickets(clientIds, since, wanted) {
+  const k = await ticketKinds();
+  const fields = await at.known(MOD, "Tickets", [...new Set(["id", "companyID", "createDate", "status", "ticketType", "source", ...wanted])]);
   const ids = new Set(clientIds);
   const [recent, open] = await Promise.all([
     at.query(MOD, "Tickets", [{ op: "gte", field: "createDate", value: since }], fields),
-    at.query(MOD, "Tickets", [{ op: "noteq", field: "status", value: complete }, { op: "lt", field: "createDate", value: since }], fields),
+    at.query(MOD, "Tickets", [{ op: "noteq", field: "status", value: k.complete }, { op: "lt", field: "createDate", value: since }], fields),
   ]);
-  const by = new Map();
+  const kept = [];
   let alerts = 0;
   for (const t of [...recent, ...open]) {
+    if (!ids.has(Number(t.companyID))) continue;
+    if (k.isAlert(t)) { alerts++; continue; }
+    kept.push(t);
+  }
+  return { kinds: k, tickets: kept, read: recent.length + open.length, alerts };
+}
+
+async function loadTickets(clientIds, now) {
+  const since = new Date(now.getTime() - 90 * DAY).toISOString();
+  const { kinds: k, tickets, read, alerts } = await clientTickets(clientIds, since, ["completedDate", "priority", "serviceLevelAgreementHasBeenMet"]);
+  const by = new Map();
+  for (const t of tickets) {
     const cid = Number(t.companyID);
-    if (!ids.has(cid)) continue;
-    if (alertTypes.has(Number(t.ticketType)) || alertSources.has(Number(t.source))) { alerts++; continue; }
     if (!by.has(cid)) by.set(cid, []);
     by.get(cid).push({
-      createDate: t.createDate, completedDate: t.completedDate || null, critical: critical.has(Number(t.priority)),
+      createDate: t.createDate, completedDate: t.completedDate || null, critical: k.critical.has(Number(t.priority)),
       slaMet: t.serviceLevelAgreementHasBeenMet === false ? false : t.serviceLevelAgreementHasBeenMet === true ? true : null,
-      open: Number(t.status) !== Number(complete),
+      open: Number(t.status) !== Number(k.complete),
     });
   }
-  const kept = [...by.values()].reduce((n, l) => n + l.length, 0);
-  return { by, count: recent.length + open.length, kept, alerts,
-    alertLabels: [...types.filter(t => alertTypes.has(Number(t.value))), ...sources.filter(t => alertSources.has(Number(t.value)))].map(t => t.label) };
+  return { by, count: read, kept: tickets.length, alerts, alertLabels: k.alertLabels };
 }
 
 /** Saves ratings 500 at a time (one MERGE per batch, from JSON), and drops those older than 400 days. */
@@ -157,7 +175,7 @@ async function rematchByName(byName) {
 }
 
 /** Works out every client's health and saves it. Returns the clients that newly moved into At risk. */
-async function score(clients, feedbackRows, tickets, now) {
+async function score(clients, feedbackRows, tickets, now, moods = new Map()) {
   const prior = new Map((await db.query("SELECT company_id, risk_level FROM pulse.client")).map(r => [Number(r.company_id), r.risk_level]));
   const fb = new Map();
   for (const r of feedbackRows) if (r.companyId) { if (!fb.has(r.companyId)) fb.set(r.companyId, []); fb.get(r.companyId).push(r); }
@@ -167,7 +185,7 @@ async function score(clients, feedbackRows, tickets, now) {
     const feedback = fb.get(c.id) || [];
     const t = M.ticketFigures(tickets.by.get(c.id) || [], now);
     const f = M.feedbackFigures(feedback, now);
-    const w = M.earlyWarning({ feedback, tickets: t, contractEnd: c.contractEnd }, now);
+    const w = M.earlyWarning({ feedback, tickets: t, contractEnd: c.contractEnd, moods: moods.get(c.id) || [] }, now);
     if (w.level === "risk" && prior.has(c.id) && prior.get(c.id) !== "risk") newlyAtRisk.push({ ...c, ...w });
     out.push({
       id: c.id, name: c.name, ownerId: c.owner ? c.owner.id : null, ownerName: c.owner ? c.owner.name : null, ownerEmail: c.owner ? c.owner.email : null,
@@ -215,7 +233,8 @@ async function syncClients({ now = new Date(), alert = require("../notify").clie
     WHEN MATCHED THEN UPDATE SET [value] = @v, updated_by = N'clients job' WHEN NOT MATCHED THEN INSERT ([key], [value], updated_by) VALUES (s.[key], @v, N'clients job');`, { v: now.toISOString() });
   const rematched = fb.byName ? await rematchByName(fb.byName) : 0;
   const stored = (await db.query("SELECT * FROM pulse.client_feedback WHERE company_id IS NOT NULL")).map(fromDb);
-  const newlyAtRisk = await score(clients, stored, tickets, now);
+  const moods = await loadMoods();
+  const newlyAtRisk = await score(clients, stored, tickets, now, moods);
   let alerts = "";
   if (newlyAtRisk.length && alert) alerts = `; alerts: ${await alert(newlyAtRisk).catch(e => `failed (${e.message})`)}`;
   const counts = { risk: 0, watch: 0 };
@@ -225,9 +244,21 @@ async function syncClients({ now = new Date(), alert = require("../notify").clie
     `${unmatched ? ` (${unmatched} not matched)` : ""}${rematched ? `, ${rematched} earlier ones matched by name` : ""}; ${stored.length} ratings kept; ${tickets.count} tickets read, ${tickets.kept} raised by clients (${tickets.alerts} alerts left out${tickets.alertLabels.length ? `: ${tickets.alertLabels.slice(0, 6).join(", ")}` : ""}); ${counts.risk || 0} at risk, ${counts.watch || 0} to watch${alerts}`;
 }
 
+/** Ticket sentiment from Azure OpenAI (clients/sentiment.js) for the last 90 days, by client. */
+async function loadMoods() {
+  const rows = await db.query(`SELECT company_id, ticket_id, ticket_number, created_at, sentiment, frustration, churn, reason
+    FROM pulse.ticket_sentiment WHERE created_at >= DATEADD(day, -90, SYSUTCDATETIME())`).catch(() => []);
+  const by = new Map();
+  for (const r of rows) {
+    if (!by.has(r.company_id)) by.set(r.company_id, []);
+    by.get(r.company_id).push({ ticketId: r.ticket_id, ticketNumber: r.ticket_number, createDate: r.created_at, sentiment: r.sentiment, frustration: r.frustration, churn: !!r.churn, reason: r.reason });
+  }
+  return by;
+}
+
 /** A stored feedback row in the model's shape. */
 const fromDb = r => ({ key: r.feedback_key, responseId: r.response_id, companyId: r.company_id, metric: r.metric, rating: r.rating, sentiment: r.sentiment,
   comment: r.comment, topics: r.topics, contactName: r.contact_name, teamMember: r.team_member, ticketNumber: r.ticket_number, ticketSubject: r.ticket_subject,
   answeredAt: r.answered_at, matchedBy: r.matched_by });
 
-module.exports = { syncClients, fromDb, _test: { loadTickets } };
+module.exports = { syncClients, fromDb, clientTickets, ticketKinds, MOD, _test: { loadTickets } };

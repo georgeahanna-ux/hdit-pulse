@@ -11,7 +11,7 @@ on:
         required: false
         default: ""
       refresh_job:
-        description: "Optional: run a sync job now (scorecard, projects, departments, directory, connections, links, nudges, clients) or inspect:simplesat, inspect:simplesat-responses"
+        description: "Optional: run a sync job now (scorecard, projects, departments, directory, connections, links, nudges, clients, sentiment) or inspect:simplesat, inspect:simplesat-responses"
         required: false
         default: ""
 
