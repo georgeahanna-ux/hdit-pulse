@@ -12,7 +12,8 @@
  *     CSAT in 90 days at least 15 points below the year before +10 (3+ ratings in each)
  *     Gone quiet: 3+ responses in the year, none in 120 days, still raising tickets  +5
  *   Tickets (Autotask)
- *     Ticket spike: 5+ in 30 days and at least double the 60 days before   +15
+ *     Ticket spike: 8+ in 30 days, at least double the month before and 5 more than it   +15
+ *     (tickets the client raised: alerts and monitoring tickets don't count)
  *     Each SLA missed in 30 days                              +5   (up to 15)
  *     Each Critical ticket in 30 days                         +5   (up to 10)
  *     Tickets open more than 14 days: 3–5 +5, 6+ +10
@@ -115,7 +116,7 @@ function earlyWarning({ feedback = [], tickets = {}, contractEnd = null }, now =
     add("gone-quiet", 5, "No survey answers in 120 days, but still raising tickets", "feedback");
 
   // Tickets
-  if ((tickets.tickets30 || 0) >= 5 && tickets.tickets30 >= 2 * Math.max(1, tickets.ticketsBase || 0))
+  if ((tickets.tickets30 || 0) >= 8 && tickets.tickets30 >= 2 * (tickets.ticketsBase || 0) && tickets.tickets30 >= (tickets.ticketsBase || 0) + 5)
     add("ticket-spike", 15, `${tickets.tickets30} tickets in 30 days, against about ${Math.round(tickets.ticketsBase || 0)} a month before`, "tickets");
   if (tickets.slaMissed30) add("sla-missed", Math.min(15, tickets.slaMissed30 * 5), `${tickets.slaMissed30} SLA${tickets.slaMissed30 === 1 ? "" : "s"} missed in 30 days`, "tickets");
   if (tickets.critical30) add("critical", Math.min(10, tickets.critical30 * 5), `${tickets.critical30} Critical ticket${tickets.critical30 === 1 ? "" : "s"} in 30 days`, "tickets");

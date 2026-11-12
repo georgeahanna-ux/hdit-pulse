@@ -99,9 +99,10 @@ export async function clientsPage(me, id, q = {}) {
             <li>CSAT in 90 days 15+ points below the year before: <b>+10</b></li>
             <li>Gone quiet: answered surveys before, none in 120 days, still raising tickets: <b>+5</b></li></ul></div>
           <div><h3>Tickets and contract (Autotask)</h3><ul>
-            <li>Ticket spike: 5+ in 30 days and double the month before: <b>+15</b></li>
+            <li>Ticket spike: 8+ in 30 days, double the month before and 5 more than it: <b>+15</b></li>
             <li>Each SLA missed in 30 days: <b>+5</b> (up to 15); each Critical ticket: <b>+5</b> (up to 10)</li>
             <li>Tickets open more than 14 days: 3–5 <b>+5</b>, 6 or more <b>+10</b></li>
+            <li class="dim">Only tickets the client raised count: Autotask alerts and monitoring tickets are left out.</li>
             <li>Recurring contract ends within 30 days <b>+20</b>, within 90 days <b>+15</b></li></ul></div>
         </div>
         <p><span class="chip ok">Healthy</span> 0–24 · <span class="chip scheduled">Watch</span> 25–49 · <span class="chip alert">At risk</span> 50 and over. Account Managers get a Teams alert when one of their clients moves into At risk.</p>

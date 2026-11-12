@@ -39,7 +39,7 @@ test("only the latest NPS in 180 days counts: a detractor who later became a pro
 
 test("caps: negative CSAT up to 36, SLA up to 15, critical up to 10; the total up to 100", () => {
   const feedback = Array.from({ length: 6 }, (_, i) => fb("csat", 1, i + 1, { sentiment: "negative" })).concat([fb("nps", 0, 3)]);
-  const tickets = { tickets30: 40, ticketsBase: 5, slaMissed30: 9, critical30: 7, agedOpen: 12 };
+  const tickets = { tickets30: 40, ticketsBase: 5, slaMissed30: 9, critical30: 7, agedOpen: 12 };   // a spike
   const w = M.earlyWarning({ feedback, tickets, contractEnd: "2026-11-30" }, NOW);
   const pts = Object.fromEntries(w.reasons.map(r => [r.key, r.points]));
   assert.equal(pts["csat-negative"], 36); assert.equal(pts["sla-missed"], 15); assert.equal(pts.critical, 10);
@@ -47,10 +47,11 @@ test("caps: negative CSAT up to 36, SLA up to 15, critical up to 10; the total u
   assert.equal(w.score, 100);
 });
 
-test("ticket spike needs 5+ tickets and double the month before", () => {
-  const spike = t => M.earlyWarning({ tickets: { tickets30: t, ticketsBase: 3 } }, NOW).reasons.some(r => r.key === "ticket-spike");
-  assert.equal(spike(4), false); assert.equal(spike(5), false); assert.equal(spike(6), true);
-  assert.equal(M.earlyWarning({ tickets: { tickets30: 5, ticketsBase: 0 } }, NOW).reasons.some(r => r.key === "ticket-spike"), true, "a new flood from nothing");
+test("ticket spike needs 8+ tickets, double the month before and 5 more than it", () => {
+  const spike = (t, base) => M.earlyWarning({ tickets: { tickets30: t, ticketsBase: base } }, NOW).reasons.some(r => r.key === "ticket-spike");
+  assert.equal(spike(7, 2), false, "fewer than 8"); assert.equal(spike(8, 3), true); assert.equal(spike(8, 4.5), false, "not double");
+  assert.equal(spike(20, 12), false, "not double"); assert.equal(spike(24, 12), true);
+  assert.equal(spike(8, 0), true, "a new flood from nothing");
 });
 
 test("contract ending: within 30 days +20, within 90 +15, later or already past nothing", () => {
@@ -188,10 +189,15 @@ test("the clients job: reads, matches, scores and saves (Autotask, SimpleSAT and
     at.query = async (mod, entity, filter) => {
       assert.equal(mod, "clients");
       if (entity === "Tickets" && filter[0].field === "ticketNumber") return [{ id: 1, ticketNumber: "T20261101.0001", companyID: 7 }];
-      if (entity === "Tickets" && filter[0].field === "createDate") return [{ id: 2, companyID: 7, createDate: "2026-11-05T00:00:00Z", completedDate: "2026-11-06T00:00:00Z", priority: 4, status: 5, serviceLevelAgreementHasBeenMet: false }];
+      if (entity === "Tickets" && filter[0].field === "createDate") return [
+        { id: 2, companyID: 7, createDate: "2026-11-05T00:00:00Z", completedDate: "2026-11-06T00:00:00Z", priority: 4, status: 5, serviceLevelAgreementHasBeenMet: false, ticketType: 1, source: 2 },
+        { id: 3, companyID: 7, createDate: "2026-11-05T00:00:00Z", priority: 4, status: 1, ticketType: 5, source: 2 },   // an alert: left out
+        { id: 4, companyID: 8, createDate: "2026-11-05T00:00:00Z", priority: 4, status: 1, ticketType: 1, source: 8 },   // from monitoring: left out
+      ];
       return [];
     };
-    at.picklist = async (m, e, f) => (f === "priority" ? [{ value: 4, label: "Critical" }, { value: 2, label: "Medium" }] : [{ value: 5, label: "Complete" }, { value: 1, label: "New" }]);
+    at.picklist = async (m, e, f) => ({ priority: [{ value: 4, label: "Critical" }, { value: 2, label: "Medium" }], status: [{ value: 5, label: "Complete" }, { value: 1, label: "New" }],
+      ticketType: [{ value: 1, label: "Service Request" }, { value: 5, label: "Alert" }], source: [{ value: 2, label: "Phone" }, { value: 8, label: "Monitoring Alert" }] })[f];
     at.known = async (m, e, w) => w;
     ss.responses = async () => [
       { id: 1, created: "2026-11-02T00:00:00Z", customer: { name: "Jane", company: "Acme" }, ticket: { external_id: "T20261101.0001" }, answers: [{ question: { metric: "nps" }, choice: 2, sentiment: "negative", comment: "Not happy" }] },
@@ -221,6 +227,7 @@ test("the clients job: reads, matches, scores and saves (Autotask, SimpleSAT and
     const out = await sync.syncClients({ now, alert: null });
     assert.match(out, /2 clients; 3 SimpleSAT responses since 2025-10-08, 3 ratings, 2 matched to a client \(1 not matched\)/);
     assert.match(out, /1 at risk/);
+    assert.match(out, /3 tickets read, 1 raised by clients \(2 alerts left out: Alert, Monitoring Alert\)/);
     assert.deepEqual(feedbackTable.map(r => [r.k, r.cid, r.by]), [["1:nps", 7, "ticket"], ["2:csat", 8, "contact"], ["3:csat", null, null]]);
     assert.ok(sqls.some(q => /clients.feedback_full_at/.test(q) && /MERGE/.test(q)), "marks the full read as done");
   } finally {

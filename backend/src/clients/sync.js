@@ -90,21 +90,30 @@ async function loadFeedback(clients, now) {
   return { rows, responses: responses.length, matched, byName, from, full: from.getTime() === full.getTime() };
 }
 
+/**
+ * Tickets the client raised: Autotask alerts and monitoring tickets (RMM, backup and the like)
+ * are left out, because a burst of alerts says nothing about how the client feels.
+ */
 async function loadTickets(clientIds, now) {
   const since = new Date(now.getTime() - 90 * DAY).toISOString();
-  const [priorities, statuses] = await Promise.all([at.picklist(MOD, "Tickets", "priority"), at.picklist(MOD, "Tickets", "status")]);
+  const [priorities, statuses, types, sources] = await Promise.all([at.picklist(MOD, "Tickets", "priority"), at.picklist(MOD, "Tickets", "status"),
+    at.picklist(MOD, "Tickets", "ticketType").catch(() => []), at.picklist(MOD, "Tickets", "source").catch(() => [])]);
   const critical = new Set(priorities.filter(p => /critical|urgent|p1\b/i.test(p.label)).map(p => Number(p.value)));
   const complete = (statuses.find(s => /^complete/i.test(s.label)) || { value: 5 }).value;
-  const fields = await at.known(MOD, "Tickets", ["id", "companyID", "createDate", "completedDate", "priority", "status", "serviceLevelAgreementHasBeenMet"]);
+  const alertTypes = new Set(types.filter(t => /alert/i.test(t.label)).map(t => Number(t.value)));
+  const alertSources = new Set(sources.filter(t => /monitor|alert|rmm|backup|insight|datto|automat|system/i.test(t.label)).map(t => Number(t.value)));
+  const fields = await at.known(MOD, "Tickets", ["id", "companyID", "createDate", "completedDate", "priority", "status", "serviceLevelAgreementHasBeenMet", "ticketType", "source"]);
   const ids = new Set(clientIds);
   const [recent, open] = await Promise.all([
     at.query(MOD, "Tickets", [{ op: "gte", field: "createDate", value: since }], fields),
     at.query(MOD, "Tickets", [{ op: "noteq", field: "status", value: complete }, { op: "lt", field: "createDate", value: since }], fields),
   ]);
   const by = new Map();
+  let alerts = 0;
   for (const t of [...recent, ...open]) {
     const cid = Number(t.companyID);
     if (!ids.has(cid)) continue;
+    if (alertTypes.has(Number(t.ticketType)) || alertSources.has(Number(t.source))) { alerts++; continue; }
     if (!by.has(cid)) by.set(cid, []);
     by.get(cid).push({
       createDate: t.createDate, completedDate: t.completedDate || null, critical: critical.has(Number(t.priority)),
@@ -112,7 +121,9 @@ async function loadTickets(clientIds, now) {
       open: Number(t.status) !== Number(complete),
     });
   }
-  return { by, count: recent.length + open.length };
+  const kept = [...by.values()].reduce((n, l) => n + l.length, 0);
+  return { by, count: recent.length + open.length, kept, alerts,
+    alertLabels: [...types.filter(t => alertTypes.has(Number(t.value))), ...sources.filter(t => alertSources.has(Number(t.value)))].map(t => t.label) };
 }
 
 /** Saves ratings 500 at a time (one MERGE per batch, from JSON), and drops those older than 400 days. */
@@ -211,7 +222,7 @@ async function syncClients({ now = new Date(), alert = require("../notify").clie
   for (const c of await db.query("SELECT risk_level, COUNT(*) AS n FROM pulse.client WHERE is_current = 1 GROUP BY risk_level")) counts[c.risk_level] = c.n;
   const unmatched = fb.rows.filter(r => !r.companyId).length;
   return `${clients.length} clients; ${fbNote}${fb.responses} SimpleSAT responses${fb.from ? ` since ${fb.from.toISOString().slice(0, 10)}` : ""}, ${fb.rows.length} ratings, ${fb.matched} matched to a client` +
-    `${unmatched ? ` (${unmatched} not matched)` : ""}${rematched ? `, ${rematched} earlier ones matched by name` : ""}; ${stored.length} ratings kept; ${tickets.count} tickets read; ${counts.risk || 0} at risk, ${counts.watch || 0} to watch${alerts}`;
+    `${unmatched ? ` (${unmatched} not matched)` : ""}${rematched ? `, ${rematched} earlier ones matched by name` : ""}; ${stored.length} ratings kept; ${tickets.count} tickets read, ${tickets.kept} raised by clients (${tickets.alerts} alerts left out${tickets.alertLabels.length ? `: ${tickets.alertLabels.slice(0, 6).join(", ")}` : ""}); ${counts.risk || 0} at risk, ${counts.watch || 0} to watch${alerts}`;
 }
 
 /** A stored feedback row in the model's shape. */
