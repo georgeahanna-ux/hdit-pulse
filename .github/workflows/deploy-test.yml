@@ -106,6 +106,27 @@ jobs:
             echo "::warning title=Front end only::The Pulse backend isn't deployed yet. Run pulse-setup.sh release1 and release1-entra, then set sqlAdminGroupId in infra/test.bicepparam."
           fi
 
+      - name: Infrastructure - Azure OpenAI (ticket sentiment)
+        # Separate from main.bicep so a refusal here (quota, provider not registered, or Azure no longer
+        # taking new Regional Standard deployments of the model) doesn't stop the rest of Pulse deploying.
+        if: env.BACKEND == 'true'
+        run: |
+          NAME="pulse-openai-${{ github.run_number }}-${{ github.run_attempt }}"
+          set +e
+          az deployment group create --resource-group "$RG" --name "$NAME" --template-file infra/openai.bicep \
+            --query properties.outputs -o json > oai.json 2> oai-err.txt
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            cat oai-err.txt
+            echo "::warning title=Azure OpenAI not deployed (ticket sentiment off)::$(tr '\n' ' ' < oai-err.txt | cut -c1-3000)"
+            az deployment operation group list -g "$RG" -n "$NAME" \
+              --query "[?properties.provisioningState=='Failed'].{resource:properties.targetResource.resourceName,code:properties.statusMessage.error.code,message:properties.statusMessage.error.message}" \
+              -o json 2>/dev/null | jq -c '.[]' | while read -r op; do echo "::warning title=Azure OpenAI failed resource::$(echo "$op" | cut -c1-3000)"; done
+          else
+            jq . oai.json
+          fi
+          exit 0
+
       - name: Database - open firewall for this run
         if: env.BACKEND == 'true'
         run: |

@@ -369,6 +369,9 @@ resource sync 'Microsoft.Web/sites@2024-04-01' = if (backend) {
         { name: 'AzureWebJobsStorage__clientId', value: syncIdentity!.properties.clientId }
         { name: 'AZURE_CLIENT_ID', value: syncIdentity!.properties.clientId }
         { name: 'PULSE_COMPONENT', value: 'sync' }
+        // Ticket sentiment (0.11.0): Azure OpenAI from infra/openai.bicep (Regional Standard, Australia East, keys off).
+        { name: 'AOAI_ENDPOINT', value: 'https://oai-${base}-${regionCode}.openai.azure.com/' }
+        { name: 'AOAI_DEPLOYMENT', value: 'gpt-4.1-mini' }
       ])
     }
     functionAppConfig: {

@@ -29,6 +29,8 @@
 #      Creates the identities the two Pulse Function Apps run as, the Key Vault with one
 #      placeholder per integration credential, and gives each identity access to only the
 #      credentials it needs (Key Vault RBAC at secret level). Prints two client ids.
+#      From 0.11.0 it also registers Azure OpenAI for the subscription and lets the sync
+#      identity call it (ticket sentiment); run it again after updating this file.
 #
 #   4) As ADMIN@HDITTESTINGTENANCY.onmicrosoft.com:
 #        bash pulse-setup.sh release1-entra
@@ -391,7 +393,7 @@ release1_step() {
   [ "$(az account show --query tenantId -o tsv)" = "$TENANT_EXPECTED" ] || die "This isn't the HD IT Testing Tenancy."
   az group show -n "$RG" -o none 2>/dev/null || die "Resource group $RG doesn't exist. Run: bash pulse-setup.sh azure"
   local p
-  for p in Microsoft.Web Microsoft.KeyVault Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights Microsoft.ManagedIdentity Microsoft.Sql; do
+  for p in Microsoft.Web Microsoft.KeyVault Microsoft.Storage Microsoft.Insights Microsoft.OperationalInsights Microsoft.ManagedIdentity Microsoft.Sql Microsoft.CognitiveServices; do
     az provider register --namespace "$p" -o none
   done
   ok "Resource providers registered"
@@ -421,6 +423,10 @@ release1_step() {
     grant "$apip" ServicePrincipal "$r" "$scope"; grant "$syncp" ServicePrincipal "$r" "$scope"
   done
   ok "Both identities: storage and monitoring on $RG (no Key Vault access at this level)"
+  # Ticket sentiment (0.11.0): the sync service may call Azure OpenAI in this resource group, signed in
+  # as itself (the OpenAI resource has keys switched off). It can't manage or redeploy the resource.
+  grant "$syncp" ServicePrincipal "Cognitive Services OpenAI User" "$scope"
+  ok "Sync identity: Cognitive Services OpenAI User on $RG (ticket sentiment, keys off)"
 
   # ---- Key Vault ----
   if az keyvault show -n "$KV" -g "$RG" -o none 2>/dev/null; then
