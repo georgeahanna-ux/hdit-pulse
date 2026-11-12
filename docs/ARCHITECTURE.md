@@ -1,6 +1,6 @@
 # HD IT Pulse: release 1 architecture and build plan
 
-**Status:** approved by George, 31 October 2026. Builds on `REQUIREMENTS.md` (D1–D17) and `IDENTITY-AND-ACCESS.md`.
+**Status:** approved by George, 31 October 2026; kept up to date with each release. Builds on `REQUIREMENTS.md` (D1–D23) and `IDENTITY-AND-ACCESS.md`. How to run it day to day: the Admin guide (Help → Admin guide).
 
 ## 1. What changes from Pulse v0.3.0
 
@@ -80,7 +80,7 @@ New app roles on the existing registration, each assigned to a group, the same w
 ### Client health (D23)
 - Sync app job "clients", nightly at 18:40 UTC and on request: recurring contracts in force (the Scorecard's read-only contract reader, `contracts.byCompany`) → clients with MRR, seats and soonest contract end; company owner → Account Manager; SimpleSAT `POST /responses/search` for 400 days → one row per CSAT or NPS rating (`client_feedback`), matched to the client by Autotask ticket number, contact id, then company name; Autotask tickets created in 90 days or still open, without alerts and monitoring tickets (ticket type or source) → ticket signals. The first run reads SimpleSAT in full; later runs read from 14 days before the newest rating held. Writes are batched (`OPENJSON` MERGE).
 - Score and reasons from `clients/model.js` (pure, tested) into `client`; a weekly snapshot in `client_week` for the trend; follow-ups in `client_note`; Issues raised from a client carry `source_kind` "client".
-- Autotask module `clients`: read Companies, Tickets, Contacts, Resources; no writes.
+- Autotask module `clients`: read Companies, Tickets, TicketNotes (0.11.0), Contacts, Resources; no writes.
 - Ticket sentiment (0.11.0): sync job "sentiment" hourly reads client-visible ticket text (no internal notes; contact details removed) with Pulse's Azure OpenAI (`infra/openai.bicep`: Regional Standard gpt-4.1-mini, Australia East, keys off, sync identity "Cognitive Services OpenAI User") and keeps only the verdict in `ticket_sentiment`; the clients job adds it to the score.
 - Alerts: the clients job calls `notify.clientAlerts` for clients that just moved into At risk (Activity feed, `nudge_log` kind "client-risk").
 
@@ -94,7 +94,7 @@ New app roles on the existing registration, each assigned to a group, the same w
 ### Front end
 - Vanilla JavaScript, no framework and no bundler, matching the three apps. ES modules (`shell`, `scorecard`, `rocks`, `issues`, `todos`, `l10`, `vto`, `chart`, `people`, `admin`, `help`). `build.mjs` only fills in settings.
 - HD IT Brand System V5.0. Every number has an ⓘ panel from `measurable_definition`.
-- Help centre: user guide, FAQ, metric glossary, what's new, versioned and exportable to PDF later.
+- Help centre: user guide (with FAQ and glossary), admin guide (0.11.1), what's new; static pages versioned with each release (the build refuses a version mismatch), exportable to PDF later.
 
 ### The three apps (D9)
 Brand V5 restyle; header hidden when framed by Pulse; `pulse:navigate` and `pulse:context` bridge messages; help moved into Pulse; the `/api/pulse/measures` route (Marketing ROI from 0.7.0). Backends and Table Storage unchanged; from 10 Nov 2026 the apps sign in to Autotask with Pulse's single API user (`AUTOTASK_SHARED_SECRET_URI`), their own credentials kept as a fallback.
