@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 — 12 November 2026
+Client health and the Early Warning for client churn (D23, asked for by George 12 Nov 2026).
+- **Client health page** (Sales & Marketing, Managed Services, Leadership; under Sales & Marketing in the menu): every company with a recurring contract in force, with its Account Manager (the company's owner resource in Autotask), MRR and seats (Leadership and Sales & Marketing only), soonest contract end, CSAT and NPS over the year, tickets in 30 days and an **Early Warning score** (0–100: Healthy under 25, Watch 25–49, At risk 50+) made of named reasons with points: latest NPS a detractor (+30) or passive (+10), unhappy (+12 each, up to 36) and neutral (+4 each, up to 12) CSAT in 90 days, CSAT 15+ points down on the year before (+10), gone quiet (+5), ticket spike (+15), SLAs missed (+5 each, up to 15), Critical tickets (+5 each, up to 10), tickets open over 14 days (+5/+10), contract ending within 30 (+20) or 90 days (+15). My clients / All / each Account Manager; filter by level; trend against four weeks ago.
+- **Leaderboards:** happiest and least happy clients (3+ ratings in the year; CSAT happy 100, neutral 50, unhappy 0, NPS × 10; a rating 120 days old counts half).
+- **Client page:** the score's reasons, a 13-week trend, every CSAT and NPS rating in the year with the comment, contact, technician, ticket and SimpleSAT's topics, follow-up notes, and **Raise an Issue** (Sales & Marketing list, or the company list for Leadership; one open Issue per client, `source_kind` "client"). Views are audited (the page shows client contacts' names and comments).
+- **Teams alert** to the Account Manager when a client moves into At risk (once a week per client; not on the first run).
+- **Clients job** (sync service, nightly 18:40 UTC and on request): SimpleSAT *responses* (customer, ticket, team member and answers) for 400 days, matched to the client by the Autotask ticket number, then the contact, then the company name; Autotask tickets created in 90 days or still open; contracts through the Scorecard's read-only contract reader (`contracts.byCompany`). New read-only `clients` module in the Autotask allow-list (Companies, Tickets, Contacts, Resources). Ratings are kept 400 days; no email addresses are stored.
+- **Not yet:** sentiment from the text of Autotask tickets. Feedback sentiment comes from SimpleSAT (what clients wrote in their survey answers).
+- Diagnose: `clients` job and `inspect:simplesat-responses` (field names only). Migration `0017_client_health`. 14 new tests (159 in total).
+
 ## 0.9.0 — 11 November 2026
 Pulse in Microsoft Teams, reminders and the weekly email (M5, D12; reminders in the Activity feed instead of a bot chat, decided 11 Nov 2026).
 - **Teams app:** manifest 1.17 built per environment (`scripts/build.mjs`, `PULSE_HOST`) and zipped by the workflow with the HD IT icons; downloadable from Connections. Personal tabs Pulse, L10 and To-dos; a configurable tab (channel, group chat, meeting chat, meeting details and side panel) whose set-up page picks L10, Scorecard, Rocks, Issues, To-dos or home.

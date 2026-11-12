@@ -77,6 +77,12 @@ New app roles on the existing registration, each assigned to a group, the same w
 - **Issue → Autotask ticket or project task:** one click, linked back.
 - **Connections page:** status, last success, owner, expiry, rotation due; secrets write-only.
 
+### Client health (D23)
+- Sync app job "clients", nightly at 18:40 UTC and on request: recurring contracts in force (the Scorecard's read-only contract reader, `contracts.byCompany`) → clients with MRR, seats and soonest contract end; company owner → Account Manager; SimpleSAT `POST /responses/search` for 400 days → one row per CSAT or NPS rating (`client_feedback`), matched to the client by Autotask ticket number, contact id, then company name; Autotask tickets created in 90 days or still open → ticket signals.
+- Score and reasons from `clients/model.js` (pure, tested) into `client`; a weekly snapshot in `client_week` for the trend; follow-ups in `client_note`; Issues raised from a client carry `source_kind` "client".
+- Autotask module `clients`: read Companies, Tickets, Contacts, Resources; no writes.
+- Alerts: the clients job calls `notify.clientAlerts` for clients that just moved into At risk (Activity feed, `nudge_log` kind "client-risk").
+
 ### Teams (D12)
 - One Teams app package: personal app plus a configurable tab for the leadership channel, with Teams SSO (extra Application ID URI and Teams pre-authorised as a client: a setup-script step).
 - ~~**Bot:** Azure Bot (free channel tier) running as a user-assigned managed identity.~~ **Changed 11 Nov 2026:** reminders go to the Teams Activity feed (Graph `sendActivityNotification`, application permission `TeamsActivity.Send` on the sync identity), sent by the sync app's "nudges" job every 15 minutes, each once (`nudge_log`). No bot resource or Bot Framework.
@@ -107,6 +113,7 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M3 | L10 meeting | Segue, Scorecard, Rock review, headlines, To-dos, IDS, conclude and rate; suggested Issues. Built 10 Nov 2026: `meeting`, `meeting_attendee`, `headline` tables; the page polls the meeting state every 4 seconds (no websockets needed); summary kept when it ends | 0.7.0 |
 | M4 | Two-way links | Planner sync, Issue → Autotask, Rocks linked to Planner or Autotask projects. Built 11 Nov 2026: "links" job every 5 minutes; per-field three-way merge for To-dos (Pulse wins a clash); `todo_planner`, `issue_link`, `rock_link`, `planner_plan` tables; Autotask `issues` module may only create tickets and project tasks | 0.8.0 |
 | M5 | Teams | Teams app, SSO, tab, bot notifications, weekly email. Built 11 Nov 2026 with Activity feed reminders instead of a bot | 0.9.0 |
+| D23 | Client health | Early Warning score with reasons, happiness leaderboards, client page with feedback, trend, notes and Raise an Issue; Teams alert on At risk. Built 12 Nov 2026: "clients" job nightly; `client`, `client_feedback`, `client_week`, `client_note` tables | 0.10.0 |
 | M6 | Apps in Pulse | Brand V5 restyle, framed mode, deep links, help moved | — |
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 

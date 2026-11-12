@@ -133,6 +133,55 @@ function levelsOn(d, data) {
   };
 }
 
+/**
+ * Each client's recurring contracts in force on a date (YYYY-MM-DD): MRR and seats worked out
+ * exactly as levelsOn does, and the soonest end date of their live recurring contracts.
+ * Used by client health (0.10.0). Pure, given load()'s data. → Map(companyId → { mrr, seats, contracts, contractEnd })
+ */
+function byCompany(d, data) {
+  const live = new Map(data.contracts
+    .filter(k => (!day(k.startDate) || day(k.startDate) <= d) && (!day(k.endDate) || day(k.endDate) >= d))
+    .filter(k => d < data.today || Number(k.status) === Number(data.active))
+    .map(k => [Number(k.id), k]));
+  const unitsOn = (rows, key) => {
+    const m = new Map();
+    for (const r of rows) if (live.has(Number(r.contractID)) && day(r.startDate) <= d && day(r.endDate) >= d) {
+      const cur = m.get(Number(r[key]));
+      if (!cur || day(r.startDate) > day(cur.startDate)) m.set(Number(r[key]), r);
+    }
+    return m;
+  };
+  const out = new Map();
+  const of = companyId => { if (!out.has(companyId)) out.set(companyId, { mrr: 0, seats: 0, contracts: 0, contractEnd: null }); return out.get(companyId); };
+  for (const k of live.values()) {
+    const c = of(Number(k.companyID));
+    c.contracts++;
+    const end = day(k.endDate);
+    if (end && (!c.contractEnd || end < c.contractEnd)) c.contractEnd = end;
+  }
+  const monthly = (line, u) => {
+    const k = live.get(Number(line.contractID));
+    const months = k ? data.periodMonths.get(Number(k.contractPeriodType)) ?? 1 : 1;
+    const price = num(line.adjustedPrice) ?? num(line.unitPrice);
+    if (!months || price === null) return 0;
+    return (price * num(u.units)) / months;
+  };
+  const lu = unitsOn(data.lineUnits, "contractServiceID"), bu = unitsOn(data.bundleUnits, "contractServiceBundleID");
+  for (const line of data.lines) {
+    const u = lu.get(Number(line.id)), k = live.get(Number(line.contractID));
+    if (!u || !k) continue;
+    const c = of(Number(k.companyID));
+    if (data.seatIds.has(Number(line.serviceID))) c.seats += num(u.units) || 0;
+    c.mrr += monthly(line, u);
+  }
+  for (const b of data.bundles) {
+    const u = bu.get(Number(b.id)), k = live.get(Number(b.contractID));
+    if (u && k) of(Number(k.companyID)).mrr += monthly(b, u);
+  }
+  for (const c of out.values()) c.mrr = Math.round(c.mrr * 100) / 100;
+  return out;
+}
+
 /** Won opportunities and their primary quotes' seat quantities, loaded once for the window. */
 async function loadWins(cache, from, today) {
   if (cache.wins && cache.wins.from <= from) return cache.wins;
@@ -221,4 +270,4 @@ function weighFrom(opps, stages) {
   } };
 }
 
-module.exports = { newMrrBetween, weightedPipeline, weighFrom, load, loadWins, levelsOn, newSeatsBetween, isSeatItem, monthsFor, DEFAULT_SEAT_SERVICES };
+module.exports = { byCompany, newMrrBetween, weightedPipeline, weighFrom, load, loadWins, levelsOn, newSeatsBetween, isSeatItem, monthsFor, DEFAULT_SEAT_SERVICES };

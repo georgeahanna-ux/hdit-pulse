@@ -15,6 +15,7 @@ import { connectionsPage } from "./pages/connections.js";
 import { peoplePage } from "./pages/people.js";
 import { l10Page } from "./pages/l10.js";
 import { notificationsPage } from "./pages/notifications.js";
+import { clientsPage } from "./pages/clients.js";
 
 let ME = null, STRUCTURE = null;
 let compact = null;
@@ -91,6 +92,7 @@ function sidebar(route) {
       ${divs.map(d => link(`#/division/${d.code}`, DIVISION_ICONS[d.code] || "co-managed", d.name, route.page === "division" && route.id === d.code)
         + appsOf(d.code).map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k, { cls: "sub app" })).join("")
         + (d.code === "ManagedServices" && a.viewProjects ? link("#/projects", "projects", "Projects", route.page === "projects" && route.id !== "lead-time", { cls: "sub app" }) : "")
+        + (a.viewClients && d.code === (divs.some(x => x.code === "SalesMarketing") ? "SalesMarketing" : "ManagedServices") ? link("#/clients", "star", "Client health", route.page === "clients", { cls: "sub app" }) : "")
         + (d.code === "SalesMarketing" && a.viewLeadTime ? link("#/projects/lead-time", "clock", "Project lead time", route.page === "projects" && route.id === "lead-time", { cls: "sub app" }) : "")
         + (currentDivision === d.code ? d.seats.map(s => link(`#/seat/${s.id}`, "arrow-right", s.title, route.page === "seat" && Number(route.id) === s.id, { cls: "sub" })).join("") : "")).join("")}` : ""}
     ${orphanApps.length || (a.viewProjects && !divs.some(d => d.code === "ManagedServices")) ? `<div class="side-label hd-eyebrow">Your apps</div>${orphanApps.map(x => link(`#/app/${x.k}`, x.icon, x.name, route.page === "app" && route.id === x.k)).join("")}
@@ -138,6 +140,7 @@ async function pageFor(r) {
     case "todos": return todosPage(ME);
     case "l10": return l10Page(ME, r.id);
     case "notifications": return notificationsPage(ME);
+    case "clients": return clientsPage(ME, r.id, r.q);
     case "vto": return vtoPage(ME);
     case "plan": return planPage(ME);
     case "chart": return chartPage(ME, STRUCTURE);
@@ -221,7 +224,8 @@ window.addEventListener("hashchange", () => { closeMenus(); render(); window.scr
     if (Auth.inTeams()) {
       document.documentElement.classList.add("in-teams");
       const page = await Auth.teamsPage();
-      if (page && TEAMS_PAGES[page] !== undefined && (!location.hash || location.hash === "#/")) history.replaceState(null, "", "#/" + TEAMS_PAGES[page]);
+      const to = page && (TEAMS_PAGES[page] !== undefined ? TEAMS_PAGES[page] : /^clients(\/\d+)?$/.test(page) ? page : null);
+      if (to !== null && to !== undefined && (!location.hash || location.hash === "#/")) history.replaceState(null, "", "#/" + to);
     }
     await render();
   } catch (e) {

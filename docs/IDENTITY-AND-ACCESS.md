@@ -51,9 +51,9 @@ Tested first on the **HD IT Testing Tenancy** (`0b1e12e5-f6cd-4ae7-a9ff-4562637a
 | Pulse - Project Managers | `Pulse.ProjectManager` | Projects: every project, reschedule tasks (drag in the Gantt), log time on any task, resource planning (added 9 Nov 2026) |
 | Pulse - Division Finance | `Division.Finance` | Finance & Accounts in full; override its measurables |
 | Pulse - Division People | `Division.People` | People (HR) in full; override its measurables |
-| Pulse - Division Sales and Marketing | `Division.SalesMarketing` | Sales & Marketing in full; override its measurables |
+| Pulse - Division Sales and Marketing | `Division.SalesMarketing` | Sales & Marketing in full; override its measurables; Client health with MRR (0.10.0) |
 | Pulse - Division Innovation and Compliance | `Division.InnovationCompliance` | Innovation & Compliance in full; override its measurables |
-| Pulse - Division Managed Services | `Division.ManagedServices` | Managed Services in full; override its measurables |
+| Pulse - Division Managed Services | `Division.ManagedServices` | Managed Services in full; override its measurables; Projects; Client health without MRR (0.10.0) |
 | *(the sync service's identity, not people)* | `Pulse.Collector` | Lets Pulse read each app's Scorecard numbers |
 
 A new app adds its own `<App>.User` / `.Admin` roles and groups the same way.

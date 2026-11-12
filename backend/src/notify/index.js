@@ -50,6 +50,7 @@ const TEXT = {
   rock: title => `Your Rock ${quote(title)} is off track. Drop it to the Issues List if you need the team's help.`,
   l10: (off, mine, numbered) => `L10 at 9:30am. ${off ? `${off} number${off === 1 ? " was" : "s were"} off target last week${mine.length ? `, ${mine.length === 1 ? "one" : mine.length} of them yours (${list(mine)})` : ""}.` : "Every number with a goal was on target last week."} ${numbered ? `${numbered} Issue${numbered === 1 ? " is" : "s are"} numbered for IDS.` : "No Issues numbered for IDS yet."}`,
   todos: items => `From today's L10: ${items.length === 1 ? "a To-do" : `${items.length} To-dos`} for you: ${items.slice(0, 3).map(t => `${quote(t.title)} (due ${short(t.due_date)})`).join(", ")}${items.length > 3 ? ", …" : ""}.`,
+  clientRisk: c => `Client early warning: ${c.name} is now At risk (score ${c.score}). ${c.reasons.slice(0, 2).map(r => r.text).join("; ")}.`,
   overdue: t => `Overdue To-do: ${quote(t.title)} was due ${short(t.due_date)}. Tick it off, change the date, or drop it to the Issues List.`,
 };
 
@@ -236,6 +237,23 @@ async function runNudges({ graph = require("../lib/graph"), now = new Date() } =
   return out;
 }
 
+/**
+ * Client health (0.10.0): tell each Account Manager, once a week per client, when one of their
+ * clients moves into At risk. Called by the clients job with the clients that just moved.
+ */
+async function clientAlerts(list, { graph = require("../lib/graph"), now = new Date() } = {}) {
+  const ctx = await context(graph);
+  if (!ctx.enabled) return "reminders are paused";
+  if (!ctx.appId) return "no Teams app id set";
+  const week = require("../lib/time").weekOf(now);
+  for (const c of list) {
+    const person = c.owner && c.owner.email ? ctx.people.of(c.owner.email) : null;
+    if (!person) { ctx.notes.push(`${c.name}: Account Manager not in Pulse`); continue; }
+    await teamsNudge(ctx, "client-risk", `${c.id}:${week}`, person, TEXT.clientRisk(c), `clients/${c.id}`);
+  }
+  return `${ctx.sent} sent, ${ctx.failed} failed${ctx.notes.length ? ` (${ctx.notes.slice(0, 3).join("; ")})` : ""}`;
+}
+
 /** "Send me a test": one Teams reminder and the weekly email, to the person who asked. */
 async function sendTest(oid, { graph = require("../lib/graph") } = {}) {
   const ctx = await context(graph);
@@ -250,4 +268,4 @@ async function sendTest(oid, { graph = require("../lib/graph") } = {}) {
   return results.join("; ") + (ctx.errors.length ? ` (${ctx.errors.join("; ")})` : "");
 }
 
-module.exports = { runNudges, sendTest, _test: { due, deepLink, TEXT, emailHtml } };
+module.exports = { runNudges, sendTest, clientAlerts, _test: { due, deepLink, TEXT, emailHtml } };

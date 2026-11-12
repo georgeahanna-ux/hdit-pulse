@@ -109,7 +109,12 @@ const syncProjects = () => require("../projects/sync").syncAll();
 const syncLinks = () => require("../links").runLinks({ autotaskReady: () => isConnected("autotask-service").catch(() => false) });
 // Teams reminders and the weekly email (D12, 0.9.0).
 const syncNudges = () => require("../notify").runNudges();
-const REQUESTABLE = { nudges: syncNudges, connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
+/* ---------------- Client health and the Early Warning (0.10.0, D23) ---------------- */
+async function syncClients() {
+  if (!(await isConnected("autotask-service"))) return "Autotask not connected yet.";
+  return require("../clients/sync").syncClients();
+}
+const REQUESTABLE = { clients: syncClients, nudges: syncNudges, connections: checkConnections, directory: syncDirectory, departments: syncDepartments, scorecard: syncScorecard, projects: syncProjects, links: syncLinks };
 
 /**
  * Read-only look at one Autotask opportunity and its quotes (job "inspect:opportunity:<id>",
@@ -170,4 +175,4 @@ async function runRequests(context) {
   }
 }
 
-module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, syncNudges, runRequests, CONNECTIONS };
+module.exports = { run, runIfConnected, checkConnections, syncDepartments, syncDirectory, syncScorecard, syncProjects, syncLinks, syncNudges, syncClients, runRequests, CONNECTIONS };

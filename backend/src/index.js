@@ -66,6 +66,11 @@ if (component === "api") {
     schedule: "0 3/15 * * * *", runOnStartup: false,
     handler: (_t, context) => jobs.run("nudges", context, jobs.syncNudges),
   });
+  // Client health and the Early Warning, nightly at 18:40 UTC (5:40am Sydney in summer, 4:40am in winter) (D23).
+  app.timer("clients", {
+    schedule: "0 40 18 * * *", runOnStartup: false,
+    handler: (_t, context) => jobs.run("clients", context, jobs.syncClients),
+  });
   // Jobs asked for from Pulse ("Refresh now"), every two minutes.
   app.timer("requests", {
     schedule: "0 */2 * * * *", runOnStartup: false,

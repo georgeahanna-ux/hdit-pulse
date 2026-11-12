@@ -109,6 +109,7 @@ for (const m of ["structure", "scorecard", "rocks", "issues", "todos", "vto", "p
 routes.push(...require("./connections").routes);
 routes.push(...require("./notify").routes);
 routes.push(...require("./people").routes);
+routes.push(...require("../clients/routes").routes);   // Client health (0.10.0)
 routes.push(...require("../projects/resources").routes);   // before /projects/:id
 routes.push(...require("../projects/routes").routes);
 routes.push(...require("../projects/actions").routes);

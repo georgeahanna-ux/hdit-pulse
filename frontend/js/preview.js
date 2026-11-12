@@ -5,6 +5,7 @@ import { accessFor, DIVISIONS } from "./access.js";
 import { weekInfo } from "./api.js";
 import { projectsApi } from "./preview-projects.js";
 import { l10Api } from "./preview-l10.js";
+import { clientsApi } from "./preview-clients.js";
 
 const today = () => new Date();
 const iso = d => d.toISOString().slice(0, 10);
@@ -326,6 +327,8 @@ export function previewApi(path, method, body = {}) {
 
   const l10 = l10Api(p, method, body, a, me(), { issues, todos, reviewWeek: addDays(weekOf(), -7), fail });
   if (l10) return l10;
+  const cl = clientsApi(p, method, body, a, me(), fail, q);
+  if (cl) return cl;
   const pj = projectsApi(p, method, body, a, me());
   if (pj) return pj;
   if (p === "/people" && method === "GET") {

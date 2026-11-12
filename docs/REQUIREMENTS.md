@@ -241,6 +241,17 @@ Pipeline, Marketing ROI and Whitespace Matrix are only relevant to Sales & Marke
 - Ending the meeting keeps a summary (attendance, ratings, time per section, To-do completion, Issues solved and added, headlines, Rocks off track, cascading messages, notes), printable as a PDF for the ISO record. Headlines can be added during the week.
 - **Built in 0.7.0 (10 Nov 2026).** Division L10s use the same model later (the API already takes a division as the team).
 
+### D23. Client health and the Early Warning (12 Nov 2026)
+Asked for by George: an Account Manager page that uses SimpleSAT CSAT and NPS for an early warning of client churn, with leaderboards of the happiest and least happy clients, and ticket sentiment if it isn't too complex for this stage.
+- **Who:** Leadership, Sales & Marketing (Account Managers) and Managed Services. MRR on the page for Leadership and Sales & Marketing only. Opening a client is audited, because the page shows client contacts' names and comments.
+- **Clients** are companies with a recurring contract in force in Autotask. The Account Manager is the company's owner resource. "My clients" matches it to the person's email.
+- **Early Warning score**, 0–100, made of named reasons with points, so nothing is a black box: latest NPS a detractor (+30) or passive (+10); unhappy (+12 each, up to 36) and neutral (+4 each, up to 12) CSAT in 90 days; CSAT down 15+ points on the year before (+10); gone quiet (+5); ticket spike (+15); SLAs missed (+5 each, up to 15); Critical tickets (+5 each, up to 10); tickets open over 14 days (+5/+10); recurring contract ending within 30 (+20) or 90 days (+15). Healthy under 25, Watch 25–49, At risk 50+. The weights are a first cut, to tune after a few weeks of real data.
+- **Happiness** for the leaderboards: CSAT and NPS in the last year on 0–100, recent ratings weighted more (half-life 120 days), ranked with 3+ ratings; each client on one board.
+- **Feedback is matched** by the Autotask ticket SimpleSAT holds, then the contact, then the company name. Kept 400 days; no email addresses.
+- **Actions:** follow-up notes; Raise an Issue (Sales & Marketing list, or the company list for Leadership); a Teams alert to the Account Manager when a client moves into At risk (once a week per client).
+- **Ticket sentiment: not in this release.** Reading the text of tickets and notes would mean sending client ticket content to a language service (Azure AI Language in Australia East): a new processor to assess for ISO 27001 and the privacy policy, plus cost. For now the sentiment comes from what clients write in SimpleSAT (SimpleSAT's own sentiment and topics on each answer), which is about their tickets. Ticket-text sentiment is a candidate for release 2 alongside D15.
+- **Built in 0.10.0 (12 Nov 2026).**
+
 ## Release plan
 **Release 1: Leadership and EOS core**
 - Entra SSO with Conditional Access (MFA + compliant device); People directory and identity matching (D10); Autotask departments view and two-way default-department changes (D16).

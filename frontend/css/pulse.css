@@ -709,3 +709,54 @@ td.over { color: var(--hd-alert); font-weight: 700; }
 .tc-list label > span { display: grid; gap: 2px; }
 .tc-list input { margin-top: 4px; }
 .steps { padding-left: 20px; margin: 8px 0 0; } .steps li { margin: 4px 0; }
+
+/* ---------- Client health (0.10.0) ---------- */
+.risk-meter { display: inline-block; width: 64px; height: 8px; border-radius: var(--hd-r-pill); background: var(--hd-mist); overflow: hidden; vertical-align: middle; }
+.risk-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--hd-aqua); }
+.risk-meter.watch > span { background: var(--hd-pattern-lemon); }
+.risk-meter.risk > span { background: var(--hd-alert); }
+.score-cell { display: flex; align-items: center; gap: 8px; }
+.score-cell b { font: 800 18px/1 var(--hd-font-display); min-width: 2ch; text-align: right; }
+.trend { font-weight: 700; font-size: 13px; }
+.trend.up { color: var(--hd-alert); }
+.trend.down { color: var(--hd-slate); }
+ul.why { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+ul.why li { display: flex; gap: 6px; align-items: flex-start; }
+ul.why li .i { margin-top: 2px; color: var(--hd-slate); }
+ul.why.big { gap: 10px; font-size: 15px; }
+ul.why.big li { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+ul.why.big li:last-child { border-bottom: 0; }
+ul.why .pts { margin-left: auto; font: 800 15px/1.3 var(--hd-font-display); white-space: nowrap; }
+table.clients td { vertical-align: middle; }
+table.clients tr.click { cursor: pointer; }
+table.clients tr.click:hover td { background: var(--hd-cloud); }
+table.clients td a { text-decoration: none; }
+.run-line { display: flex; align-items: center; gap: var(--hd-s3); flex-wrap: wrap; }
+ol.board { list-style: none; margin: 0; padding: 0; counter-reset: none; }
+ol.board li { display: grid; grid-template-columns: 32px 1fr auto; gap: var(--hd-s3); align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+ol.board li:last-child { border-bottom: 0; }
+ol.board .rank { width: 28px; height: 28px; border-radius: var(--hd-r-pill); background: var(--hd-white); display: grid; place-items: center; font: 800 13px/1 var(--hd-font-display); }
+ol.board li:first-child .rank { background: var(--hd-deep); color: var(--hd-lemon); }
+.board-name { display: flex; flex-direction: column; text-decoration: none; min-width: 0; }
+.board-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-score { display: flex; align-items: center; gap: 8px; }
+.board-score b { font: 800 18px/1 var(--hd-font-display); min-width: 2.2ch; text-align: right; }
+.happy-bar { display: inline-block; width: 80px; height: 8px; border-radius: var(--hd-r-pill); background: var(--hd-white); overflow: hidden; }
+.happy-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--hd-lilac); }
+details.how { background: var(--hd-cloud); border-radius: var(--hd-r-panel); padding: var(--hd-s5); }
+details.how summary { cursor: pointer; }
+details.how h3 { font-size: 16px; margin: var(--hd-s4) 0 var(--hd-s2); }
+details.how ul { margin: 0; padding-left: 20px; font-size: 15px; }
+svg.spark { width: 100%; height: auto; color: var(--hd-deep); }
+svg.spark .b-risk { fill: color-mix(in srgb, var(--hd-alert) 10%, transparent); }
+svg.spark .b-watch { fill: color-mix(in srgb, var(--hd-lemon) 60%, transparent); }
+svg.spark circle { fill: var(--hd-deep); }
+.spark-axis { display: flex; justify-content: space-between; }
+ul.fb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--hd-s3); }
+ul.fb-list li { background: var(--hd-cloud); border-radius: var(--hd-r-card); padding: var(--hd-s4); border-left: 4px solid var(--hd-aqua); }
+ul.fb-list li.neg { border-left-color: var(--hd-alert); }
+.fb-h { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+ul.fb-list blockquote { margin: 8px 0; font-size: 16px; }
+.kpi b .chip { vertical-align: middle; margin-left: 4px; }
+table.clients td.why-col { min-width: 300px; }
+table.clients td:first-child { min-width: 170px; }

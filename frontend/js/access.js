@@ -27,6 +27,8 @@ export function accessFor(roleList) {
     viewProjects: leadership || roles.has("Pulse.ProjectManager") || ownDivisions.includes("ManagedServices"),
     editSchedules: leadership || roles.has("Pulse.ProjectManager"),
     viewLeadTime: leadership || roles.has("Pulse.ProjectManager") || ownDivisions.includes("ManagedServices") || ownDivisions.includes("SalesMarketing"),
+    viewClients: leadership || ownDivisions.includes("SalesMarketing") || ownDivisions.includes("ManagedServices"),
+    clientMrr: leadership || ownDivisions.includes("SalesMarketing"),
   };
 }
 
@@ -40,9 +42,9 @@ export const ROLES = [
   { v: "Pulse.ProjectManager", label: "Project Manager", group: "Pulse - Project Managers", grants: "Projects: reschedule tasks, log time on any task, resource planning" },
   { v: "Division.Finance", label: "Finance & Accounts", group: "Pulse - Division Finance", grants: "That division in full; override its measurables" },
   { v: "Division.People", label: "People (HR)", group: "Pulse - Division People", grants: "That division in full; override its measurables" },
-  { v: "Division.SalesMarketing", label: "Sales & Marketing", group: "Pulse - Division Sales and Marketing", grants: "That division in full; override its measurables" },
+  { v: "Division.SalesMarketing", label: "Sales & Marketing", group: "Pulse - Division Sales and Marketing", grants: "That division in full; override its measurables; Client health with MRR" },
   { v: "Division.InnovationCompliance", label: "Innovation & Compliance", group: "Pulse - Division Innovation and Compliance", grants: "That division in full; override its measurables" },
-  { v: "Division.ManagedServices", label: "Managed Services", group: "Pulse - Division Managed Services", grants: "That division in full; override its measurables" },
+  { v: "Division.ManagedServices", label: "Managed Services", group: "Pulse - Division Managed Services", grants: "That division in full; override its measurables; Projects; Client health (without MRR)" },
   { v: "Pipeline.User", label: "Pipeline user", group: "Pulse - Pipeline Users", grants: "Pipeline: view and update opportunities" },
   { v: "Pipeline.Admin", label: "Pipeline administrator", group: "Pulse - Pipeline Admins", grants: "Pipeline: everything, plus Settings" },
   { v: "MarketingROI.User", label: "Marketing ROI user", group: "Pulse - Marketing ROI Users", grants: "Marketing ROI: view the funnel, move leads, log contacts" },

@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import { esc, icon, toast, fmtDateTime } from "../ui.js";
 import { empty } from "../components.js";
 
-const KIND = { numbers: "Numbers to enter", rock: "Rock off track", l10: "L10 reminder", "l10-todos": "To-dos from the L10", overdue: "Overdue To-do", email: "Weekly summary", test: "Test" };
+const KIND = { numbers: "Numbers to enter", rock: "Rock off track", l10: "L10 reminder", "l10-todos": "To-dos from the L10", overdue: "Overdue To-do", email: "Weekly summary", "client-risk": "Client at risk", test: "Test" };
 
 export async function notificationsPage(me) {
   const p = await api("/me/preferences");
@@ -14,7 +14,7 @@ export async function notificationsPage(me) {
     html: `<div class="ph"><span class="hd-eyebrow">Your account</span><h1>Notifications</h1>
         <p>Pulse only tells you about things that are yours, and each reminder comes once.</p></div>
       <section class="sec"><form class="prefs" id="prefs">
-        ${toggle("teamsReminders", p.teamsReminders, "Reminders in Microsoft Teams", "In your Teams Activity feed: Monday, numbers you still need to enter and Rocks that are off track; Tuesday before the L10 (leadership team); your new To-dos after each L10; and each To-do once it's overdue. Selecting one opens that page of Pulse in Teams.")}
+        ${toggle("teamsReminders", p.teamsReminders, "Reminders in Microsoft Teams", "In your Teams Activity feed: Monday, numbers you still need to enter and Rocks that are off track; Tuesday before the L10 (leadership team); your new To-dos after each L10; each To-do once it's overdue; and, for Account Managers, when one of your clients moves into At risk. Selecting one opens that page of Pulse in Teams.")}
         ${toggle("weeklyEmail", p.weeklyEmail, "Monday summary by email", "One page at 7am Monday: your To-dos, your Rocks, numbers to enter, and how the company Scorecard went last week.")}
       </form>
       <div class="note info">${icon("calendar")}<span>Teams reminders need Pulse installed in your Teams. If it isn't there yet, ask a Platform Admin. Times are Sydney time.</span></div>

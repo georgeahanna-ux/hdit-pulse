@@ -26,7 +26,7 @@ async function webUrl() { return String((await settings(["autotask.web_url"]))["
 
 /** A link to open an Autotask ticket, task or project in Autotask's web app. */
 function autotaskUrl(base, kind, id) {
-  const code = { ticket: ["OpenTicketDetail", "TicketID"], task: ["OpenTaskDetail", "TaskID"], project: ["OpenProject", "ProjectID"] }[kind];
+  const code = { ticket: ["OpenTicketDetail", "TicketID"], task: ["OpenTaskDetail", "TaskID"], project: ["OpenProject", "ProjectID"], company: ["OpenAccount", "AccountID"] }[kind];
   return `${base}/Autotask/AutotaskExtend/ExecuteCommand.aspx?Code=${code[0]}&${code[1]}=${Number(id)}`;
 }
 

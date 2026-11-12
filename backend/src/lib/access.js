@@ -9,6 +9,7 @@
  *   Pulse.FinanceDetail    full P&L detail, wages, per-client profitability.
  *   Pulse.Compliance       audit log and access review.
  *   Pulse.ProjectManager   Projects: reschedule tasks, log time on any task, resource planning (D21).
+ *   (Client health, 0.10.0: Leadership, Sales & Marketing and Managed Services; MRR on it for Leadership and Sales & Marketing.)
  *   Pulse.User             sign in; company-wide items (V/TO, company Rocks, company Scorecard).
  *
  * The backend calls these on every request. The UI uses the same answers (from /api/me)
@@ -57,6 +58,10 @@ function accessFor(roleList) {
     viewProjects,
     editSchedules: projectManager,
     viewLeadTime: viewProjects || ownDivisions.includes("SalesMarketing"),
+    // Client health and the Early Warning (0.10.0, D23): Account Managers (Sales & Marketing), Managed Services and Leadership.
+    viewClients: leadership || ownDivisions.includes("SalesMarketing") || ownDivisions.includes("ManagedServices"),
+    // Each client's MRR on that page: Leadership, Sales & Marketing and Finance detail.
+    clientMrr: leadership || ownDivisions.includes("SalesMarketing"),
   });
 }
 
