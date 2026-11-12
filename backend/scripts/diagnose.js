@@ -21,7 +21,7 @@ const sql = require("mssql");
   }
   // Optional: ask the sync service to run a job now (REFRESH_JOB=scorecard|projects|departments|directory|connections|links|nudges),
   // or inspect:simplesat for a look at SimpleSAT answers (field names and ratings only).
-  if (/^(scorecard|projects|departments|directory|connections|links|nudges|inspect:simplesat)$/.test(process.env.REFRESH_JOB || "")) {
+  if (/^(scorecard|projects|departments|directory|connections|links|nudges|clients|inspect:simplesat(-responses)?)$/.test(process.env.REFRESH_JOB || "")) {
     await pool.request().input("job", sql.NVarChar, process.env.REFRESH_JOB).query("INSERT INTO pulse.sync_request (job, requested_by) VALUES (@job, N'Diagnose workflow')");
     console.log(`Asked the sync service to run ${process.env.REFRESH_JOB} now (within two minutes).`);
   }

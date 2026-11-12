@@ -88,4 +88,30 @@ async function inspect(now = new Date()) {
   return JSON.stringify({ answersRead: list.length, keys, sample, csat: ratings(list, "csat").length, nps: ratings(list, "nps").length });
 }
 
-module.exports = { CRED, collectWeek, inspect, _test: { shape, ratings, csat, nps } };
+/**
+ * Field names of SimpleSAT responses, for Diagnose: which keys the response, its customer, its
+ * ticket and its team members have, and the *pattern* of the ticket's external id (digits shown
+ * as 9). No names, emails, companies or comments are reported.
+ */
+async function inspectResponses(now = new Date()) {
+  const list = await simplesat.responses(new Date(now.getTime() - 30 * 86400e3).toISOString(), now.toISOString(), { max: 1, partial: true });
+  const keysOf = pick => [...new Set(list.flatMap(r => { const v = pick(r); return v && typeof v === "object" && !Array.isArray(v) ? Object.keys(v) : []; }))].sort();
+  const pattern = v => v == null ? null : String(v).replace(/[0-9]/g, "9").replace(/[A-Za-z]/g, "a").slice(0, 30);
+  const count = f => list.filter(f).length;
+  return JSON.stringify({
+    responsesRead: list.length,
+    response: keysOf(r => r),
+    customer: keysOf(r => r.customer),
+    customerAttributes: keysOf(r => (r.customer || {}).custom_attributes),
+    company: keysOf(r => (r.customer || {}).company),
+    ticket: keysOf(r => r.ticket),
+    ticketAttributes: keysOf(r => (r.ticket || {}).custom_attributes),
+    teamMember: keysOf(r => (r.team_members || [])[0] || r.team_member),
+    answer: keysOf(r => (r.answers || [])[0]),
+    ticketIdPatterns: [...new Set(list.map(r => pattern((r.ticket || {}).external_id ?? (r.ticket || {}).id)))].slice(0, 6),
+    withCompany: count(r => r.customer && r.customer.company), withTicket: count(r => r.ticket && (r.ticket.external_id || r.ticket.id)),
+    companyTypes: [...new Set(list.map(r => typeof (r.customer || {}).company))],
+  });
+}
+
+module.exports = { CRED, collectWeek, inspect, inspectResponses, _test: { shape, ratings, csat, nps } };

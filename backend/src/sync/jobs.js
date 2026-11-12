@@ -158,8 +158,8 @@ async function runRequests(context) {
       await run("notify-test", context, () => require("../notify").sendTest(test[1])).catch(() => {});
       continue;
     }
-    if (job === "inspect:simplesat") {
-      try { const out = await require("../collect/simplesat").inspect();
+    if (job === "inspect:simplesat" || job === "inspect:simplesat-responses") {
+      try { const ss = require("../collect/simplesat"); const out = job === "inspect:simplesat" ? await ss.inspect() : await ss.inspectResponses();
         for (let i = 0, n = Math.ceil(out.length / 1900); i < Math.min(n, 10); i++) await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (@job, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, @detail)", { job: `inspect ${i + 1}/${n}`, detail: out.slice(i * 1900, (i + 1) * 1900) });
       } catch (e) { await db.query("INSERT INTO pulse.sync_run (job, started_at, finished_at, ok, detail) VALUES (N'inspect', SYSUTCDATETIME(), SYSUTCDATETIME(), 0, @detail)", { detail: String(e.message).slice(0, 2000) }); }
       continue;

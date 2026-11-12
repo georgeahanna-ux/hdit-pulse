@@ -36,25 +36,28 @@ async function post(url, body, key) {
       continue;
     }
     if (res.status === 401 || res.status === 403) throw fail("SimpleSAT refused the API key. Check it under Connections → SimpleSAT (Admin → Account Settings in SimpleSAT).");
-    if (!res.ok) throw fail(`SimpleSAT answered ${res.status} to the answers search.`);
+    if (!res.ok) throw fail(`SimpleSAT answered ${res.status} to ${url.replace(API, "").split("?")[0]}.`);
     return res.json();
   }
 }
 
-/** Every answer between two instants (ISO strings), all pages. */
-async function answers(start, end, { max = 200, partial = false } = {}) {
+/** Every answer (or response) between two instants (ISO strings), all pages. */
+async function search(kind, start, end, { max = 200, partial = false } = {}) {
   const key = await apiKey();
   const body = { start_date: start, end_date: end };
   const out = [];
-  let url = `${API}/answers/search?page_size=100`, pages = 0;
+  let url = `${API}/${kind}/search?page_size=100`, pages = 0;
   while (url && pages < max) {
     const json = await post(url, body, key);
-    out.push(...(json.answers || json.results || []));
+    out.push(...(json[kind] || json.results || []));
     url = json.next || null;
     pages++;
   }
-  if (url && !partial) throw fail(`SimpleSAT returned more than ${max} pages of answers, so Pulse stopped reading (to protect the API).`);
+  if (url && !partial) throw fail(`SimpleSAT returned more than ${max} pages of ${kind}, so Pulse stopped reading (to protect the API).`);
   return out;
 }
+const answers = (start, end, opts) => search("answers", start, end, opts);
+/** Responses carry the customer, the ticket and the team member as well as the answers. */
+const responses = (start, end, opts) => search("responses", start, end, opts);
 
-module.exports = { API, apiKey, answers, _test: { setFetch(f) { fetchImpl = f; } } };
+module.exports = { API, apiKey, answers, responses, _test: { setFetch(f) { fetchImpl = f; } } };
