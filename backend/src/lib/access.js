@@ -85,13 +85,13 @@ function canEditMeasurable(a, measurable, personOid) {
 }
 
 /** The shape /api/me returns to the browser. */
+/**
+ * What the page is told it can use (/api/me): every rule accessFor works out, except the raw roles
+ * (sent separately) and signIn. Taken whole so a new rule can't be left off (0.10.0's Client health was).
+ */
 function describe(a) {
-  return {
-    platform: a.platform, leadership: a.leadership, divisions: a.divisions, ownDivisions: a.ownDivisions,
-    financeDetail: a.financeDetail, compliance: a.compliance, viewAudit: a.viewAudit,
-    changeDepartments: a.changeDepartments, manageConnections: a.manageConnections, manageDirectory: a.manageDirectory,
-    viewProjects: a.viewProjects, editSchedules: a.editSchedules, viewLeadTime: a.viewLeadTime,
-  };
+  const { roles, signIn, ...rules } = a;   // eslint-disable-line no-unused-vars
+  return { ...rules };
 }
 
 module.exports = { DIVISIONS, DIVISION_CODES, PULSE_ROLES, accessFor, canSeeDivision, canOverride, canEditMeasurable, describe };

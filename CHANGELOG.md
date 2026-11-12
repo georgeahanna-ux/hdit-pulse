@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.1 — 13 November 2026
+- **Fixed: Client health didn't appear for anyone signed in.** `/api/me` sent the page a fixed list of access rules that didn't include `viewClients` and `clientMrr`, so the menu link and page stayed hidden (preview worked out access in the browser, so it showed there). `access.describe` now sends every rule `accessFor` works out, except the raw roles. Test added (167 in total).
+
 ## 0.11.0 — 12 November 2026
 Ticket sentiment with Azure OpenAI (D23 amended; George 12 Nov 2026: Australia only, client-visible text).
 - **Azure OpenAI** (`infra/openai.bicep`): `oai-hdit-pulse-test-aue`, gpt-4.1-mini 2025-04-14 as a **Regional Standard** deployment in Australia East (processing stays in Australia; no Global or Data Zone deployment), keys off (`disableLocalAuth`), outbound calls blocked, audit logs to Log Analytics, no automatic model upgrades. Deployed by the workflow after `main.bicep` as its own step, so a refusal doesn't block Pulse. `pulse-setup.sh release1` registers `Microsoft.CognitiveServices` and gives the sync identity "Cognitive Services OpenAI User" on the resource group. Sync app settings `AOAI_ENDPOINT`, `AOAI_DEPLOYMENT`; `lib/aoai.js` signs in with the managed identity, structured outputs (strict JSON schema), temperature 0, and only calls `*.openai.azure.com`.
