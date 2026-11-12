@@ -39,6 +39,7 @@ const versions = {
   "frontend/index.html": (read("frontend/index.html").match(/APP_VERSION: "([0-9.]+)"/) || [])[1],
   "frontend/user-guide.html": (read("frontend/user-guide.html").match(/data-built-for="([0-9.]+)"/) || [])[1],
   "frontend/changelog.html": (read("frontend/changelog.html").match(/data-built-for="([0-9.]+)"/) || [])[1],
+  "frontend/admin-guide.html": (read("frontend/admin-guide.html").match(/data-built-for="([0-9.]+)"/) || [])[1],
   "backend/package.json": JSON.parse(read("backend/package.json")).version,
   "CHANGELOG.md": (read("CHANGELOG.md").match(/^## ([0-9.]+)/m) || [])[1],
 };

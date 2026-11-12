@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin guide · HD IT Pulse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="brand/hdit-logo-navy.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zalando+Sans+Expanded:wght@300;400;500;700;800&family=DM+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
+<link rel="stylesheet" href="brand/tokens.css">
+<link rel="stylesheet" href="css/doc.css">
+<script src="js/doc-version.js" defer></script>
+</head>
+<body data-built-for="0.11.1">
+<header class="doc-band"><div class="inner">
+  <img src="brand/hdit-logo-yellow.svg" alt="HD IT">
+  <span class="hd-eyebrow">HD IT Pulse · admin guide · <span id="built-for">v0.11.1</span></span>
+  <h1>Running Pulse</h1>
+  <p>For Platform Admins and Compliance: who gets access, the connections to other systems, the background jobs, data and retention, releases, and what to do when something goes wrong. Updated with every release.</p>
+</div></header>
+
+<main class="doc-main">
+  <div id="ver-banner" class="ver-banner" role="status"></div>
+
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#principles">How Pulse is run</a></li>
+      <li><a href="#parts">The parts and where they live</a></li>
+      <li><a href="#access">Access: groups, roles and reviews</a></li>
+      <li><a href="#people">People directory and Autotask links</a></li>
+      <li><a href="#connections">Connections</a></li>
+      <li><a href="#autotask">The Autotask API user</a></li>
+      <li><a href="#teams">Teams app, reminders and the Monday email</a></li>
+      <li><a href="#ai">Azure OpenAI and ticket sentiment</a></li>
+      <li><a href="#jobs">Background jobs</a></li>
+      <li><a href="#scorecard">Scorecard and FY plan administration</a></li>
+      <li><a href="#clients">Client health administration</a></li>
+      <li><a href="#settings">Settings held in the database</a></li>
+      <li><a href="#data">Data, retention and privacy</a></li>
+      <li><a href="#audit">Audit log and access review</a></li>
+      <li><a href="#setup">Setup scripts</a></li>
+      <li><a href="#releases">Releases and change control</a></li>
+      <li><a href="#diagnose">Diagnose</a></li>
+      <li><a href="#trouble">When something goes wrong</a></li>
+      <li><a href="#backup">Backup, restore and recovery</a></li>
+      <li><a href="#production">Before production</a></li>
+    </ol>
+  </nav>
+
+  <section id="principles">
+    <span class="hd-eyebrow">1</span>
+    <h2>How Pulse is run</h2>
+    <ul>
+      <li><b>One sign-in.</b> Everyone signs in with Microsoft 365 (Entra ID). What they can see comes only from their Pulse groups. There are no Pulse passwords.</li>
+      <li><b>Least privilege.</b> Each part of Pulse can reach only what it needs. The user-facing API can't read integration credentials; the sync service can. Each Pulse module may do only the Autotask actions on its allow-list (section 6).</li>
+      <li><b>Credentials are write-only.</b> They're entered on the Connections page or into Key Vault, never shown again, never logged, never stored in the database and never sent to the browser. Nobody, including Claude, needs to see them.</li>
+      <li><b>Everything is audited.</b> Sign-ins, changes, overrides, setting changes and views of sensitive pages go to the audit log, which can't be edited (section 14).</li>
+      <li><b>Every change is a release.</b> Code, settings in code and infrastructure change only through GitHub, with a version number and release notes, tested in the test environment first (section 16). This is the change record for ISO 9001 and ISO 27001.</li>
+      <li><b>Platform Admins:</b> George Hanna and Bernadette Hanna. Keep it to two or three people: the role is administrator in Pulse and in every app.</li>
+    </ul>
+  </section>
+
+  <section id="parts">
+    <span class="hd-eyebrow">2</span>
+    <h2>The parts and where they live</h2>
+    <p>Everything runs in Microsoft Azure, Australia East. Only the website's static files are also served from East Asia, with no data. Test lives in the HD IT Testing Tenancy; production will live in HD IT's main tenant.</p>
+    <table>
+      <thead><tr><th>Part</th><th>Test name</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>Resource group</td><td><code>rg-hdit-pulse-test-aue</code></td><td>Holds everything below.</td></tr>
+        <tr><td>Website</td><td><code>stapp-hdit-pulse-test-aue</code></td><td>The Pulse pages (Static Web App). No data.</td></tr>
+        <tr><td>API</td><td><code>func-hdit-pulse-api-test-aue</code></td><td>Answers the pages. Reads and writes Pulse data; can only <i>write</i> credentials (for Connections), never read them, except the one Autotask credential.</td></tr>
+        <tr><td>Sync service</td><td><code>func-hdit-pulse-sync-test-aue</code></td><td>Runs the background jobs (section 9). The only part that reads the other credentials.</td></tr>
+        <tr><td>Identities</td><td><code>id-hdit-pulse-api-test-aue</code>, <code>id-hdit-pulse-sync-test-aue</code></td><td>What the API and sync service sign in to Azure, Microsoft Graph and Azure OpenAI as. No secrets.</td></tr>
+        <tr><td>Database</td><td><code>sql-hdit-pulse-test-aue</code> / <code>sqldb-hdit-pulse-test-aue</code></td><td>Azure SQL (Basic in test, S0 planned for production). Entra sign-in only. History tables keep every change.</td></tr>
+        <tr><td>Key Vault</td><td><code>kv-hdit-pulse-test</code></td><td>Integration credentials. Access per secret.</td></tr>
+        <tr><td>Azure OpenAI</td><td><code>oai-hdit-pulse-test-aue</code></td><td>Ticket sentiment (section 8). Keys off.</td></tr>
+        <tr><td>Monitoring</td><td><code>log-hdit-pulse-test-aue</code>, <code>appi-hdit-pulse-test-aue</code></td><td>Logs, database audit and application insights.</td></tr>
+        <tr><td>Storage</td><td><code>sthditpulsetestaue</code></td><td>The Function Apps' code packages. No Pulse data.</td></tr>
+      </tbody>
+    </table>
+    <p>Pipeline, Marketing ROI and Whitespace Matrix keep their own Azure resources and Table Storage. They sign in to Autotask with Pulse's Autotask API user (section 6).</p>
+  </section>
+
+  <section id="access">
+    <span class="hd-eyebrow">3</span>
+    <h2>Access: groups, roles and reviews</h2>
+    <p>Access is given by adding someone to an Entra security group in the Entra admin centre (Groups). Each group gives one role on the "HD IT Pulse" app. Changes apply when the person next signs in, or within about an hour. Someone in no Pulse group can't sign in at all.</p>
+    <table>
+      <thead><tr><th>Group</th><th>Role</th><th>Gives</th></tr></thead>
+      <tbody>
+        <tr><td>Pulse - Platform Admins</td><td><code>Pulse.Admin</code></td><td>Everything, including Connections, the audit log, the People directory and settings; administrator in every app.</td></tr>
+        <tr><td>Pulse - All Staff</td><td><code>Pulse.User</code></td><td>Sign in; company-wide V/TO, Rocks and Scorecard.</td></tr>
+        <tr><td>Pulse - Leadership</td><td><code>Pulse.Leadership</code></td><td>Every division; Issues List and L10; override any measurable; change Autotask departments; reschedule projects; Client health with MRR.</td></tr>
+        <tr><td>Pulse - Finance Detail</td><td><code>Pulse.FinanceDetail</code></td><td>Full P&amp;L detail, wages, per-client profitability.</td></tr>
+        <tr><td>Pulse - Compliance</td><td><code>Pulse.Compliance</code></td><td>Audit log and the quarterly access review.</td></tr>
+        <tr><td>Pulse - Project Managers</td><td><code>Pulse.ProjectManager</code></td><td>Projects: every project, reschedule and link tasks, log time on any task, resource planning.</td></tr>
+        <tr><td>Pulse - Division Finance / People / Innovation and Compliance</td><td><code>Division.…</code></td><td>That division in full; override its measurables.</td></tr>
+        <tr><td>Pulse - Division Sales and Marketing</td><td><code>Division.SalesMarketing</code></td><td>Sales &amp; Marketing in full; project lead time; Client health with MRR.</td></tr>
+        <tr><td>Pulse - Division Managed Services</td><td><code>Division.ManagedServices</code></td><td>Managed Services in full; Projects; Client health without MRR.</td></tr>
+        <tr><td>Pulse - Pipeline Users / Admins</td><td><code>Pipeline.User</code>, <code>.Admin</code></td><td>Pipeline (Admins also Settings).</td></tr>
+        <tr><td>Pulse - Marketing ROI Users / Admins</td><td><code>MarketingROI.User</code>, <code>.Admin</code></td><td>Marketing ROI (Admins also events, costs and Settings).</td></tr>
+        <tr><td>Pulse - Whitespace Users / Editors / Admins</td><td><code>Whitespace.User</code>, <code>.Editor</code>, <code>.Admin</code></td><td>Whitespace Matrix: view, edit, administer.</td></tr>
+        <tr><td>Pulse - SQL Admins (Test)</td><td>(database administrator)</td><td>Platform Admins and the GitHub deploy identity only. Not a Pulse role.</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><b>Joiners:</b> add them to Pulse - All Staff and their division group. Their Autotask link is made automatically at first sign-in (section 4).</li>
+      <li><b>Leavers:</b> disabling them in Entra stops Pulse straight away. Remove them from Pulse groups at the same time so the access review stays clean.</li>
+      <li><b>Sign-in policy:</b> MFA and an Intune-compliant device, enforced by Conditional Access on the HD IT Pulse enterprise app (required before production; section 20).</li>
+      <li>Everyone can check their own access under <b>Your access</b> in the account menu: their roles, what each gives and which group it comes from.</li>
+    </ul>
+  </section>
+
+  <section id="people">
+    <span class="hd-eyebrow">4</span>
+    <h2>People directory and Autotask links</h2>
+    <p><b>Platform → People and departments</b>. Pulse links each person (by their Entra object id) to their Autotask resource by matching every one of their Microsoft 365 addresses against active Autotask resources' email fields. Exactly one match links automatically. Anything else goes to <b>Needs review</b>.</p>
+    <ul>
+      <li><b>Fix</b> or <b>Change link</b> sets the right Autotask resource, or "No Autotask account" (for example external providers). Needs a reason; audited. A Platform Admin's link overrides matching.</li>
+      <li>The link decides "My clients", "My tasks", time entries and whose name Autotask changes are made under. Someone with no link can still use Pulse but can't log time.</li>
+      <li>Entra is read nightly (02:40 Sydney in summer) and Autotask every 15 minutes. <b>Refresh</b> reads them now.</li>
+      <li><b>Autotask departments:</b> Leadership and Platform Admins can change people's default department (written to Autotask, audited). A tech is anyone whose default department is Service Desk; that drives tickets per tech and utilisation on the Scorecard.</li>
+    </ul>
+  </section>
+
+  <section id="connections">
+    <span class="hd-eyebrow">5</span>
+    <h2>Connections</h2>
+    <p><b>Platform → Connections</b> (Platform Admins). Each card shows whether a credential is entered, when it last changed, its owner and rotation date. <b>Enter</b> or <b>Replace</b> needs a reason; the value is never shown again. Set an owner and a rotation-due date on every card: Pulse flags overdue ones.</p>
+    <table>
+      <thead><tr><th>Card</th><th>What to enter</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Autotask</td><td>API user name, secret, integration code (tracking identifier) and zone address</td><td>One API user for all of Pulse and the three apps. Tested against Autotask before it's saved. Its security level is in section 6.</td></tr>
+        <tr><td>SimpleSAT</td><td>API key (SimpleSAT → Admin → Account Settings)</td><td>Read-only. Used for CSAT and NPS on the Scorecard and for Client health.</td></tr>
+        <tr><td>Xero app</td><td>Client id and secret of HD IT's Xero app; its redirect address is shown on the card</td><td>Then <b>Connect to Xero</b> on the Xero connection card: sign in, choose HD IT's organisation, allow. Read-only scopes only. If it isn't used for 60 days it lapses: select <b>Reconnect</b>.</td></tr>
+        <tr><td>Datto RMM, IT Glue</td><td>(not used yet)</td><td>Placeholders for later releases.</td></tr>
+        <tr><td>Microsoft Planner</td><td>The link to the "Pulse – L10" plan</td><td>In Planner: … beside the plan's name → Copy link to plan. The plan must be in the leadership team's Microsoft 365 group; people must be group members to be assigned tasks.</td></tr>
+        <tr><td>Microsoft Teams and email</td><td>Sender mailbox (pulse@…)</td><td>Also: download the Teams app, pause all reminders (with a reason), <b>Send me a test</b>. Section 7.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="autotask">
+    <span class="hd-eyebrow">6</span>
+    <h2>The Autotask API user</h2>
+    <p>Pulse, Pipeline, Marketing ROI and Whitespace all use one Autotask API user (Key Vault secret <code>autotask-service</code>). Least privilege is enforced in two layers: its Autotask <b>security level</b>, and each Pulse module's <b>allow-list</b> in code (<code>lib/autotask.js</code>), which refuses anything not listed before a request leaves Pulse. No module can delete records, apart from removing a task dependency link.</p>
+    <h3>Pulse's allow-list</h3>
+    <table>
+      <thead><tr><th>Module</th><th>May read</th><th>May change</th></tr></thead>
+      <tbody>
+        <tr><td>People</td><td>Departments, Roles, Resources, ResourceRoleDepartments</td><td>Create and update ResourceRoleDepartments</td></tr>
+        <tr><td>Scorecard</td><td>Tickets, TimeEntries, Holidays, Contracts and their services and units, Services, Opportunities, Quotes, QuoteItems</td><td>Nothing</td></tr>
+        <tr><td>Projects</td><td>Projects, Phases, Tasks, TaskPredecessors, Companies, Resources, Roles, TimeEntries, Holidays, TimeOffRequests</td><td>Update Tasks; create TimeEntries; create and remove TaskPredecessors</td></tr>
+        <tr><td>Issues</td><td>Tickets, Tasks, Projects, Phases, Resources</td><td>Create Tickets and Tasks</td></tr>
+        <tr><td>Clients</td><td>Companies, Tickets, TicketNotes, Contacts, Resources</td><td>Nothing</td></tr>
+      </tbody>
+    </table>
+    <h3>Security level the API user needs</h3>
+    <p>Give the Pulse API user its <b>own</b> security level (copy the one it has and rename it, e.g. "HD IT Pulse API"), so changes for Pulse don't widen another integration's access. Besides viewing CRM, Contracts, Projects and Service Desk data:</p>
+    <table>
+      <thead><tr><th>Section</th><th>Setting</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Admin → Feature Access</td><td>Resources/Users (HR), Sales &amp; Opportunities, Products, Services &amp; Inventory, Clients &amp; Contacts</td><td>Departments and roles; opportunity stages; services; organisation settings.</td></tr>
+        <tr><td>CRM → Clients</td><td>Edit: All</td><td>Marketing ROI moves clients between stages (Client Category).</td></tr>
+        <tr><td>CRM → Opportunities &amp; Quotes</td><td>Edit: All</td><td>Pipeline stage changes; Marketing ROI won/lost.</td></tr>
+        <tr><td>CRM → Notes</td><td>Add: All</td><td>The apps' notes on a client.</td></tr>
+        <tr><td>Service Desk → Tickets</td><td>Add: Yes, Edit: All</td><td>Issue → ticket (Pulse); linking a ticket to an opportunity (Pipeline).</td></tr>
+        <tr><td>Web Services API</td><td>Can login to Web Services API</td><td>Required for any API access.</td></tr>
+      </tbody>
+    </table>
+    <p>Autotask doesn't document which setting allows reading <b>Company Categories</b>, and Pulse's user is refused it. Marketing ROI therefore reads only that list with its own Autotask user (from 0.7.1); keep Marketing ROI's own <code>autotask-*</code> secrets in its Key Vault until that changes.</p>
+    <p><b>Rotating the secret:</b> generate a new secret on the API user in Autotask, then <b>Replace</b> on the Autotask card straight away (Pulse tests it before saving). Pulse picks it up within ten minutes and the three apps within five.</p>
+  </section>
+
+  <section id="teams">
+    <span class="hd-eyebrow">7</span>
+    <h2>Teams app, reminders and the Monday email</h2>
+    <h3>Installing the Teams app</h3>
+    <ol>
+      <li>Connections → Microsoft Teams and email → <b>Download the Teams app</b> (a zip built for this environment with each release).</li>
+      <li>Teams admin centre → Teams apps → Manage apps → <b>Upload new app</b>, and choose the zip. For a new version, open the app and upload the file again.</li>
+      <li>Teams apps → Setup policies → Global (or a policy for staff) → add Pulse to <b>Installed apps</b> and <b>Pinned apps</b>, so it's in everyone's app bar.</li>
+      <li>In the leadership team's channel: + (Add a tab) → Pulse → choose the L10 page.</li>
+    </ol>
+    <p>Teams signs people in to Pulse. That needs <code>bash pulse-setup.sh release1-entra</code> to have been run (it adds Pulse's Teams identifier and pre-approves Teams and Microsoft 365 as clients).</p>
+    <h3>Reminders</h3>
+    <p>Sent to each person's Teams Activity feed by the nudges job (every 15 minutes), once each: Monday numbers to enter (8am) and off-track Rocks (9am); Tuesday L10 (9am); new To-dos after an L10; overdue To-dos (weekdays, working hours); and, for Account Managers, a client moving into At risk. They need the sync identity's Graph permission <code>TeamsActivity.Send</code> and the person to have the Pulse app installed. Each person can switch them off under Notifications. <b>Pause all reminders</b> on Connections stops them for everyone (audited).</p>
+    <h3>The Monday email</h3>
+    <p>At 7am Monday to people who have signed in within 90 days, from the shared mailbox set on Connections. Exchange Online "RBAC for Applications" lets the sync identity send from that one mailbox only (no Graph Mail.Send in Entra). Set up with <code>./pulse-mail.ps1</code> in Cloud Shell PowerShell (section 15). A new permission can take up to an hour to apply.</p>
+  </section>
+
+  <section id="ai">
+    <span class="hd-eyebrow">8</span>
+    <h2>Azure OpenAI and ticket sentiment</h2>
+    <p>Client health reads how clients sound in their own tickets with Pulse's own Azure OpenAI resource.</p>
+    <ul>
+      <li><b>Where:</b> a <b>Regional Standard</b> deployment of gpt-4.1-mini (2025-04-14) in Australia East, so text is processed in Australia (decided 12 Nov 2026). No Global or Data Zone deployment. Keys are off; only the sync identity (role "Cognitive Services OpenAI User") can call it. Outbound calls from the resource are blocked; audit logs go to Log Analytics.</li>
+      <li><b>What is sent:</b> for tickets clients raised (not alerts or monitoring), created in the last 30 days or still open: the title, the description and notes that <b>aren't internal</b>, marked Client or HD IT. Email addresses, phone numbers, long numbers, links with query strings and quoted email history are removed first.</li>
+      <li><b>What is kept:</b> per ticket, the sentiment, frustration (0–3), whether it talks about leaving, a one-line reason (names and contact details stripped) and a fingerprint (SHA-256) of the text sent, so it's read again only when it changes. Never the ticket text. Kept 120 days.</li>
+      <li><b>Microsoft:</b> doesn't use the data to train models. Its abuse monitoring may keep prompts for up to 30 days; HD IT can apply to Microsoft for modified abuse monitoring. Record Azure OpenAI in the supplier and data-flow register.</li>
+      <li><b>Switching off:</b> Client health → How the Early Warning score works → <b>Switch off</b> (Platform Admins, with a reason, audited). The next hourly run sends nothing.</li>
+      <li><b>Cost:</b> about 300,000 tokens per 400 tickets, a few cents. After the first catch-up only new or changed tickets are read.</li>
+      <li><b>Model retirement:</b> Microsoft retires gpt-4.1-mini on Azure on 14 April 2027. Before then, either deploy a newer model offered as Regional Standard in Australia East (a change to <code>infra/openai.bicep</code>, as a release) or decide again on the region.</li>
+    </ul>
+  </section>
+
+  <section id="jobs">
+    <span class="hd-eyebrow">9</span>
+    <h2>Background jobs</h2>
+    <p>All run in the sync service. Times are Sydney; the clock in Azure is UTC, so nightly jobs move by an hour when daylight saving starts or ends. Each run is recorded with what it did (Diagnose shows the last ones).</p>
+    <table>
+      <thead><tr><th>Job</th><th>When</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>scorecard</td><td>Hourly at :12</td><td>Automatic Scorecard values and FY plan actuals from Autotask, Xero, SimpleSAT and Marketing ROI.</td></tr>
+        <tr><td>departments</td><td>Every 15 min</td><td>Autotask resources and departments; re-runs matching.</td></tr>
+        <tr><td>projects</td><td>Every 15 min</td><td>Open Autotask projects, tasks, dependencies, time and leave.</td></tr>
+        <tr><td>directory</td><td>Nightly 02:40 (summer)</td><td>Microsoft 365 people; Autotask; matching.</td></tr>
+        <tr><td>links</td><td>Every 5 min</td><td>To-dos ↔ Planner; Issue tickets' status; Rock progress.</td></tr>
+        <tr><td>nudges</td><td>Every 15 min</td><td>Teams reminders and the Monday email that are due.</td></tr>
+        <tr><td>clients</td><td>Nightly 05:40 (summer)</td><td>Client health: clients, SimpleSAT ratings, tickets, scores, the weekly trend, At-risk alerts.</td></tr>
+        <tr><td>sentiment</td><td>Hourly at :25</td><td>Up to 400 tickets a run through Azure OpenAI, newest first.</td></tr>
+        <tr><td>connections</td><td>Hourly at :07</td><td>Which credentials are entered (never reads their values into the database).</td></tr>
+        <tr><td>requests</td><td>Every 2 min</td><td>Runs jobs asked for from Pulse ("Refresh", "Work it out again") or Diagnose.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="scorecard">
+    <span class="hd-eyebrow">10</span>
+    <h2>Scorecard and FY plan administration</h2>
+    <ul>
+      <li><b>On trial to automatic:</b> each automatic measurable starts on trial. When its automatic values match what owners type in, Leadership switches it to automatic from the measurable's panel, with a reason. Switch back the same way.</li>
+      <li><b>Locking:</b> a week locks at 5pm on the Tuesday after it ends; after that, changes are overrides with a reason.</li>
+      <li><b>Definitions</b> (what a seat, tech, MRR, SGM are) are in the requirements (D4) and each measurable's panel. Seat services, the tech department, hours per day and Xero account lists are settings (section 12).</li>
+      <li><b>FY plan:</b> Leadership sets year targets and opening levels; Leadership and Finance set quarter targets and month-end figures. Automatic MRR, seats and new seats are on trial until switched on.</li>
+    </ul>
+  </section>
+
+  <section id="clients">
+    <span class="hd-eyebrow">11</span>
+    <h2>Client health administration</h2>
+    <ul>
+      <li><b>Clients</b> are companies with a recurring contract in force. HD IT's own company (Autotask company 0) is never a client.</li>
+      <li><b>Account Manager</b> is the company's owner in Autotask. To move a client to another Account Manager, change the owner in Autotask; Pulse follows at the next nightly run.</li>
+      <li><b>Feedback</b> is matched to a client by the Autotask ticket SimpleSAT holds, then the contact, then the company name. Diagnose shows how many ratings weren't matched.</li>
+      <li><b>Score weights</b> are in code (<code>clients/model.js</code>) and listed on the page under How the Early Warning score works. Changing them is a release. Review them after a few weeks of real data, especially "tickets open more than 14 days", which fires for many clients.</li>
+      <li><b>At-risk alerts</b> go to the Account Manager once a week per client, and not on the first run after a reset.</li>
+      <li><b>Who sees it:</b> Leadership, Sales &amp; Marketing and Managed Services. MRR only for Leadership and Sales &amp; Marketing. Opening a client is audited (the page shows client contacts' names and comments).</li>
+    </ul>
+  </section>
+
+  <section id="settings">
+    <span class="hd-eyebrow">12</span>
+    <h2>Settings held in the database</h2>
+    <p>Most settings are changed in Pulse (each change audited). The rest are set by a release, through a database migration.</p>
+    <table>
+      <thead><tr><th>Setting</th><th>Changed where</th></tr></thead>
+      <tbody>
+        <tr><td>Planner plan, Teams app id, sender mailbox, reminders on/off</td><td>Connections (Platform Admins)</td></tr>
+        <tr><td>Ticket sentiment on/off</td><td>Client health (Platform Admins)</td></tr>
+        <tr><td>Non-project share, departments shown in the resource planner</td><td>Projects → Capacity settings (Project Managers)</td></tr>
+        <tr><td>Measurables on trial or automatic, goals, owners</td><td>Scorecard panels (Leadership; owners for their goals)</td></tr>
+        <tr><td>Seat services, tech department, hours per day, holiday set, Xero SGM accounts and codes, GST rate, Autotask web address, HD IT's Autotask company id</td><td>A release (migration)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="data">
+    <span class="hd-eyebrow">13</span>
+    <h2>Data, retention and privacy</h2>
+    <table>
+      <thead><tr><th>Data</th><th>Kept</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Audit log (database)</td><td>Indefinitely</td><td>Append-only; the API and sync identities can't change it.</td></tr>
+        <tr><td>Logs and database audit (Log Analytics)</td><td>30 days in test; 12 months in production</td><td>Set by <code>logRetentionDays</code>.</td></tr>
+        <tr><td>EOS data (Scorecard, Rocks, Issues, To-dos, L10)</td><td>Indefinitely</td><td>With full change history (temporal tables).</td></tr>
+        <tr><td>Client feedback (SimpleSAT ratings)</td><td>400 days</td><td>Contact's name, comment, technician, ticket. No email addresses.</td></tr>
+        <tr><td>Ticket sentiment</td><td>120 days</td><td>Verdict only, never ticket text.</td></tr>
+        <tr><td>Client health snapshot and weekly trend</td><td>Indefinitely</td><td>Scores and counts.</td></tr>
+        <tr><td>Reminders sent</td><td>Indefinitely</td><td>Kind, who, when, the reminder text.</td></tr>
+        <tr><td>Credentials</td><td>Key Vault only</td><td>Deleted secrets recoverable for 90 days.</td></tr>
+      </tbody>
+    </table>
+    <p>All Pulse data stays in Australia East. Pulse reads live HD IT data even in test (Autotask, Xero, SimpleSAT), so test is held to the same standard as production. Tickets Pulse creates from Issues in test are real tickets.</p>
+  </section>
+
+  <section id="audit">
+    <span class="hd-eyebrow">14</span>
+    <h2>Audit log and access review</h2>
+    <ul>
+      <li><b>Platform → Audit log</b> (Platform Admins and Compliance): filter by person, action and date range. Each entry has who, when, before and after, and the reason.</li>
+      <li>Views of sensitive pages are recorded: finance detail, People data, the audit log, Connections, and each client opened in Client health.</li>
+      <li><b>Quarterly access review</b> (ISO 27001): Compliance exports group membership from Entra for every Pulse group (Pulse doesn't export it itself yet) and confirms each person still needs it; Platform Admins remove anyone who doesn't. Keep the export and sign-off as the record.</li>
+    </ul>
+  </section>
+
+  <section id="setup">
+    <span class="hd-eyebrow">15</span>
+    <h2>Setup scripts</h2>
+    <p>In <code>setup/</code> in the Pulse repository. Upload to Azure Cloud Shell (Manage files → Upload) and run. Every step is safe to run again; run it again whenever a release note says so.</p>
+    <table>
+      <thead><tr><th>Command</th><th>Run as</th><th>Does</th></tr></thead>
+      <tbody>
+        <tr><td><code>bash pulse-setup.sh azure</code></td><td>Your Azure account</td><td>Resource group, GitHub deploy identity, Static Web App.</td></tr>
+        <tr><td><code>bash pulse-setup.sh entra &lt;url&gt;</code></td><td>Tenancy admin</td><td>App registration, roles, groups, admin consent.</td></tr>
+        <tr><td><code>bash pulse-setup.sh release1</code></td><td>Your Azure account</td><td>Identities, Key Vault and per-secret access, the apps' read access to the Autotask secret, Azure OpenAI registration and the sync identity's access to it.</td></tr>
+        <tr><td><code>bash pulse-setup.sh release1-entra</code></td><td>Tenancy admin</td><td>Release 1 roles and groups, SQL admin group, Graph permissions (users, groups, Planner, Teams Activity feed), Teams sign-in.</td></tr>
+        <tr><td><code>./pulse-mail.ps1</code> (PowerShell)</td><td>Your Azure account, then Exchange admin</td><td>The pulse@ shared mailbox and send-from-this-mailbox-only permission.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="releases">
+    <span class="hd-eyebrow">16</span>
+    <h2>Releases and change control</h2>
+    <ul>
+      <li>Every change is a commit to the Pulse GitHub repository with a version number (major.minor.patch) and an entry in What's new and <code>CHANGELOG.md</code>.</li>
+      <li>Each release updates the <b>user guide</b>, this <b>admin guide</b> and What's new. The build stops if any of them, or the app, carries a different version.</li>
+      <li>Pushing to <code>main</code> tests and deploys to <b>test</b>: backend tests, infrastructure (Bicep), database migrations, both Function Apps, the website and the Teams app package. A failed test stops the deploy.</li>
+      <li><b>Production</b> (from 1.0.0) deploys only from a GitHub release approved by a Platform Admin, after it has run in test.</li>
+      <li>The requirements, architecture and identity documents (<code>docs/</code>, also in the claude.ai project) record each decision with its date.</li>
+    </ul>
+  </section>
+
+  <section id="diagnose">
+    <span class="hd-eyebrow">17</span>
+    <h2>Diagnose</h2>
+    <p>In GitHub: Actions → <b>Diagnose test</b> → Run workflow. It signs in as the deploy identity and prints, without any credential values: the last sync runs and failures, which credentials are entered, refresh requests, counts of Autotask data in Pulse, the latest automatic values, link status, Client health counts, ticket sentiment counts and the last reminders. Optional inputs:</p>
+    <ul>
+      <li><b>refresh_job</b>: run a job now (scorecard, projects, departments, directory, connections, links, nudges, clients, sentiment). Run Diagnose again a few minutes later to see the result.</li>
+      <li><code>inspect:simplesat</code> or <code>inspect:simplesat-responses</code>: SimpleSAT's field names (no customer details).</li>
+      <li><b>inspect_opportunity</b>: one Autotask opportunity and its quotes, read-only.</li>
+    </ul>
+  </section>
+
+  <section id="trouble">
+    <span class="hd-eyebrow">18</span>
+    <h2>When something goes wrong</h2>
+    <table>
+      <thead><tr><th>You see</th><th>Likely cause and fix</th></tr></thead>
+      <tbody>
+        <tr><td>Someone can't sign in, or a page is missing</td><td>Their groups. Check Your access with them, then the groups in Entra. Changes apply at next sign-in.</td></tr>
+        <tr><td>"Pulse can't read this credential (check Key Vault access)"</td><td>Run <code>bash pulse-setup.sh release1</code> again to restore per-secret access.</td></tr>
+        <tr><td>"Autotask refused Pulse's API credentials"</td><td>The secret was changed or expired: Replace it on Connections.</td></tr>
+        <tr><td>Autotask "does not have the adequate permissions"</td><td>The API user's security level (section 6). Diagnose shows which entity was refused.</td></tr>
+        <tr><td>Xero numbers stop</td><td>The Xero connection lapsed: Reconnect on Connections.</td></tr>
+        <tr><td>Teams reminders not arriving</td><td>Pulse not installed for that person (setup policy), reminders paused, or <code>release1-entra</code> not run. Use Send me a test.</td></tr>
+        <tr><td>Monday email "Access is denied"</td><td>The mailbox permission can take an hour; otherwise run <code>pulse-mail.ps1</code> again.</td></tr>
+        <tr><td><code>pulse-mail.ps1</code>: "Could not load file or assembly 'Microsoft.OData.Core'"</td><td>An older copy of the script: use the current one, which runs in a clean PowerShell session.</td></tr>
+        <tr><td>Planner sync says "no L10 plan set"</td><td>Paste the plan's link on Connections → Microsoft Planner.</td></tr>
+        <tr><td>Ticket sentiment says "Azure OpenAI isn't set up" or refused</td><td>The resource wasn't deployed (see the deploy's warnings) or the sync identity lacks its role: run <code>bash pulse-setup.sh release1</code>.</td></tr>
+        <tr><td>An app inside Pulse shows a sign-in page</td><td>The person lacks that app's group, or the app's own address was opened: open it from Pulse's menu.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="backup">
+    <span class="hd-eyebrow">19</span>
+    <h2>Backup, restore and recovery</h2>
+    <ul>
+      <li><b>Database:</b> Azure SQL keeps automatic backups with point-in-time restore: 7 days on Basic (test), up to 35 days on S0 (production). Restore to a new database in the Azure portal (SQL database → Restore), check it, then point Pulse at it by a release. Consider monthly long-term backups kept 12 months for ISO.</li>
+      <li><b>Credentials:</b> Key Vault soft delete keeps deleted secrets for 90 days (Key Vault → Secrets → Manage deleted secrets → Recover).</li>
+      <li><b>Everything else</b> is rebuilt from GitHub: re-running the deploy recreates the website, Function Apps, Azure OpenAI and settings from code.</li>
+      <li>If a release breaks something, deploy the previous version's commit (revert it in GitHub); database migrations add tables and columns rather than removing them, so the earlier code still runs against the newer database.</li>
+    </ul>
+  </section>
+
+  <section id="production">
+    <span class="hd-eyebrow">20</span>
+    <h2>Before production (1.0.0)</h2>
+    <ul>
+      <li>Repeat the setup steps in HD IT's main tenant with production names.</li>
+      <li>Conditional Access on the HD IT Pulse enterprise app: MFA and a compliant device.</li>
+      <li>Microsoft Defender for Cloud on SQL and the Function Apps; 12-month log retention; Key Vault purge protection.</li>
+      <li>The production deploy workflow with a Platform Admin's approval.</li>
+      <li><b>pulse.hdit.com.au</b> on the website, added as a redirect address on the app registration.</li>
+      <li>Turn off the apps' team passwords (<code>LEGACY_PASSWORD_LOGIN</code>) once their people use Pulse.</li>
+      <li>Supplier and data-flow register: Azure, Azure OpenAI, SimpleSAT, Xero, Autotask.</li>
+    </ul>
+  </section>
+
+  <div class="doc-foot">HD IT Pulse admin guide. Contains no credentials. Platform Admins: George Hanna and Bernadette Hanna.</div>
+</main>
+</body>
+</html>

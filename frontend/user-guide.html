@@ -28,6 +28,7 @@
     <h2>Signing in</h2>
     <p>Sign in with your HD IT Microsoft 365 account. Microsoft asks for multi-factor authentication, and Pulse only opens on an HD IT managed device. If Microsoft says your device isn't compliant, contact the service desk.</p>
     <p>What you see depends on your Pulse groups in Entra ID. If something is missing, open <b>Your access</b> from your account menu (top right). It lists your roles, what each one gives you and which group it comes from. Group changes apply the next time you sign in.</p>
+    <p>In Microsoft Teams, Pulse signs you in by itself (see Pulse in Microsoft Teams below). The menu under your initials also has <b>Notifications</b>, and <b>Help</b> at the top has this guide, What's new and, for Platform Admins, Compliance and Leadership, the Admin guide.</p>
   </section>
 
   <section>
@@ -37,11 +38,13 @@
       <thead><tr><th>Group</th><th>What it gives you</th></tr></thead>
       <tbody>
         <tr><td>Pulse - All Staff</td><td>Sign in. Company-wide V/TO, Rocks and Scorecard (without detailed financials).</td></tr>
-        <tr><td>Pulse - Division …</td><td>Your division in full. You can override your division's measurables, with a reason.</td></tr>
-        <tr><td>Pulse - Leadership</td><td>Every division. Override any measurable. Change Autotask default departments.</td></tr>
+        <tr><td>Pulse - Division …</td><td>Your division in full. You can override your division's measurables, with a reason. Sales &amp; Marketing and Managed Services also get Client health; Managed Services also gets Projects.</td></tr>
+        <tr><td>Pulse - Leadership</td><td>Every division, the Issues List and the L10. Override any measurable. Change Autotask default departments. Reschedule projects.</td></tr>
+        <tr><td>Pulse - Project Managers</td><td>Every project: reschedule and link tasks, log time on any task, resource planning.</td></tr>
         <tr><td>Pulse - Finance Detail</td><td>Full P&amp;L detail, wages and per-client profitability.</td></tr>
         <tr><td>Pulse - Compliance</td><td>The audit log and the quarterly access review.</td></tr>
-        <tr><td>Pulse - Platform Admins</td><td>Everything, including Connections.</td></tr>
+        <tr><td>Pulse - Pipeline, Marketing ROI and Whitespace groups</td><td>That app, as a user, editor or administrator.</td></tr>
+        <tr><td>Pulse - Platform Admins</td><td>Everything, including Connections and the People directory.</td></tr>
       </tbody>
     </table>
   </section>
@@ -51,7 +54,7 @@
     <h2>Home, Company, Divisions and seats</h2>
     <ul>
       <li><b>Home</b> is yours: your seat on the Accountability Chart, your To-dos, your Rocks this quarter, the measurables you own and your apps. The leadership team also sees progress to the FY27 plan at the top.</li>
-      <li><b>Company</b> holds what the whole business runs on: the Scorecard, Rocks, the V/TO and the Accountability Chart. The leadership team also has the Issues List, company To-dos and the FY plan.</li>
+      <li><b>Company</b> holds what the whole business runs on: the Scorecard, Rocks, To-dos, the V/TO and the Accountability Chart. The leadership team also has the Issues List, the L10 meeting and the FY plan (Finance sees the FY plan too).</li>
       <li><b>Divisions</b> lists your division (Leadership sees all six). A division page shows its key result, its apps, its numbers on the company Scorecard and its seats. Use the tabs for the division's own Scorecard, Rocks, Issues and To-dos.</li>
       <li><b>Seats</b>: while you're in a division, the menu lists its seats. Each seat page shows its roles, key result, who sits in it, the measurables it owns, its Rocks and its apps. "Proposed role scorecard" lists the few numbers the seat could track; they switch on once agreed with the seat's owner.</li>
     </ul>
@@ -99,7 +102,7 @@
     <ul>
       <li><b>Pulse in Teams:</b> open Pulse from the Teams app bar. Teams signs you in, so there's nothing to type. Its tabs are Pulse (your home), L10 and To-dos; the menu under your initials has <b>Open in your browser</b>.</li>
       <li><b>The L10 in Teams:</b> the leadership team's channel (and its Teams meeting) can have a Pulse tab showing the L10 meeting, so everyone joins from Teams. In a meeting, add it as a side panel.</li>
-      <li><b>Reminders</b> arrive in your Teams Activity feed and open the right page of Pulse: on Monday, any numbers of yours still to enter for last week (from 8am) and any off-track company Rock you own (from 9am); on Tuesday at 9am, the L10 with how many numbers were off target (leadership team); after each L10, your new To-dos; and each To-do once, when it's overdue (weekdays, working hours).</li>
+      <li><b>Reminders</b> arrive in your Teams Activity feed and open the right page of Pulse: on Monday, any numbers of yours still to enter for last week (from 8am) and any off-track company Rock you own (from 9am); on Tuesday at 9am, the L10 with how many numbers were off target (leadership team); after each L10, your new To-dos; each To-do once, when it's overdue (weekdays, working hours); and, if you're an Account Manager, when one of your clients moves into At risk.</li>
       <li><b>Monday email</b> at 7am: your To-dos, your Rocks, your numbers to enter and how the company Scorecard went last week, from the Pulse mailbox.</li>
       <li><b>Notifications</b> (under your initials): switch Teams reminders or the Monday email off, send yourself a test, and see what Pulse sent you lately.</li>
     </ul>
@@ -112,7 +115,7 @@
       <li><b>To-dos in Planner:</b> the leadership team's To-dos are kept in step with the "Pulse – L10" plan in Microsoft Planner, both ways, every 5 minutes. Add, tick off, re-date, rename or reassign a To-do in Pulse or Planner and the other follows; delete it in one and it goes from the other. A task added straight into the plan becomes a To-do. If the same To-do is changed in both places in the same 5 minutes, Pulse's change wins. To-dos marked <i>In Planner</i> are linked. To be assigned a task in Planner, you need to be a member of the plan's Microsoft 365 group.</li>
       <li><b>Issue to Autotask:</b> on the Issues List (or in the L10's IDS), select <b>Create in Autotask</b> to make an internal ticket (choose the queue and priority) or a task on an open project. Pulse adds a note saying which Issue it came from and links it; the ticket number and status show on the Issue and refresh every 5 minutes. When the ticket is complete, the Issue says it's ready to mark solved.</li>
       <li><b>Rock progress:</b> select <b>Link progress</b> on a Rock to take its progress from an Autotask project (hours worked against hours remaining, as on the project's Gantt chart) or a Planner plan (tasks complete, in-progress tasks count half). The bar refreshes every 5 minutes. The Rock's on-track status is still yours to set.</li>
-      <li><b>Setting up Planner</b> (Platform Admins): make a plan called "Pulse – L10" in the leadership team's Microsoft Teams team or Microsoft 365 group, copy its link (… beside the plan's name → Copy link to plan) and paste it under Connections → Microsoft Planner.</li>
+      <li><b>Setting up Planner</b> is a Platform Admin job: see the Admin guide.</li>
     </ul>
   </section>
 
@@ -143,8 +146,7 @@
       <li>The yellow tick shows how much of the year, or the quarter, has gone. "On pace" means the bar is at or past the tick.</li>
       <li>Leadership sets the year targets and the opening levels. Leadership and Finance set quarter targets and enter month-end figures under <b>Company → FY plan</b>. Changing a figure that's already there needs a reason.</li>
     </ul>
-    <p>From 0.6.0, revenue comes from Xero and MRR, seats and new seats from Autotask automatically.</p>
-      <p>MRR, Seats and New seats also fill in from Autotask, <b>on trial</b> first: the automatic figure shows under each month. Leadership or Finance select <b>Switch to automatic</b> once it matches. A figure Finance enters always takes priority. MRR is recurring contract services converted to a monthly amount.</p>
+    <p>Revenue fills in from Xero, and MRR, Seats and New seats from Autotask, each <b>on trial</b> first: the automatic figure shows under each month. Leadership or Finance select <b>Switch to automatic</b> once it matches. A figure Finance enters always takes priority. MRR is recurring contract services converted to a monthly amount.</p>
   </section>
 
   <section>
@@ -155,6 +157,30 @@
     <p><b>Happiest</b> and <b>Least happy</b> rank clients with at least three CSAT or NPS ratings in the last year, newer ratings counting more.</p>
     <p>Open a client to see every rating and comment from the last year (who wrote it, who handled the ticket and which ticket it was), the 13-week trend, and your team's follow-up notes. <b>Log a follow-up</b> after you've called them; <b>Raise an Issue</b> puts it on the Sales &amp; Marketing Issues List for IDS. When one of your clients moves into At risk, Pulse tells you in your Teams Activity feed.</p>
     <p><b>How they sound in their tickets:</b> Azure OpenAI, running in HD IT's own Azure in Australia, reads the text a client can see on the tickets they raised (the title, description and replies, never internal notes, with email addresses and phone numbers taken out) and flags tickets where they sound frustrated or talk about leaving. Pulse keeps only that verdict and a one-line reason, not the ticket text. It can be wrong, so open the ticket before acting on it.</p>
+    <h3>Reading the list</h3>
+    <ul>
+      <li><b>Clients</b>: My clients, All clients, or one Account Manager. <b>Show</b>: everyone, At risk, Watch or Healthy. <b>Find</b> filters by name.</li>
+      <li><b>Score</b>: the bar, the number and the level. ▲ or ▼ is the change since four weeks ago (▲ is worse).</li>
+      <li><b>Why</b>: the two biggest reasons; open the client for all of them, with the points each adds.</li>
+      <li><b>CSAT, year</b> and <b>NPS, year</b>: from SimpleSAT over the last 12 months, with how many ratings. <b>Tickets, 30 days</b>: tickets the client raised (Autotask alerts and monitoring tickets aren't counted), with any missed SLAs.</li>
+      <li>An <b>Issue open</b> chip means someone has already raised it for IDS.</li>
+    </ul>
+    <h3>On a client's page</h3>
+    <ul>
+      <li>The score, happiness, CSAT, NPS, tickets in 30 days against the month before, missed SLAs, tickets open more than 14 days, MRR and seats (if you can see MRR) and when the contract ends.</li>
+      <li><b>Why this score</b> lists every reason with its points; <b>Last 13 weeks</b> shows the trend against the Watch and At risk bands.</li>
+      <li><b>What they've told us</b>: every SimpleSAT rating and comment in the year. <b>How they sound in their tickets</b>: the tickets Azure OpenAI flagged, each linked to Autotask.</li>
+      <li><b>Open in Autotask</b> opens the client in Autotask. <b>Log a follow-up</b> keeps a note everyone who can see Client health can read. <b>Raise an Issue</b> puts it on the Issues List for IDS (Leadership can choose the company list).</li>
+      <li>Opening a client is recorded in the audit log, because the page shows client contacts' names and comments.</li>
+    </ul>
+    <h3>When a client is At risk</h3>
+    <ol>
+      <li>Read the reasons and the comments, and open the flagged tickets: is the problem fixed, or still live?</li>
+      <li>Call the client contact within two working days. Listen first; agree what you'll do and by when.</li>
+      <li><b>Log a follow-up</b> with what you heard and what's next.</li>
+      <li>If HD IT needs to change something (a repeat fault, a slow queue, a person), <b>Raise an Issue</b> so it's solved in the L10, not just patched.</li>
+      <li>Watch the score over the next weeks; it drops as new feedback and quieter tickets come in.</li>
+    </ol>
     <p>Scores are worked out every morning before 6am. <b>Work it out again</b> refreshes them within about 15 minutes.</p>
   </section>
 
@@ -168,15 +194,7 @@
   <section>
     <span class="hd-eyebrow">Platform Admins</span>
     <h2>Connections</h2>
-    <p>Under <b>Platform → Connections</b>, Platform Admins enter the credentials Pulse uses to read Autotask, SimpleSAT, Xero, Datto RMM and IT Glue. Each card says what the connection is for and the permissions its API user needs.</p>
-    <p>Autotask uses <b>one API user for all of Pulse</b>. Pulse itself limits what each part can do with it: the Scorecard only reads, People and departments can only change resource departments, and Projects can only edit tasks and add time entries. Nothing in Pulse can delete Autotask records.</p>
-    <ul>
-      <li>Select <b>Enter</b>, type the details and save. Autotask details are tested first; Pulse only saves them if Autotask accepts them.</li>
-      <li>Pulse never shows a credential again. To change one, select <b>Replace</b> and give a reason.</li>
-      <li>Set an owner and a rotation-due date for each connection. Pulse flags it when rotation is overdue.</li>
-      <li>Every change is recorded in the audit log with your name and reason. The credential itself is never recorded.</li>
-      <li><b>Xero:</b> enter the Xero app's client id and secret on the <b>Xero app</b> card (its redirect URI is shown there), then select <b>Connect to Xero</b> on the <b>Xero connection</b> card. Sign in to Xero, choose HD IT's organisation and allow access. Pulse can only read reports and the chart of accounts. If the connection lapses, select <b>Reconnect</b>.</li>
-    </ul>
+    <p>Under <b>Platform → Connections</b>, Platform Admins enter the credentials Pulse uses (Autotask, SimpleSAT, Xero), the Planner plan, the Teams app and the email sender. Credentials are never shown again once saved, and every change is audited. The <b>Admin guide</b> (Help menu) covers each card, the Autotask API user's permissions, the Teams app install and what to do when a connection fails.</p>
   </section>
 
   <section>
@@ -227,6 +245,48 @@
   </section>
 
   <section>
+    <span class="hd-eyebrow">Questions</span>
+    <h2>FAQ</h2>
+    <h3>I can't see a page someone else can.</h3>
+    <p>Open <b>Your access</b> (account menu). Pages follow your Pulse groups; ask a Platform Admin to add you to the right one. It applies the next time you sign in.</p>
+    <h3>A number on the Scorecard looks wrong.</h3>
+    <p>Select the cell to see how it was worked out. If it's an automatic value on trial, the typed-in value still counts. If the week is locked, a Leadership member or someone in the measurable's division can override it with a reason. Tell the measurable's owner either way.</p>
+    <h3>Why is my name wrong in Autotask, or why can't I log time?</h3>
+    <p>Your Pulse account is linked to the wrong Autotask resource, or to none. A Platform Admin fixes it under People and departments.</p>
+    <h3>I'm not getting Teams reminders.</h3>
+    <p>Check Notifications (account menu) is on and that Pulse is in your Teams app bar, then select <b>Send me a test</b>. If nothing arrives, tell a Platform Admin.</p>
+    <h3>I ticked off a To-do in Planner but it's still open in Pulse.</h3>
+    <p>They sync every 5 minutes. If it's still open after that, check it's in the "Pulse – L10" plan.</p>
+    <h3>A client's score doesn't look fair.</h3>
+    <p>Open the client and read the reasons: each one says where it came from. Ticket sentiment can misread a ticket, so open it in Autotask. If a reason is plainly wrong (a contract end date, the wrong Account Manager), fix it in Autotask; Pulse follows the next morning. If the rule itself seems wrong, raise it with Leadership: the weights are reviewed after a few weeks of real data.</p>
+    <h3>A help page says I'm on an older version.</h3>
+    <p>Reload Pulse to pick up the latest release. In Teams, close and reopen the Pulse tab.</p>
+  </section>
+
+  <section>
+    <span class="hd-eyebrow">Words we use</span>
+    <h2>Glossary</h2>
+    <table>
+      <tbody>
+        <tr><td><b>L10</b></td><td>The weekly 90-minute leadership meeting (EOS "Level 10").</td></tr>
+        <tr><td><b>IDS</b></td><td>Identify, Discuss, Solve: how Issues are worked through.</td></tr>
+        <tr><td><b>Rock</b></td><td>A 90-day priority.</td></tr>
+        <tr><td><b>V/TO</b></td><td>Vision/Traction Organizer: HD IT's vision, 3-year picture and 1-year plan.</td></tr>
+        <tr><td><b>Measurable</b></td><td>A number on the Scorecard, with an owner and a goal.</td></tr>
+        <tr><td><b>On trial</b></td><td>An automatic value shown beside the typed-in one until Leadership trusts it.</td></tr>
+        <tr><td><b>Override</b></td><td>Changing a locked or automatic value, with a reason.</td></tr>
+        <tr><td><b>MQL / SQL</b></td><td>Marketing / Sales Qualified Lead.</td></tr>
+        <tr><td><b>MRR</b></td><td>Monthly recurring revenue from recurring contracts.</td></tr>
+        <tr><td><b>Seat</b></td><td>One unit of a seat service on a recurring contract.</td></tr>
+        <tr><td><b>SGM</b></td><td>Services gross margin (SLI F18).</td></tr>
+        <tr><td><b>DSO</b></td><td>Debtor days: how long clients take to pay.</td></tr>
+        <tr><td><b>CSAT / NPS</b></td><td>Satisfaction with a ticket (SimpleSAT) / how likely a client is to recommend HD IT (0–10).</td></tr>
+        <tr><td><b>Early Warning</b></td><td>Client health's 0–100 churn-risk score.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
     <span class="hd-eyebrow">Coming in release 1</span>
     <h2>What's on the way</h2>
     <table>
@@ -247,7 +307,9 @@
         <tr><td>0.9.0</td><td>Pulse in Teams, reminders in the Teams Activity feed, and the Monday email <b>(now available)</b></td></tr>
         <tr><td>0.10.0</td><td>Client health: the Early Warning for client churn and the happiest and least happy clients <b>(now available)</b></td></tr>
         <tr><td>0.11.0</td><td>Ticket sentiment with Azure OpenAI in Client health <b>(now available)</b></td></tr>
-        <tr><td>1.0.0</td><td>Help centre, production at pulse.hdit.com.au</td></tr>
+        <tr><td>0.11.1</td><td>Client health shows for everyone it's for; this guide's FAQ and glossary; the Admin guide <b>(now available)</b></td></tr>
+        <tr><td>Next</td><td>Pipeline, Marketing ROI and Whitespace in Pulse's look, opening at the right view from a Scorecard number</td></tr>
+        <tr><td>1.0.0</td><td>Production at pulse.hdit.com.au, with the security checks done</td></tr>
       </tbody>
     </table>
   </section>

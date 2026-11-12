@@ -2,6 +2,8 @@
 
 ## 0.11.1 — 13 November 2026
 - **Fixed: Client health didn't appear for anyone signed in.** `/api/me` sent the page a fixed list of access rules that didn't include `viewClients` and `clientMrr`, so the menu link and page stayed hidden (preview worked out access in the browser, so it showed there). `access.describe` now sends every rule `accessFor` works out, except the raw roles. Test added (167 in total).
+- **Admin guide** (Help → Admin guide, for Platform Admins, Compliance and Leadership; `frontend/admin-guide.html`): how Pulse is run, its parts, access and the quarterly review, People directory, every Connections card, the Autotask API user's allow-list and security level, Teams install, reminders and email, Azure OpenAI, background jobs, settings, data retention, audit, setup scripts, releases, Diagnose, troubleshooting, backup and restore, and the production checklist. The build checks its version like the other help pages.
+- **User guide** brought up to date: full access table (Project Managers, app groups, Client health), Teams sign-in and the Help menu, FY plan sources (Xero revenue), Client health in detail (reading the list, the client page, what to do when a client is At risk), Connections and Planner set-up moved to the Admin guide, a FAQ and a glossary, and what's next.
 
 ## 0.11.0 — 12 November 2026
 Ticket sentiment with Azure OpenAI (D23 amended; George 12 Nov 2026: Australia only, client-visible text).

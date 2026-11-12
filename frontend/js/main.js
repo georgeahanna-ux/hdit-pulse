@@ -53,6 +53,7 @@ function topbar() {
       <div class="menu" id="help-menu" hidden>
         <a href="user-guide.html?v=${CONFIG.APP_VERSION}" target="_blank" rel="noopener">User guide</a>
         <a href="changelog.html?v=${CONFIG.APP_VERSION}" target="_blank" rel="noopener">What's new</a>
+        ${ME.access.platform || ME.access.compliance || ME.access.leadership ? `<a href="admin-guide.html?v=${CONFIG.APP_VERSION}" target="_blank" rel="noopener">Admin guide</a>` : ""}
       </div></div>
     <div class="menu-wrap"><button class="avatar" id="btn-user" aria-haspopup="true" aria-expanded="false" aria-label="Your account">${esc(initials(u.name || u.email))}</button>
       <div class="menu" id="user-menu" hidden>
