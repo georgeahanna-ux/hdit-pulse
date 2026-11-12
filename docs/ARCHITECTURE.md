@@ -78,7 +78,7 @@ New app roles on the existing registration, each assigned to a group, the same w
 - **Connections page:** status, last success, owner, expiry, rotation due; secrets write-only.
 
 ### Client health (D23)
-- Sync app job "clients", nightly at 18:40 UTC and on request: recurring contracts in force (the Scorecard's read-only contract reader, `contracts.byCompany`) → clients with MRR, seats and soonest contract end; company owner → Account Manager; SimpleSAT `POST /responses/search` for 400 days → one row per CSAT or NPS rating (`client_feedback`), matched to the client by Autotask ticket number, contact id, then company name; Autotask tickets created in 90 days or still open → ticket signals.
+- Sync app job "clients", nightly at 18:40 UTC and on request: recurring contracts in force (the Scorecard's read-only contract reader, `contracts.byCompany`) → clients with MRR, seats and soonest contract end; company owner → Account Manager; SimpleSAT `POST /responses/search` for 400 days → one row per CSAT or NPS rating (`client_feedback`), matched to the client by Autotask ticket number, contact id, then company name; Autotask tickets created in 90 days or still open, without alerts and monitoring tickets (ticket type or source) → ticket signals. The first run reads SimpleSAT in full; later runs read from 14 days before the newest rating held. Writes are batched (`OPENJSON` MERGE).
 - Score and reasons from `clients/model.js` (pure, tested) into `client`; a weekly snapshot in `client_week` for the trend; follow-ups in `client_note`; Issues raised from a client carry `source_kind` "client".
 - Autotask module `clients`: read Companies, Tickets, Contacts, Resources; no writes.
 - Alerts: the clients job calls `notify.clientAlerts` for clients that just moved into At risk (Activity feed, `nudge_log` kind "client-risk").
@@ -118,6 +118,8 @@ Test: HD IT Testing Tenancy, Australia East (SWA content from East Asia), deploy
 | M7 | Release readiness | Help centre, ISO technical documents, production workflow with approval, CA policy, Defender, pulse.hdit.com.au | 1.0.0 |
 
 ## 5. Decisions taken
+**12 November 2026 (0.10.0):** Client health and the Early Warning (D23): a points-based score with named reasons (not a model nobody can explain), happiness leaderboards, Teams alert on At risk. Ticket-text sentiment left for release 2 (it would send client ticket content to a language service).
+
 **11 November 2026 (0.9.0):** Pulse in Teams; reminders in the Teams Activity feed rather than a bot chat; the Monday email from a new shared mailbox (D12 amended).
 
 **11 November 2026 (0.8.0):** two-way links built (D11): Planner To-dos, Issue → Autotask, Rock progress.
