@@ -52,9 +52,17 @@ async function loadClients(today) {
   }));
 }
 
+/**
+ * The first run reads 400 days of responses; later runs read from 14 days before the newest
+ * rating Pulse already has (late comments and edits land inside that overlap).
+ */
 async function loadFeedback(clients, now) {
-  const start = new Date(now.getTime() - KEEP_DAYS * DAY).toISOString();
-  const responses = await simplesat.responses(start, now.toISOString(), { max: 300 });
+  // Incremental only once a full read has been saved (a run cut short must not leave a gap).
+  const done = await setting("clients.feedback_full_at");
+  const [last] = done ? await db.query("SELECT MAX(answered_at) AS at FROM pulse.client_feedback") : [null];
+  const full = new Date(now.getTime() - KEEP_DAYS * DAY);
+  const from = last && last.at ? new Date(Math.max(full.getTime(), new Date(last.at).getTime() - 14 * DAY)) : full;
+  const responses = await simplesat.responses(from.toISOString(), now.toISOString(), { max: 1000 });
   const rows = responses.flatMap(M.rowsFromResponse);
   // Which Autotask tickets and contacts SimpleSAT points at.
   const numbers = rows.map(r => r.ticket && r.ticket.number).filter(Boolean);
@@ -79,7 +87,7 @@ async function loadFeedback(clients, now) {
     r.ticketNumber = r.ticket ? (r.ticket.number || null) : null;
     if (!r.ticketNumber && r.ticket && r.ticket.id) { const t = byId.find(x => Number(x.id) === r.ticket.id); r.ticketNumber = t ? t.ticketNumber : null; }
   }
-  return { rows, responses: responses.length, matched };
+  return { rows, responses: responses.length, matched, byName, from, full: from.getTime() === full.getTime() };
 }
 
 async function loadTickets(clientIds, now) {
@@ -107,18 +115,33 @@ async function loadTickets(clientIds, now) {
   return { by, count: recent.length + open.length };
 }
 
+/** Saves ratings 500 at a time (one MERGE per batch, from JSON), and drops those older than 400 days. */
 async function saveFeedback(rows) {
   await db.query("DELETE FROM pulse.client_feedback WHERE answered_at < DATEADD(day, -@keep, SYSUTCDATETIME())", { keep: KEEP_DAYS });
-  for (const r of rows) {
-    await db.query(`MERGE pulse.client_feedback AS t USING (SELECT @key AS feedback_key) AS s ON t.feedback_key = s.feedback_key
-      WHEN MATCHED THEN UPDATE SET company_id = @companyId, matched_by = @matchedBy, rating = @rating, sentiment = @sentiment, comment = @comment,
-        topics = @topics, contact_name = @contactName, team_member = @teamMember, ticket_number = @ticketNumber, ticket_subject = @ticketSubject, company_text = @companyText
+  for (let i = 0; i < rows.length; i += 500) {
+    const json = JSON.stringify(rows.slice(i, i + 500).map(r => ({
+      k: r.key, rid: r.responseId, cid: r.companyId, by: r.matchedBy, m: r.metric, rt: r.rating, s: r.sentiment, c: r.comment, tp: r.topics,
+      cn: r.contactName, tm: r.teamMember, tn: r.ticketNumber, ts: r.ticketSubject, ct: r.companyText, at: r.answeredAt.toISOString(),
+    })));
+    await db.query(`MERGE pulse.client_feedback AS t
+      USING (SELECT * FROM OPENJSON(@json) WITH (k NVARCHAR(60), rid NVARCHAR(40), cid INT, [by] NVARCHAR(10), m NVARCHAR(10), rt INT, s NVARCHAR(10),
+        c NVARCHAR(1000), tp NVARCHAR(400), cn NVARCHAR(200), tm NVARCHAR(200), tn NVARCHAR(30), ts NVARCHAR(300), ct NVARCHAR(200), [at] DATETIME2(0))) AS s
+      ON t.feedback_key = s.k
+      WHEN MATCHED THEN UPDATE SET company_id = s.cid, matched_by = s.[by], rating = s.rt, sentiment = s.s, comment = s.c, topics = s.tp,
+        contact_name = s.cn, team_member = s.tm, ticket_number = s.tn, ticket_subject = s.ts, company_text = s.ct
       WHEN NOT MATCHED THEN INSERT (feedback_key, response_id, company_id, matched_by, metric, rating, sentiment, comment, topics, contact_name, team_member, ticket_number, ticket_subject, company_text, answered_at)
-        VALUES (@key, @responseId, @companyId, @matchedBy, @metric, @rating, @sentiment, @comment, @topics, @contactName, @teamMember, @ticketNumber, @ticketSubject, @companyText, @answeredAt);`,
-    { key: r.key, responseId: r.responseId, companyId: r.companyId, matchedBy: r.matchedBy, metric: r.metric, rating: r.rating, sentiment: r.sentiment,
-      comment: r.comment, topics: r.topics, contactName: r.contactName, teamMember: r.teamMember, ticketNumber: r.ticketNumber, ticketSubject: r.ticketSubject,
-      companyText: r.companyText, answeredAt: r.answeredAt });
+        VALUES (s.k, s.rid, s.cid, s.[by], s.m, s.rt, s.s, s.c, s.tp, s.cn, s.tm, s.tn, s.ts, s.ct, s.[at]);`, { json });
   }
+}
+
+/** Ratings saved before that matched no client: try the company name again (a client may be new). */
+async function rematchByName(byName) {
+  const rows = await db.query("SELECT feedback_key, company_text FROM pulse.client_feedback WHERE company_id IS NULL AND company_text IS NOT NULL");
+  const hits = rows.map(r => ({ k: r.feedback_key, cid: byName.get(M.normName(r.company_text)) })).filter(h => h.cid);
+  for (let i = 0; i < hits.length; i += 500)
+    await db.query(`UPDATE f SET company_id = s.cid, matched_by = N'name' FROM pulse.client_feedback f
+      JOIN OPENJSON(@json) WITH (k NVARCHAR(60), cid INT) s ON f.feedback_key = s.k`, { json: JSON.stringify(hits.slice(i, i + 500)) });
+  return hits.length;
 }
 
 /** Works out every client's health and saves it. Returns the clients that newly moved into At risk. */
@@ -127,32 +150,40 @@ async function score(clients, feedbackRows, tickets, now) {
   const fb = new Map();
   for (const r of feedbackRows) if (r.companyId) { if (!fb.has(r.companyId)) fb.set(r.companyId, []); fb.get(r.companyId).push(r); }
   const week = time.weekOf(now);
-  const newlyAtRisk = [];
+  const newlyAtRisk = [], out = [];
   for (const c of clients) {
     const feedback = fb.get(c.id) || [];
     const t = M.ticketFigures(tickets.by.get(c.id) || [], now);
     const f = M.feedbackFigures(feedback, now);
     const w = M.earlyWarning({ feedback, tickets: t, contractEnd: c.contractEnd }, now);
     if (w.level === "risk" && prior.has(c.id) && prior.get(c.id) !== "risk") newlyAtRisk.push({ ...c, ...w });
-    const row = {
+    out.push({
       id: c.id, name: c.name, ownerId: c.owner ? c.owner.id : null, ownerName: c.owner ? c.owner.name : null, ownerEmail: c.owner ? c.owner.email : null,
       mrr: c.mrr, seats: c.seats, contracts: c.contracts, contractEnd: c.contractEnd,
       score: w.score, level: w.level, reasons: JSON.stringify(w.reasons),
-      happiness: f.happiness, ratings: f.ratings, ranked: f.ranked, csatPct: f.csatPct, csatN: f.csatN, nps: f.nps, npsN: f.npsN, lastFeedbackAt: f.lastFeedbackAt ? new Date(f.lastFeedbackAt) : null,
+      happiness: f.happiness, ratings: f.ratings, ranked: f.ranked ? 1 : 0, csatPct: f.csatPct, csatN: f.csatN, nps: f.nps, npsN: f.npsN,
+      lastFeedbackAt: f.lastFeedbackAt ? new Date(f.lastFeedbackAt).toISOString() : null,
       tickets30: t.tickets30, ticketsBase: t.ticketsBase, slaMissed30: t.slaMissed30, critical30: t.critical30, agedOpen: t.agedOpen,
-    };
-    await db.query(`MERGE pulse.client AS t USING (SELECT @id AS company_id) AS s ON t.company_id = s.company_id
-      WHEN MATCHED THEN UPDATE SET name = @name, owner_resource_id = @ownerId, owner_name = @ownerName, owner_email = @ownerEmail, mrr = @mrr, seats = @seats,
-        contracts = @contracts, contract_end = @contractEnd, risk_score = @score, risk_level = @level, reasons_json = @reasons, happiness = @happiness, ratings = @ratings,
-        ranked = @ranked, csat_pct = @csatPct, csat_n = @csatN, nps = @nps, nps_n = @npsN, last_feedback_at = @lastFeedbackAt, tickets_30 = @tickets30,
-        tickets_base = @ticketsBase, sla_missed_30 = @slaMissed30, critical_30 = @critical30, aged_open = @agedOpen, is_current = 1, computed_at = SYSUTCDATETIME()
+    });
+  }
+  const W = `id INT, name NVARCHAR(200), ownerId INT, ownerName NVARCHAR(200), ownerEmail NVARCHAR(320), mrr DECIMAL(12,2), seats INT, contracts INT,
+    contractEnd DATE, score INT, level NVARCHAR(10), reasons NVARCHAR(MAX), happiness DECIMAL(5,1), ratings INT, ranked BIT, csatPct DECIMAL(5,1), csatN INT,
+    nps INT, npsN INT, lastFeedbackAt DATETIME2(0), tickets30 INT, ticketsBase DECIMAL(6,1), slaMissed30 INT, critical30 INT, agedOpen INT`;
+  for (let i = 0; i < out.length; i += 200) {
+    const json = JSON.stringify(out.slice(i, i + 200));
+    await db.query(`MERGE pulse.client AS t USING (SELECT * FROM OPENJSON(@json) WITH (${W})) AS s ON t.company_id = s.id
+      WHEN MATCHED THEN UPDATE SET name = s.name, owner_resource_id = s.ownerId, owner_name = s.ownerName, owner_email = s.ownerEmail, mrr = s.mrr, seats = s.seats,
+        contracts = s.contracts, contract_end = s.contractEnd, risk_score = s.score, risk_level = s.level, reasons_json = s.reasons, happiness = s.happiness, ratings = s.ratings,
+        ranked = s.ranked, csat_pct = s.csatPct, csat_n = s.csatN, nps = s.nps, nps_n = s.npsN, last_feedback_at = s.lastFeedbackAt, tickets_30 = s.tickets30,
+        tickets_base = s.ticketsBase, sla_missed_30 = s.slaMissed30, critical_30 = s.critical30, aged_open = s.agedOpen, is_current = 1, computed_at = SYSUTCDATETIME()
       WHEN NOT MATCHED THEN INSERT (company_id, name, owner_resource_id, owner_name, owner_email, mrr, seats, contracts, contract_end, risk_score, risk_level, reasons_json,
         happiness, ratings, ranked, csat_pct, csat_n, nps, nps_n, last_feedback_at, tickets_30, tickets_base, sla_missed_30, critical_30, aged_open, is_current, computed_at)
-        VALUES (@id, @name, @ownerId, @ownerName, @ownerEmail, @mrr, @seats, @contracts, @contractEnd, @score, @level, @reasons, @happiness, @ratings, @ranked, @csatPct, @csatN,
-        @nps, @npsN, @lastFeedbackAt, @tickets30, @ticketsBase, @slaMissed30, @critical30, @agedOpen, 1, SYSUTCDATETIME());`, row);
-    await db.query(`MERGE pulse.client_week AS t USING (SELECT @id AS company_id, @week AS week) AS s ON t.company_id = s.company_id AND t.week = s.week
-      WHEN MATCHED THEN UPDATE SET risk_score = @score, happiness = @happiness
-      WHEN NOT MATCHED THEN INSERT (company_id, week, risk_score, happiness) VALUES (@id, @week, @score, @happiness);`, { id: c.id, week, score: w.score, happiness: f.happiness });
+        VALUES (s.id, s.name, s.ownerId, s.ownerName, s.ownerEmail, s.mrr, s.seats, s.contracts, s.contractEnd, s.score, s.level, s.reasons, s.happiness, s.ratings, s.ranked,
+        s.csatPct, s.csatN, s.nps, s.npsN, s.lastFeedbackAt, s.tickets30, s.ticketsBase, s.slaMissed30, s.critical30, s.agedOpen, 1, SYSUTCDATETIME());`, { json });
+    await db.query(`MERGE pulse.client_week AS t USING (SELECT id, score, happiness FROM OPENJSON(@json) WITH (id INT, score INT, happiness DECIMAL(5,1))) AS s
+      ON t.company_id = s.id AND t.week = @week
+      WHEN MATCHED THEN UPDATE SET risk_score = s.score, happiness = s.happiness
+      WHEN NOT MATCHED THEN INSERT (company_id, week, risk_score, happiness) VALUES (s.id, @week, s.score, s.happiness);`, { json, week });
   }
   // Clients no longer under a recurring contract stay for their history but leave the lists.
   const ids = clients.map(c => c.id);
@@ -168,15 +199,18 @@ async function syncClients({ now = new Date(), alert = require("../notify").clie
   catch (e) { if (e.code !== "not-connected") throw e; fbNote = "SimpleSAT not connected; "; }
   const tickets = await loadTickets(clients.map(c => c.id), now);
   if (fb.rows.length) await saveFeedback(fb.rows);
-  const stored = fb.rows.length ? fb.rows : (await db.query("SELECT * FROM pulse.client_feedback WHERE company_id IS NOT NULL")).map(fromDb);
+  if (fb.full && fb.responses) await db.query(`MERGE pulse.app_setting AS t USING (SELECT N'clients.feedback_full_at' AS [key]) AS s ON t.[key] = s.[key]
+    WHEN MATCHED THEN UPDATE SET [value] = @v, updated_by = N'clients job' WHEN NOT MATCHED THEN INSERT ([key], [value], updated_by) VALUES (s.[key], @v, N'clients job');`, { v: now.toISOString() });
+  const rematched = fb.byName ? await rematchByName(fb.byName) : 0;
+  const stored = (await db.query("SELECT * FROM pulse.client_feedback WHERE company_id IS NOT NULL")).map(fromDb);
   const newlyAtRisk = await score(clients, stored, tickets, now);
   let alerts = "";
   if (newlyAtRisk.length && alert) alerts = `; alerts: ${await alert(newlyAtRisk).catch(e => `failed (${e.message})`)}`;
   const counts = { risk: 0, watch: 0 };
   for (const c of await db.query("SELECT risk_level, COUNT(*) AS n FROM pulse.client WHERE is_current = 1 GROUP BY risk_level")) counts[c.risk_level] = c.n;
   const unmatched = fb.rows.filter(r => !r.companyId).length;
-  return `${clients.length} clients; ${fbNote}${fb.responses} SimpleSAT responses, ${fb.rows.length} ratings, ${fb.matched} matched to a client` +
-    `${unmatched ? ` (${unmatched} not matched)` : ""}; ${tickets.count} tickets read; ${counts.risk || 0} at risk, ${counts.watch || 0} to watch${alerts}`;
+  return `${clients.length} clients; ${fbNote}${fb.responses} SimpleSAT responses${fb.from ? ` since ${fb.from.toISOString().slice(0, 10)}` : ""}, ${fb.rows.length} ratings, ${fb.matched} matched to a client` +
+    `${unmatched ? ` (${unmatched} not matched)` : ""}${rematched ? `, ${rematched} earlier ones matched by name` : ""}; ${stored.length} ratings kept; ${tickets.count} tickets read; ${counts.risk || 0} at risk, ${counts.watch || 0} to watch${alerts}`;
 }
 
 /** A stored feedback row in the model's shape. */

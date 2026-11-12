@@ -8,7 +8,7 @@ Client health and the Early Warning for client churn (D23, asked for by George 1
 - **Teams alert** to the Account Manager when a client moves into At risk (once a week per client; not on the first run).
 - **Clients job** (sync service, nightly 18:40 UTC and on request): SimpleSAT *responses* (customer, ticket, team member and answers) for 400 days, matched to the client by the Autotask ticket number, then the contact, then the company name; Autotask tickets created in 90 days or still open; contracts through the Scorecard's read-only contract reader (`contracts.byCompany`). New read-only `clients` module in the Autotask allow-list (Companies, Tickets, Contacts, Resources). Ratings are kept 400 days; no email addresses are stored.
 - **Not yet:** sentiment from the text of Autotask tickets. Feedback sentiment comes from SimpleSAT (what clients wrote in their survey answers).
-- Diagnose: `clients` job and `inspect:simplesat-responses` (field names only). Migration `0017_client_health`. 14 new tests (159 in total).
+- Diagnose: `clients` job and `inspect:simplesat-responses` (field names only). Migration `0017_client_health`. 15 new tests (160 in total).
 
 ## 0.9.0 — 11 November 2026
 Pulse in Microsoft Teams, reminders and the weekly email (M5, D12; reminders in the Activity feed instead of a bot chat, decided 11 Nov 2026).

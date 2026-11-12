@@ -164,3 +164,65 @@ test("who sees Client health, and who sees MRR on it", () => {
   assert.equal(a(["Pulse.User", "Division.Finance"]).viewClients, false);
   assert.equal(a(["Pulse.User"]).viewClients, false);
 });
+
+test("the clients job: reads, matches, scores and saves (Autotask, SimpleSAT and SQL stood in)", async () => {
+  const at = require("../src/lib/autotask");
+  const ss = require("../src/lib/simplesat");
+  const db = require("../src/lib/sql");
+  const sync = require("../src/clients/sync");
+  const saved = { at: { ...at }, load: contracts.load, by: contracts.byCompany, resp: ss.responses };
+  const now = new Date("2026-11-12T03:00:00Z");
+  const sqls = [];
+  let feedbackTable = [];
+  try {
+    contracts.load = async () => ({});
+    contracts.byCompany = () => new Map([[7, { mrr: 1000, seats: 10, contracts: 1, contractEnd: "2026-12-01" }], [8, { mrr: 500, seats: 4, contracts: 1, contractEnd: "2027-08-01" }]]);
+    at.queryIn = async (mod, entity, field, ids) => {
+      assert.equal(mod, "clients");
+      if (entity === "Companies") return [{ id: 7, companyName: "Acme Pty Ltd", ownerResourceID: 30, isActive: true }, { id: 8, companyName: "Beta Co", ownerResourceID: null, isActive: true }];
+      if (entity === "Resources") return [{ id: 30, firstName: "Taylor", lastName: "Reid", email: "Taylor.Reid@hdit.com.au" }];
+      if (entity === "Contacts") return [{ id: 555, companyID: 8 }];
+      return [];
+    };
+    at.query = async (mod, entity, filter) => {
+      assert.equal(mod, "clients");
+      if (entity === "Tickets" && filter[0].field === "ticketNumber") return [{ id: 1, ticketNumber: "T20261101.0001", companyID: 7 }];
+      if (entity === "Tickets" && filter[0].field === "createDate") return [{ id: 2, companyID: 7, createDate: "2026-11-05T00:00:00Z", completedDate: "2026-11-06T00:00:00Z", priority: 4, status: 5, serviceLevelAgreementHasBeenMet: false }];
+      return [];
+    };
+    at.picklist = async (m, e, f) => (f === "priority" ? [{ value: 4, label: "Critical" }, { value: 2, label: "Medium" }] : [{ value: 5, label: "Complete" }, { value: 1, label: "New" }]);
+    at.known = async (m, e, w) => w;
+    ss.responses = async () => [
+      { id: 1, created: "2026-11-02T00:00:00Z", customer: { name: "Jane", company: "Acme" }, ticket: { external_id: "T20261101.0001" }, answers: [{ question: { metric: "nps" }, choice: 2, sentiment: "negative", comment: "Not happy" }] },
+      { id: 2, created: "2026-11-03T00:00:00Z", customer: { name: "Bob", external_id: "555" }, ticket: {}, answers: [{ question: { metric: "csat" }, choice: 5, sentiment: "positive" }] },
+      { id: 3, created: "2026-11-04T00:00:00Z", customer: { name: "Who", company: "Nobody Ltd" }, ticket: {}, answers: [{ question: { metric: "csat" }, choice: 1, sentiment: "negative" }] },
+    ];
+    db._test.use({
+      async query(text, p = {}) {
+        sqls.push(text);
+        if (/FROM pulse.app_setting/.test(text)) return [];
+        if (/SELECT company_id, risk_level FROM pulse.client/.test(text)) return [];
+        if (/MERGE pulse.client_feedback/.test(text)) { feedbackTable.push(...JSON.parse(p.json)); return []; }
+        if (/SELECT \* FROM pulse.client_feedback WHERE company_id IS NOT NULL/.test(text))
+          return feedbackTable.filter(r => r.cid).map(r => ({ feedback_key: r.k, response_id: r.rid, company_id: r.cid, metric: r.m, rating: r.rt, sentiment: r.s, comment: r.c, contact_name: r.cn, answered_at: new Date(r.at) }));
+        if (/MERGE pulse.client AS t/.test(text)) {
+          const rows = JSON.parse(p.json);
+          const acme = rows.find(r => r.id === 7);
+          assert.equal(acme.ownerEmail, "taylor.reid@hdit.com.au");
+          assert.equal(acme.level, "risk", `Acme: detractor + SLA + critical + contract ending (${acme.score})`);
+          assert.equal(rows.find(r => r.id === 8).score, 0);
+          return [];
+        }
+        if (/GROUP BY risk_level/.test(text)) return [{ risk_level: "risk", n: 1 }];
+        return [];
+      },
+    });
+    const out = await sync.syncClients({ now, alert: null });
+    assert.match(out, /2 clients; 3 SimpleSAT responses since 2025-10-08, 3 ratings, 2 matched to a client \(1 not matched\)/);
+    assert.match(out, /1 at risk/);
+    assert.deepEqual(feedbackTable.map(r => [r.k, r.cid, r.by]), [["1:nps", 7, "ticket"], ["2:csat", 8, "contact"], ["3:csat", null, null]]);
+    assert.ok(sqls.some(q => /clients.feedback_full_at/.test(q) && /MERGE/.test(q)), "marks the full read as done");
+  } finally {
+    Object.assign(at, saved.at); contracts.load = saved.load; contracts.byCompany = saved.by; ss.responses = saved.resp;
+  }
+});
